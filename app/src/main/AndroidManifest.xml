@@ -4,6 +4,8 @@
 
     <!-- The daily reminder (Android 13+ asks when it's turned on) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The header's offline status -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".SpendWiseApp"

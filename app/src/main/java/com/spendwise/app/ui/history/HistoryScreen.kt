@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.history
 
+import com.spendwise.app.ui.components.show
 import android.content.ClipData
 import android.content.Intent
 import androidx.compose.foundation.clickable
@@ -89,7 +90,7 @@ fun HistoryScreen(
     LaunchedEffect(message) {
         val text = message ?: return@LaunchedEffect
         history.messageShown()
-        snackbar.showSnackbar(text)
+        snackbar.show(text)
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0)) { padding ->

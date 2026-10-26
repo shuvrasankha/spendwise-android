@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** A snackbar on Home; [undoId] is an expense its Undo deletes. */
-data class Notice(val text: String, val undoId: String? = null)
+data class Notice(val text: String, val undoId: String? = null, val error: Boolean = false)
 
 /** The goal dialog: "add" money to [goal], or edit it ([goal] null for a new one). */
 data class GoalEditing(val adding: Boolean, val goal: Goal?)
@@ -145,7 +145,7 @@ class PlansViewModel @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _notice.update { Notice(failure) }
+            _notice.update { Notice(failure, error = true) }
         }
     }
 }

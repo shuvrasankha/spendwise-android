@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.spendwise.app.ui.components.Toast
 import javax.inject.Inject
 
 sealed interface InvestPage {
@@ -139,8 +140,8 @@ class InvestViewModel @Inject constructor(
     /** An entry waiting for the holding being made from its "Into" list; it reopens with that holding picked. */
     private var entryAwaiting: EntryDialog? = null
 
-    private val _toast = MutableStateFlow<String?>(null)
-    val toast: StateFlow<String?> = _toast.asStateFlow()
+    private val _toast = MutableStateFlow<Toast?>(null)
+    val toast: StateFlow<Toast?> = _toast.asStateFlow()
     fun toastShown() { _toast.value = null }
 
     fun retry() = reload.update { it + 1 }
@@ -175,7 +176,7 @@ class InvestViewModel @Inject constructor(
             is Checked.Invalid -> _formMessage.value = FormMessage(c.message)
             is Checked.Ok -> {
                 watch(expenseRepo.addInvestment(c.value)) { _formMessage.value = FormMessage("Couldn't save it. Check your connection and try again.") }
-                _toast.value = "${whole(c.value.amount)} put into ${c.value.holding.name}."
+                _toast.value = Toast("${whole(c.value.amount)} put into ${c.value.holding.name}.")
                 _form.update { it.copy(amount = "", notes = "", repeat = null) }
             }
         }
@@ -213,13 +214,13 @@ class InvestViewModel @Inject constructor(
             is Checked.Invalid -> _holding.update { it?.copy(error = c.message) }
             is Checked.Ok -> {
                 val failed = { e: Exception ->
-                    _toast.value = if (e.denied()) "This account can't save holdings yet. The app's security rules need an update."
-                    else "Couldn't save it. Check your connection and try again."
+                    _toast.value = Toast(if (e.denied()) "This account can't save holdings yet. The app's security rules need an update."
+                    else "Couldn't save it. Check your connection and try again.", error = true)
                 }
                 _holding.value = null
                 if (was != null) {
                     watch(holdingRepo.edit(was, c.value), failed)
-                    _toast.value = "Holding saved."
+                    _toast.value = Toast("Holding saved.")
                     return
                 }
                 val write = holdingRepo.add(c.value)
@@ -230,9 +231,9 @@ class InvestViewModel @Inject constructor(
                 entryAwaiting = null
                 if (awaiting != null) {
                     _entry.value = awaiting.copy(holdingId = write.id)
-                    _toast.value = "${c.value.name} added. Save to move the money into it."
+                    _toast.value = Toast("${c.value.name} added. Save to move the money into it.")
                 } else {
-                    _toast.value = "${c.value.name} added. Now put money in."
+                    _toast.value = Toast("${c.value.name} added. Now put money in.")
                 }
             }
         }
@@ -245,13 +246,13 @@ class InvestViewModel @Inject constructor(
     fun deleteHolding() {
         val p = ready() ?: return
         val h = p.holdings.firstOrNull { it.id == _holding.value?.id } ?: return
-        val failed = { _: Exception -> _toast.value = "Couldn't delete it. Check your connection and try again." }
+        val failed = { _: Exception -> _toast.value = Toast("Couldn't delete it. Check your connection and try again.", error = true) }
         val sip = p.portfolio.rows.firstOrNull { it.holding.id == h.id }?.sip
         if (sip != null && !sip.template.pending) watch(expenseRepo.stopRepeat(sip.template.id), failed)
         watch(holdingRepo.delete(h.id), failed)
         if (_chosen.value == h.id) _chosen.value = null
         _holding.value = null
-        _toast.value = "Holding deleted."
+        _toast.value = Toast("Holding deleted.")
     }
 
     // ── Entry dialog ──
@@ -282,10 +283,10 @@ class InvestViewModel @Inject constructor(
             is Checked.Invalid -> _entry.update { it?.copy(error = c.message) }
             is Checked.Ok -> {
                 watch(expenseRepo.editInvestment(e.id, c.value, hadHoldingId = e.holdingId != null)) {
-                    _toast.value = "Couldn't save it. Check your connection and try again."
+                    _toast.value = Toast("Couldn't save it. Check your connection and try again.", error = true)
                 }
                 _entry.value = null
-                _toast.value = "Saved."
+                _toast.value = Toast("Saved.")
             }
         }
     }
@@ -294,9 +295,9 @@ class InvestViewModel @Inject constructor(
     fun cancelDeleteEntry() = _entry.update { it?.copy(confirmDelete = false) }
     fun deleteEntry() {
         val d = _entry.value ?: return
-        watch(expenseRepo.delete(d.id)) { _toast.value = "Couldn't delete it. Check your connection and try again." }
+        watch(expenseRepo.delete(d.id)) { _toast.value = Toast("Couldn't delete it. Check your connection and try again.", error = true) }
         _entry.value = null
-        _toast.value = "Deleted."
+        _toast.value = Toast("Deleted.")
     }
 
     /** Writes land in the local cache at once, offline too; only a later refusal from the server is reported. */

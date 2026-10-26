@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.settings
 
+import com.spendwise.app.ui.components.Avatar
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -161,15 +162,6 @@ private fun Muted(text: String) = Text(
     color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier = Modifier.padding(horizontal = 16.dp),
 )
-
-/** The first letter of the name (or email), like the web's avatar without a photo. */
-@Composable
-private fun Avatar(name: String) = Box(
-    Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-    contentAlignment = Alignment.Center,
-) {
-    Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-}
 
 @Composable
 private fun CurrencyDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) = AlertDialog(

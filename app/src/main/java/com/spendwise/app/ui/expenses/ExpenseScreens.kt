@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.expenses
 
+import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -218,6 +219,6 @@ private fun ListMessages(viewModel: ExpensesViewModel, snackbar: SnackbarHostSta
     LaunchedEffect(message) {
         val text = message ?: return@LaunchedEffect
         viewModel.messageShown()
-        snackbar.showSnackbar(text)
+        snackbar.show(text)
     }
 }

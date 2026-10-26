@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.spendwise.app.ui.components.Toast
 import javax.inject.Inject
 
 sealed interface DebtsPage {
@@ -128,8 +129,8 @@ class DebtsViewModel @Inject constructor(
     val reopening: StateFlow<String?> = _reopening.asStateFlow()
 
     /** One toast at a time, as the web's showToast. */
-    private val _toast = MutableStateFlow<String?>(null)
-    val toast: StateFlow<String?> = _toast.asStateFlow()
+    private val _toast = MutableStateFlow<Toast?>(null)
+    val toast: StateFlow<Toast?> = _toast.asStateFlow()
     fun toastShown() { _toast.value = null }
 
     fun retry() = reload.update { it + 1 }
@@ -201,13 +202,13 @@ class DebtsViewModel @Inject constructor(
         payError(d, n, dialog.date, ::fmt)?.let { e -> _pay.update { it?.copy(error = e) }; return }
         if (d.shared) {
             watch(repo.claim(d.id, round2(n!!), dialog.date)) { e ->
-                _toast.value = if (e.denied()) "SpendWise can't send this yet. Try again later." else "Couldn't send it. Check your connection and try again."
+                _toast.value = Toast(if (e.denied()) "SpendWise can't send this yet. Try again later." else "Couldn't send it. Check your connection and try again.", error = true)
             }
-            _toast.value = "Sent. ${d.person} will confirm it."
+            _toast.value = Toast("Sent. ${d.person} will confirm it.")
         } else {
             val r = payDebt(d.amount, d.paid, n!!, dialog.date) as PayResult.Ok
-            watch(repo.pay(d.id, r.paid, r.settles, dialog.date)) { _toast.value = "Couldn't save the payment. Check your connection and try again." }
-            _toast.value = if (r.settles) "Paid off. Debt settled!" else "Payment saved. ${fmt(debtLeft(d.amount, r.paid))} left."
+            watch(repo.pay(d.id, r.paid, r.settles, dialog.date)) { _toast.value = Toast("Couldn't save the payment. Check your connection and try again.", error = true) }
+            _toast.value = Toast(if (r.settles) "Paid off. Debt settled!" else "Payment saved. ${fmt(debtLeft(d.amount, r.paid))} left.")
         }
         closePay()
     }
@@ -217,9 +218,9 @@ class DebtsViewModel @Inject constructor(
         val d = debt(_pay.value?.id) ?: return
         if (d.shared) return
         watch(repo.removePayment(d.id, d.paid.filterIndexed { i, _ -> i != index })) {
-            _toast.value = "Couldn't remove it. Check your connection and try again."
+            _toast.value = Toast("Couldn't remove it. Check your connection and try again.", error = true)
         }
-        _toast.value = "Payment removed."
+        _toast.value = Toast("Payment removed.")
     }
 
     /** Undo (theirs) and Not yet (the owner's) clear the claim; Confirm counts it as a payment. */
@@ -229,7 +230,7 @@ class DebtsViewModel @Inject constructor(
     private fun clearClaim(id: String, done: String) {
         debt(id) ?: return
         watch(repo.clearClaim(id), ::claimFailed)
-        _toast.value = done
+        _toast.value = Toast(done)
     }
 
     fun confirmClaim(id: String) {
@@ -238,7 +239,7 @@ class DebtsViewModel @Inject constructor(
         when (val r = payDebt(d.amount, d.paid, c.amount, c.date)) {
             is PayResult.Ok -> {
                 watch(repo.confirmClaim(d.id, r.paid, r.settles, c.date), ::claimFailed)
-                _toast.value = if (r.settles) "Paid off. Debt settled!" else "Payment confirmed."
+                _toast.value = Toast(if (r.settles) "Paid off. Debt settled!" else "Payment confirmed.")
             }
             else -> claimFailed(null)
         }
@@ -246,8 +247,8 @@ class DebtsViewModel @Inject constructor(
 
     // permission-denied: the published rules don't allow it (firestore.rules › debts), not the network
     private fun claimFailed(e: Exception?) {
-        _toast.value = if (e?.denied() == true) "SpendWise can't update this debt yet. Try again later."
-        else "Couldn't update the debt. Check your connection and try again."
+        _toast.value = Toast(if (e?.denied() == true) "SpendWise can't update this debt yet. Try again later."
+        else "Couldn't update the debt. Check your connection and try again.", error = true)
     }
 
     // ── Delete and Reopen (owner only) ──
@@ -258,8 +259,8 @@ class DebtsViewModel @Inject constructor(
         val d = debt(_deleting.value)?.takeIf { !it.shared }
         _deleting.value = null
         if (d == null) return
-        watch(repo.delete(d.id)) { _toast.value = "Delete failed." }
-        _toast.value = "Debt deleted."
+        watch(repo.delete(d.id)) { _toast.value = Toast("Delete failed.", error = true) }
+        _toast.value = Toast("Debt deleted.")
     }
 
     fun askReopen(id: String) { _reopening.value = id }
@@ -268,8 +269,8 @@ class DebtsViewModel @Inject constructor(
         val d = debt(_reopening.value)?.takeIf { !it.shared }
         _reopening.value = null
         if (d == null) return
-        watch(repo.reopen(d.id, reopenPaid(d))) { _toast.value = "Reactivation failed." }
-        _toast.value = "Debt reactivated!"
+        watch(repo.reopen(d.id, reopenPaid(d))) { _toast.value = Toast("Reactivation failed.", error = true) }
+        _toast.value = Toast("Debt reactivated!")
     }
 
     /** Writes land in the local cache at once, offline too; only a later refusal from the server is reported. */

@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.insights
 
+import com.spendwise.app.ui.components.Toast
+import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -96,7 +98,7 @@ fun InsightsScreen(
     LaunchedEffect(notice) {
         val n = notice ?: return@LaunchedEffect
         plans.noticeShown()
-        snackbar.showSnackbar(n.text)
+        snackbar.show(Toast(n.text, n.error))
     }
     PlanDialogs(plans, currency)
 

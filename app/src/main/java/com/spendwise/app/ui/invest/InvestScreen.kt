@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.invest
 
+import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -91,7 +92,7 @@ fun InvestScreen(onAllHistory: () -> Unit, vm: InvestViewModel = hiltViewModel()
     LaunchedEffect(toast) {
         val text = toast ?: return@LaunchedEffect
         vm.toastShown()
-        snackbar.showSnackbar(text)
+        snackbar.show(text)
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0)) { padding ->

@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.debts
 
+import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -96,7 +97,7 @@ fun DebtsScreen(vm: DebtsViewModel = hiltViewModel()) {
     LaunchedEffect(toast) {
         val text = toast ?: return@LaunchedEffect
         vm.toastShown()
-        snackbar.showSnackbar(text)
+        snackbar.show(text)
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0)) { padding ->

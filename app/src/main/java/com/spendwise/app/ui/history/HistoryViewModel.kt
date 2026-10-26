@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import com.spendwise.app.ui.components.Toast
 import javax.inject.Inject
 
 const val HISTORY_STEP = 50
@@ -179,8 +180,8 @@ class HistoryViewModel @Inject constructor(
     private val _share = MutableStateFlow<SharedFile?>(null)
     val share: StateFlow<SharedFile?> = _share.asStateFlow()
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private val _message = MutableStateFlow<Toast?>(null)
+    val message: StateFlow<Toast?> = _message.asStateFlow()
 
     fun retry() = reload.update { it + 1 }
 
@@ -241,7 +242,7 @@ class HistoryViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _message.value = "Couldn't create the export file. Try again."
+                _message.value = Toast("Couldn't create the export file. Try again.", error = true)
             }
         }
     }

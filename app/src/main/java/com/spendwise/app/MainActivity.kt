@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
                     when (authState) {
                         AuthState.Loading -> AuthLoading()
                         AuthState.SignedOut -> SignInScreen()
-                        is AuthState.SignedIn -> AppShell(link) { link = null }
+                        is AuthState.SignedIn -> AppShell(link, onLinkOpened = { link = null })
                     }
                 }
             }

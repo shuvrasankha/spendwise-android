@@ -27,6 +27,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.spendwise.app.ui.components.Avatar
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.runtime.remember
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -59,8 +72,9 @@ private val moreItems = listOf(Income to "Income", Investments to "Investments",
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}) {
+fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewModel = hiltViewModel()) {
     val nav = rememberNavController()
+    val header by shell.header.collectAsStateWithLifecycle()
     LaunchedEffect(link) {
         if (link == null) return@LaunchedEffect
         nav.openLink(link)
@@ -71,6 +85,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}) {
     val inMore = moreItems.any { (route, _) -> destination?.hasRoute(route::class) == true }
 
     Scaffold(
+        topBar = { Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut) },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->
@@ -136,6 +151,41 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}) {
             }
         }
     }
+}
+
+/** The header on every signed-in page (spec §1.0): sync status, and the avatar menu with who's signed in. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    TopAppBar(
+        title = {
+            Text(
+                header.status ?: "SpendWise",
+                style = if (header.status == null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyMedium,
+                color = if (header.status == null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        },
+        actions = {
+            Box {
+                IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Account menu" }) {
+                    Avatar(header.name.ifEmpty { header.email }, size = 32.dp)
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text(header.name.ifEmpty { "Your account" }, style = MaterialTheme.typography.titleSmall)
+                        if (header.email.isNotEmpty()) {
+                            Text(header.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    HorizontalDivider()
+                    DropdownMenuItem(text = { Text("Settings") }, onClick = { menu = false; onSettings() })
+                    DropdownMenuItem(text = { Text("Log out") }, onClick = { menu = false; onLogOut() })
+                }
+            }
+        },
+    )
 }
 
 /** A link opens a fresh copy of its page so its filters apply; the start page just switches to itself. */

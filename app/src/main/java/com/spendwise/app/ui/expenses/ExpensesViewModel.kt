@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.spendwise.app.ui.components.Toast
 import javax.inject.Inject
 
 sealed interface ExpenseList {
@@ -63,8 +64,8 @@ class ExpensesViewModel @Inject constructor(
     private val _confirmDelete = MutableStateFlow<Expense?>(null)
     val confirmDelete: StateFlow<Expense?> = _confirmDelete.asStateFlow()
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private val _message = MutableStateFlow<Toast?>(null)
+    val message: StateFlow<Toast?> = _message.asStateFlow()
 
     fun retry() = reload.update { it + 1 }
     fun askDelete(expense: Expense) = _confirmDelete.update { expense }
@@ -75,14 +76,14 @@ class ExpensesViewModel @Inject constructor(
         val expense = _confirmDelete.value ?: return
         _confirmDelete.update { null }
         val write = repo.delete(expense.id)
-        _message.update { "Expense deleted." }
+        _message.update { Toast("Expense deleted.") }
         viewModelScope.launch {
             try {
                 write.confirmed()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _message.update { "Couldn't delete the expense. Check your connection and try again." }
+                _message.update { Toast("Couldn't delete the expense. Check your connection and try again.", error = true) }
             }
         }
     }

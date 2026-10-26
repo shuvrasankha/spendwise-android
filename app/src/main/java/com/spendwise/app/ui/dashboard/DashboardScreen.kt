@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.dashboard
 
+import com.spendwise.app.ui.components.Toast
+import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -85,7 +87,7 @@ fun DashboardScreen(
     LaunchedEffect(notice) {
         val n = notice ?: return@LaunchedEffect
         plans.noticeShown()
-        val result = snackbar.showSnackbar(n.text, actionLabel = n.undoId?.let { "Undo" }, duration = SnackbarDuration.Long)
+        val result = snackbar.show(Toast(n.text, n.error), actionLabel = n.undoId?.let { "Undo" }, duration = SnackbarDuration.Long)
         if (result == SnackbarResult.ActionPerformed) n.undoId?.let(plans::undoDue)
     }
     PlanDialogs(plans, currency)
