@@ -5,12 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.expenses.PendingWrite
-import com.spendwise.app.domain.BANK_MAX
-import com.spendwise.app.domain.INCOME_NOTES_MAX
 import com.spendwise.app.domain.IncomeCheck
-import com.spendwise.app.domain.ONLINE
-import com.spendwise.app.domain.SOURCE_MAX
-import com.spendwise.app.domain.checkIncomeEdit
+import com.spendwise.app.domain.checkIncome
 import com.spendwise.app.ui.expenses.FormMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -20,15 +16,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class IncomeForm(
-    val amount: String = "",
-    val date: String = "",
-    val source: String = "",
-    val paymentType: String = ONLINE,
-    val bank: String = "",
-    val notes: String = "",
-)
 
 data class IncomeEditorState(
     val loading: Boolean = true,
@@ -40,12 +27,12 @@ data class IncomeEditorState(
     val done: Boolean = false,
 )
 
-/** History's income edit (dashboard.js › openIncEdit, saveIncEdit, confirmIncDelete; spec §2.5). Route arg "id". */
+/** Edit one income entry, from History or the Income page (saveIncEdit / saveEditIncome; spec §2.5). Route arg "id". */
 @HiltViewModel
 class IncomeEditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: IncomeRepository,
-) : ViewModel() {
+) : ViewModel(), IncomeFormActions {
 
     private val id: String = checkNotNull(savedStateHandle["id"])
 
@@ -67,14 +54,7 @@ class IncomeEditorViewModel @Inject constructor(
                 } else {
                     it.copy(
                         loading = false,
-                        form = IncomeForm(
-                            amount = income.amount.toPlainString(),
-                            date = income.date,
-                            source = income.source,
-                            paymentType = income.paymentType.ifEmpty { ONLINE },
-                            bank = income.bank,
-                            notes = income.notes,
-                        ),
+                        form = IncomeForm.of(income),
                     )
                 }
             }
@@ -83,20 +63,16 @@ class IncomeEditorViewModel @Inject constructor(
 
     private fun updateForm(change: (IncomeForm) -> IncomeForm) = _state.update { it.copy(form = change(it.form), message = null) }
 
-    /** Digits and one decimal point only, as on the Add expense form. */
-    fun setAmount(v: String) {
-        if (v.all { it.isDigit() || it == '.' } && v.count { it == '.' } <= 1) updateForm { it.copy(amount = v) }
-    }
-    fun setDate(v: String) = updateForm { it.copy(date = v) }
-    fun setSource(v: String) = updateForm { it.copy(source = v.take(SOURCE_MAX)) }
-    /** Cash clears the bank, as toggleIncEditBank does. */
-    fun setPaymentType(v: String) = updateForm { it.copy(paymentType = v, bank = if (v == ONLINE) it.bank else "") }
-    fun setBank(v: String) = updateForm { it.copy(bank = v.take(BANK_MAX)) }
-    fun setNotes(v: String) = updateForm { it.copy(notes = v.take(INCOME_NOTES_MAX)) }
+    override fun setAmount(v: String) = updateForm { it.withAmount(v) }
+    override fun setDate(v: String) = updateForm { it.copy(date = v) }
+    override fun setSource(v: String) = updateForm { it.withSource(v) }
+    override fun setPaymentType(v: String) = updateForm { it.withPaymentType(v) }
+    override fun setBank(v: String) = updateForm { it.withBank(v) }
+    override fun setNotes(v: String) = updateForm { it.withNotes(v) }
 
     fun save() {
         val f = _state.value.form
-        when (val check = checkIncomeEdit(f.amount, f.date, f.source, f.paymentType, f.bank, f.notes)) {
+        when (val check = checkIncome(f.amount, f.date, f.source, f.paymentType, f.bank, f.notes, adding = false)) {
             is IncomeCheck.Invalid -> _state.update { it.copy(message = FormMessage(check.message)) }
             is IncomeCheck.Ok -> {
                 watch(repo.edit(id, check.input), "Failed to update. Try again.")
@@ -123,7 +99,3 @@ class IncomeEditorViewModel @Inject constructor(
         }
     }
 }
-
-/** 250.0 → "250", 182.5 → "182.5", as the web fills its edit field. */
-private fun Double.toPlainString(): String =
-    if (this == Math.floor(this) && !isInfinite()) toLong().toString() else toBigDecimal().stripTrailingZeros().toPlainString()

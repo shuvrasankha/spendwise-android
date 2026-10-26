@@ -1,6 +1,7 @@
 package com.spendwise.app.ui.history
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.IncomeRepository
@@ -122,6 +123,7 @@ private data class Data(val expenses: List<Expense>, val income: List<Income>)
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     expenseRepo: ExpenseRepository,
     incomeRepo: IncomeRepository,
     prefs: DevicePrefs,
@@ -129,7 +131,9 @@ class HistoryViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val reload = MutableStateFlow(0)
-    private val filters = MutableStateFlow(HistoryFilters())
+    private val filters = MutableStateFlow(
+        HistoryFilters(tab = if (savedStateHandle.get<Boolean>("income") == true) HistoryTab.INCOME else HistoryTab.EXPENSES),
+    )
 
     private val _query = MutableStateFlow("")
     /** The search box's text, as typed. */

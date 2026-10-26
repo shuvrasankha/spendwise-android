@@ -29,6 +29,10 @@ fun incomeFrom(id: String, data: Map<String, Any?>, pending: Boolean = false) = 
     pending = pending,
 )
 
+/** income.js › addIncome: the whole new doc, keys in the web's order. [createdAt] is the server timestamp sentinel. */
+fun newIncomeFields(uid: String, input: IncomeInput, createdAt: Any): Map<String, Any> =
+    linkedMapOf<String, Any>("uid" to uid) + editedIncomeFields(input) + ("createdAt" to createdAt)
+
 /** saveIncEdit's update: the edited fields only, so anything else on the doc is kept. */
 fun editedIncomeFields(input: IncomeInput): Map<String, Any> = mapOf(
     "amount" to toFirestoreNumber(input.amount),

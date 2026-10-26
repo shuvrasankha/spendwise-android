@@ -1,5 +1,6 @@
 package com.spendwise.app.data
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.expenses.PendingWrite
@@ -17,7 +18,7 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Live reads of income, debts, holdings and settings. Writes arrive with each feature's slice (income edits with History).
+// Live reads of income, debts, holdings and settings, and income's writes. The others' writes arrive with their slices.
 
 @Singleton
 class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
@@ -32,6 +33,12 @@ class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, pr
     suspend fun income(id: String): Income? {
         val doc = collection.document(id).get().await()
         return if (doc.exists()) incomeFrom(doc.id, doc.data.orEmpty(), doc.metadata.hasPendingWrites()) else null
+    }
+
+    fun add(input: IncomeInput): PendingWrite {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        val ref = collection.document()
+        return PendingWrite(ref.id, ref.set(newIncomeFields(uid, input, FieldValue.serverTimestamp())))
     }
 
     fun edit(id: String, input: IncomeInput): PendingWrite = PendingWrite(id, collection.document(id).update(editedIncomeFields(input)))

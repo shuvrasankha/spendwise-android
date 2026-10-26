@@ -96,4 +96,26 @@ class ReadMappersTest {
         assertEquals(1250.5, editedIncomeFields(IncomeInput(1250.5, "2026-10-01", "Bonus", "Online", "SBI", "")).getValue("amount"))
         assertTrue(incomeFrom("i", mapOf("amount" to 1L), pending = true).pending)
     }
+
+    @Test fun incomeAdd_wholeDoc_inTheWebsKeyOrder() {
+        val sentinel = Any()
+        val doc = newIncomeFields("u1", IncomeInput(85000.0, "2026-10-01", "Salary", "Online", "ICICI", ""), sentinel)
+        assertEquals(listOf("uid", "amount", "date", "source", "paymentType", "bank", "notes", "encoding", "createdAt"), doc.keys.toList())
+        assertEquals(85000L, doc["amount"])
+        assertEquals("plain", doc["encoding"])
+        assertTrue(doc["createdAt"] === sentinel)
+        assertEquals("u1", doc["uid"])
+    }
+
+    @Test fun income_csvImportWithoutEncoding_reads() {
+        // A CSV-imported doc (spec §9.6): no encoding, and the amount as the import wrote it
+        val i = incomeFrom("c1", mapOf("uid" to "u1", "amount" to 4500L, "date" to "2026-03-14", "source" to "Refund from Amazon", "paymentType" to "Online", "bank" to "", "notes" to ""))
+        assertEquals(4500.0, i.amount, 0.0)
+        assertEquals("Refund from Amazon", i.source)
+        assertFalse(i.pending)
+        // And it round-trips: what Android reads is what an edit writes back, now with encoding
+        val back = editedIncomeFields(IncomeInput(i.amount, i.date, i.source, i.paymentType, "SBI", i.notes))
+        assertEquals("plain", back["encoding"])
+        assertEquals(4500L, back["amount"])
+    }
 }

@@ -145,7 +145,7 @@ fun ExpenseFormFields(form: ExpenseForm, currency: Currency, viewModel: ExpenseE
 /** Today / Yesterday chips plus a calendar, always as a local-calendar "YYYY-MM-DD" (spec §3.0). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun DateField(date: String, onDate: (String) -> Unit) {
+fun DateField(date: String, onDate: (String) -> Unit) {
     var picking by rememberSaveable { mutableStateOf(false) }
     val today = todayStr()
     val yesterday = LocalDate.parse(today).minusDays(1).toString()

@@ -179,7 +179,7 @@ class HistoryTest {
 
     @Test fun incomeEditChecks_inWebOrder() {
         fun check(amount: String = "500", date: String = "2026-10-01", source: String = "Salary", type: String = ONLINE, bank: String = "SBI") =
-            checkIncomeEdit(amount, date, source, type, bank, " ")
+            checkIncome(amount, date, source, type, bank, " ", adding = false)
         assertEquals(IncomeCheck.Invalid("Enter a valid amount."), check(amount = "0"))
         assertEquals(IncomeCheck.Invalid("Enter a valid amount."), check(amount = ""))
         assertEquals(IncomeCheck.Invalid("Select a date."), check(date = ""))

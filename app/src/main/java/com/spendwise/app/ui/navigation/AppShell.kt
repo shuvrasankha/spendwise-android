@@ -39,13 +39,14 @@ import com.spendwise.app.ui.expenses.AddExpenseScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
 import com.spendwise.app.ui.history.HistoryScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
+import com.spendwise.app.ui.income.IncomeScreen
 import com.spendwise.app.ui.settings.SettingsScreen
 
 private data class Tab(val route: Any, val label: String, @param:DrawableRes val icon: Int)
 
 private val tabs = listOf(
     Tab(Dashboard, "Dashboard", R.drawable.ic_tab_dashboard),
-    Tab(History, "History", R.drawable.ic_tab_history),
+    Tab(History(), "History", R.drawable.ic_tab_history),
     Tab(AddExpense, "Add", R.drawable.ic_tab_add),
     Tab(Insights, "Insights", R.drawable.ic_tab_insights),
 )
@@ -101,7 +102,9 @@ fun AppShell() {
             composable<EditExpense> { EditExpenseScreen(onDone = { nav.popBackStack() }) }
             composable<EditIncome> { EditIncomeScreen(onDone = { nav.popBackStack() }) }
             composable<Insights> { Placeholder("Insights") }
-            composable<Income> { Placeholder("Income") }
+            composable<Income> {
+                IncomeScreen(onEdit = { nav.navigate(EditIncome(it)) }, onAllIncome = { nav.navigate(History(income = true)) })
+            }
             composable<Investments> { Placeholder("Investments") }
             composable<Debts> { Placeholder("Debts") }
             composable<Settings> { SettingsScreen() }
