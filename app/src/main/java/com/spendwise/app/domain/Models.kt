@@ -11,6 +11,8 @@ data class Income(
     val paymentType: String,
     val bank: String,
     val notes: String,
+    /** Written on this device and not yet synced: it can't be edited until it is. */
+    val pending: Boolean = false,
 )
 
 /**

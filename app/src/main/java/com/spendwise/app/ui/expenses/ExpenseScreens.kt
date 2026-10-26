@@ -137,23 +137,6 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
     if (state.confirmDelete) DeleteExpenseDialog(onConfirm = editor::confirmDelete, onDismiss = editor::cancelDelete)
 }
 
-/** History tab, for now every expense, newest first. Search and filters come in the History slice. */
-@Composable
-fun ExpenseListScreen(onEdit: (String) -> Unit, expenses: ExpensesViewModel = hiltViewModel()) {
-    val list by expenses.list.collectAsStateWithLifecycle()
-    val currency by expenses.currency.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
-    ListMessages(expenses, snackbar)
-
-    Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0)) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp)) {
-            item { Text("History", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 8.dp)) }
-            expenseItems(list, currency, onEdit, expenses, empty = "No expenses yet. Add one from the Add tab.") { it.all }
-        }
-    }
-    ConfirmDeleteFromList(expenses)
-}
-
 /** Loading, error (with Try again), empty, or the rows. */
 private fun LazyListScope.expenseItems(
     list: ExpenseList,

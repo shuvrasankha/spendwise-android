@@ -2,26 +2,41 @@ package com.spendwise.app.data
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.spendwise.app.data.auth.AuthRepository
+import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.domain.Debt
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.Income
+import com.spendwise.app.domain.IncomeInput
 import com.spendwise.app.domain.UserSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Live reads of income, debts, holdings and settings for the Dashboard. Writes arrive with each feature's slice.
+// Live reads of income, debts, holdings and settings. Writes arrive with each feature's slice (income edits with History).
 
 @Singleton
 class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
+    private val collection get() = db.collection("income")
+
     fun income(): Flow<List<Income>> = auth.forUser(emptyList()) { user ->
-        db.collection("income").whereEqualTo("uid", user.uid).live()
-            .map { s -> s.documents.map { incomeFrom(it.id, it.data.orEmpty()) }.sortedByDescending { it.date } }
+        collection.whereEqualTo("uid", user.uid).live().map { s ->
+            s.documents.map { incomeFrom(it.id, it.data.orEmpty(), it.metadata.hasPendingWrites()) }.sortedByDescending { it.date }
+        }
     }
+
+    suspend fun income(id: String): Income? {
+        val doc = collection.document(id).get().await()
+        return if (doc.exists()) incomeFrom(doc.id, doc.data.orEmpty(), doc.metadata.hasPendingWrites()) else null
+    }
+
+    fun edit(id: String, input: IncomeInput): PendingWrite = PendingWrite(id, collection.document(id).update(editedIncomeFields(input)))
+
+    fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
 }
 
 @Singleton

@@ -362,8 +362,9 @@ private fun Stat(label: String, value: String, modifier: Modifier) {
     }
 }
 
+/** An outlined button showing [current] that opens a menu of [options] (value to label). */
 @Composable
-private fun Picker(current: String, options: List<Pair<String?, String>>, onPick: (String?) -> Unit) {
+internal fun <T> Picker(current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         OutlinedButton(onClick = { open = true }) { Text(current) }

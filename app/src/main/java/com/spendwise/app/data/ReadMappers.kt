@@ -6,6 +6,7 @@ import com.spendwise.app.domain.Goal
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.I_OWE
 import com.spendwise.app.domain.Income
+import com.spendwise.app.domain.IncomeInput
 import com.spendwise.app.domain.Payment
 import com.spendwise.app.domain.THEY_OWE
 import com.spendwise.app.domain.UserSettings
@@ -17,7 +18,7 @@ import com.spendwise.app.domain.jsNumberOrZero
 private fun Map<String, Any?>.text(key: String) = this[key] as? String ?: ""
 
 /** dashboard.js › loadIncome */
-fun incomeFrom(id: String, data: Map<String, Any?>) = Income(
+fun incomeFrom(id: String, data: Map<String, Any?>, pending: Boolean = false) = Income(
     id = id,
     amount = readAmount(data["amount"]),
     date = data.text("date"),
@@ -25,6 +26,18 @@ fun incomeFrom(id: String, data: Map<String, Any?>) = Income(
     paymentType = data.text("paymentType"),
     bank = data.text("bank"),
     notes = data.text("notes"),
+    pending = pending,
+)
+
+/** saveIncEdit's update: the edited fields only, so anything else on the doc is kept. */
+fun editedIncomeFields(input: IncomeInput): Map<String, Any> = mapOf(
+    "amount" to toFirestoreNumber(input.amount),
+    "date" to input.date,
+    "source" to input.source,
+    "paymentType" to input.paymentType,
+    "bank" to input.bank,
+    "notes" to input.notes,
+    "encoding" to "plain",
 )
 
 /** `paid` items are read with Number(), in helpers.js › debtPaid. */

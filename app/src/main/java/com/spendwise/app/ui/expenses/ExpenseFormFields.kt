@@ -159,22 +159,27 @@ private fun DateField(date: String, onDate: (String) -> Unit) {
         }
     }
 
-    if (picking) {
-        // The picker works in UTC midnights; converting through UTC keeps the calendar day exact
-        val initial = runCatching { LocalDate.parse(date) }.getOrNull()
-            ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
-        val state = rememberDatePickerState(initialSelectedDateMillis = initial)
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { onDate(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
-                    picking = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { picking = false }) { Text("Cancel") } },
-        ) { DatePicker(state) }
-    }
+    if (picking) PickDateDialog(date, onDate, onDismiss = { picking = false })
+}
+
+/** A calendar for a local "YYYY-MM-DD" date. [onDate] gets the picked day; the dialog then closes. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PickDateDialog(date: String, onDate: (String) -> Unit, onDismiss: () -> Unit) {
+    // The picker works in UTC midnights; converting through UTC keeps the calendar day exact
+    val initial = runCatching { LocalDate.parse(date) }.getOrNull()
+        ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
+    val state = rememberDatePickerState(initialSelectedDateMillis = initial)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onDate(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
+                onDismiss()
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) { DatePicker(state) }
 }
 
 @Composable

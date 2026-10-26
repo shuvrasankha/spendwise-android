@@ -37,7 +37,8 @@ import com.spendwise.app.R
 import com.spendwise.app.ui.dashboard.DashboardScreen
 import com.spendwise.app.ui.expenses.AddExpenseScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
-import com.spendwise.app.ui.expenses.ExpenseListScreen
+import com.spendwise.app.ui.history.HistoryScreen
+import com.spendwise.app.ui.income.EditIncomeScreen
 import com.spendwise.app.ui.settings.SettingsScreen
 
 private data class Tab(val route: Any, val label: String, @param:DrawableRes val icon: Int)
@@ -88,9 +89,17 @@ fun AppShell() {
                     onOpenDebts = { nav.switchTo(Debts) },
                 )
             }
-            composable<History> { ExpenseListScreen(onEdit = { nav.navigate(EditExpense(it)) }) }
+            composable<History> {
+                HistoryScreen(
+                    onEditExpense = { nav.navigate(EditExpense(it)) },
+                    onEditIncome = { nav.navigate(EditIncome(it)) },
+                    onAddExpense = { nav.switchTo(AddExpense) },
+                    onAddIncome = { nav.switchTo(Income) },
+                )
+            }
             composable<AddExpense> { AddExpenseScreen(onEdit = { nav.navigate(EditExpense(it)) }) }
             composable<EditExpense> { EditExpenseScreen(onDone = { nav.popBackStack() }) }
+            composable<EditIncome> { EditIncomeScreen(onDone = { nav.popBackStack() }) }
             composable<Insights> { Placeholder("Insights") }
             composable<Income> { Placeholder("Income") }
             composable<Investments> { Placeholder("Investments") }

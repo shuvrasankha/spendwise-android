@@ -3,6 +3,7 @@ package com.spendwise.app.data
 import com.spendwise.app.domain.Budget
 import com.spendwise.app.domain.Goal
 import com.spendwise.app.domain.I_OWE
+import com.spendwise.app.domain.IncomeInput
 import com.spendwise.app.domain.Payment
 import com.spendwise.app.domain.THEY_OWE
 import com.spendwise.app.domain.UserSettings
@@ -84,5 +85,15 @@ class ReadMappersTest {
         assertEquals(0.0, jsNumberOrZero("12abc"), 0.0)
         assertEquals(1.0, jsNumberOrZero(true), 0.0)
         assertEquals(0.0, jsNumberOrZero(null), 0.0)
+    }
+
+    @Test fun incomeEdit_writesTheWebsFieldsOnly() {
+        val fields = editedIncomeFields(IncomeInput(85000.0, "2026-10-01", "Salary", "Cash", "", ""))
+        assertEquals(
+            mapOf("amount" to 85000L, "date" to "2026-10-01", "source" to "Salary", "paymentType" to "Cash", "bank" to "", "notes" to "", "encoding" to "plain"),
+            fields,
+        )
+        assertEquals(1250.5, editedIncomeFields(IncomeInput(1250.5, "2026-10-01", "Bonus", "Online", "SBI", "")).getValue("amount"))
+        assertTrue(incomeFrom("i", mapOf("amount" to 1L), pending = true).pending)
     }
 }
