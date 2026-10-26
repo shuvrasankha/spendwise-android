@@ -4,6 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -78,7 +79,8 @@ fun AppShell() {
             }
         },
     ) { padding ->
-        NavHost(nav, startDestination = Dashboard, modifier = Modifier.padding(padding)) {
+        // Consumed so a screen's imePadding doesn't add the keyboard on top of the bottom bar's padding
+        NavHost(nav, startDestination = Dashboard, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable<Dashboard> {
                 DashboardScreen(
                     onAddExpense = { nav.switchTo(AddExpense) },
