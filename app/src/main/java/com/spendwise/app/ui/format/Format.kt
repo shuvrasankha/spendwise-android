@@ -21,3 +21,10 @@ private val shortDate = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLIS
 
 /** helpers.js › formatDate: "26 Oct 2026". Falls back to the stored text for a malformed date. */
 fun formatDate(date: String): String = runCatching { LocalDate.parse(date).format(shortDate) }.getOrDefault(date)
+
+/** dashboard.js › moneyWhole: symbol, a space, then Math.round(n) in the currency's locale (₹ 1,00,000). */
+fun formatWhole(amount: Double, currency: Currency): String =
+    currency.symbol + " " + NumberFormat.getIntegerInstance(ULocale.forLanguageTag(currency.locale)).format(Math.round(amount))
+
+/** helpers.js › plural: "1 entry", "3 entries". */
+fun plural(n: Int, one: String, many: String) = "$n ${if (n == 1) one else many}"

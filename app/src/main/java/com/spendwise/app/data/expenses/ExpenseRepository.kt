@@ -3,17 +3,13 @@ package com.spendwise.app.data.expenses
 import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.MetadataChanges
 import com.spendwise.app.data.auth.AuthRepository
-import com.spendwise.app.data.auth.AuthState
+import com.spendwise.app.data.forUser
+import com.spendwise.app.data.live
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.ExpenseInput
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,26 +31,16 @@ class ExpenseRepository @Inject constructor(
 ) {
     private val collection get() = db.collection("expenses")
 
-    /** The signed-in user's expenses, newest date first, live. Follows sign-in and sign-out. */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun expenses(): Flow<List<Expense>> = auth.authState.flatMapLatest { state ->
-        if (state is AuthState.SignedIn) expensesOf(state.user.uid) else flowOf(emptyList())
-    }
-
-    // One where on uid, as the rules require (spec §4.3); sorted here, so no index is needed
-    private fun expensesOf(uid: String): Flow<List<Expense>> = callbackFlow {
-        val registration = collection.whereEqualTo("uid", uid)
-            .addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-                val expenses = snapshot!!.documents.map { doc ->
-                    expenseFrom(doc.id, doc.data.orEmpty(), pending = doc.metadata.hasPendingWrites())
-                }
-                trySend(expenses.sortedByDescending { it.date })
-            }
-        awaitClose { registration.remove() }
+    /**
+     * The signed-in user's expenses, live, in the web's order: newest date first, then Firestore's document
+     * order. Ties matter to the repeating-bill helpers. One where on uid, as the rules require (spec §4.3).
+     */
+    fun expenses(): Flow<List<Expense>> = auth.forUser(emptyList()) { user ->
+        collection.whereEqualTo("uid", user.uid).live().map { snapshot ->
+            snapshot.documents
+                .map { expenseFrom(it.id, it.data.orEmpty(), pending = it.metadata.hasPendingWrites()) }
+                .sortedByDescending { it.date }
+        }
     }
 
     suspend fun expense(id: String): Expense? {

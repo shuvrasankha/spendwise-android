@@ -33,6 +33,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.app.R
+import com.spendwise.app.ui.dashboard.DashboardScreen
 import com.spendwise.app.ui.expenses.AddExpenseScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
 import com.spendwise.app.ui.expenses.ExpenseListScreen
@@ -78,7 +79,13 @@ fun AppShell() {
         },
     ) { padding ->
         NavHost(nav, startDestination = Dashboard, modifier = Modifier.padding(padding)) {
-            composable<Dashboard> { Placeholder("Dashboard") }
+            composable<Dashboard> {
+                DashboardScreen(
+                    onAddExpense = { nav.switchTo(AddExpense) },
+                    onOpenIncome = { nav.switchTo(Income) },
+                    onOpenDebts = { nav.switchTo(Debts) },
+                )
+            }
             composable<History> { ExpenseListScreen(onEdit = { nav.navigate(EditExpense(it)) }) }
             composable<AddExpense> { AddExpenseScreen(onEdit = { nav.navigate(EditExpense(it)) }) }
             composable<EditExpense> { EditExpenseScreen(onDone = { nav.popBackStack() }) }
