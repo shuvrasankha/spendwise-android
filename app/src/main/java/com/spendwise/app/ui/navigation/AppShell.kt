@@ -126,7 +126,12 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             composable<AddExpense> { AddExpenseScreen(onEdit = { nav.navigate(EditExpense(it)) }) }
             composable<EditExpense> { EditExpenseScreen(onDone = { nav.popBackStack() }) }
             composable<EditIncome> { EditIncomeScreen(onDone = { nav.popBackStack() }) }
-            composable<Insights> { InsightsScreen(onAddExpense = { nav.switchTo(AddExpense) }) }
+            composable<Insights> {
+                InsightsScreen(
+                    onAddExpense = { nav.switchTo(AddExpense) },
+                    onOpenHistory = { nav.navigate(History(income = it.income, q = it.q, from = it.from, to = it.to, cats = it.cats)) },
+                )
+            }
             composable<Income> {
                 IncomeScreen(onEdit = { nav.navigate(EditIncome(it)) }, onAllIncome = { nav.navigate(History(income = true)) })
             }

@@ -36,6 +36,11 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
+import com.spendwise.app.domain.ASK_MAX
+import com.spendwise.app.domain.AskResult
+import com.spendwise.app.domain.AskSpec
+import com.spendwise.app.domain.guessSpec
+import com.spendwise.app.domain.runQuery
 import javax.inject.Inject
 
 /** The period tabs; Custom starts on this month, like the web's date inputs. */
@@ -48,10 +53,14 @@ data class PeriodChoice(
 /** One period's cards: [range] is null when Custom has an error ([periodError]). */
 data class Glance(val range: PeriodRange, val summary: InsightSummary, val budget: BudgetReport?, val pie: List<PieSlice>)
 
+/** "Ask about your spending": the spec read from the question, and what it found (ask-data.js). */
+data class AskView(val spec: AskSpec, val result: AskResult, val today: String)
+
 sealed interface InsightsState {
     data object Loading : InsightsState
     data class Failed(val message: String) : InsightsState
-    data class Ready(val choice: PeriodChoice, val forecast: Forecast, val glance: Glance?, val periodError: String?) : InsightsState
+    /** [ask]: the answer to the last question asked, kept up to date as entries change. */
+    data class Ready(val choice: PeriodChoice, val forecast: Forecast, val glance: Glance?, val periodError: String?, val ask: AskView? = null) : InsightsState
 }
 
 private data class Records(
@@ -75,6 +84,7 @@ class InsightsViewModel @Inject constructor(
 
     private val reload = MutableStateFlow(0)
     private val choice = MutableStateFlow(PeriodChoice())
+    private val question = MutableStateFlow<String?>(null)
 
     val state: StateFlow<InsightsState> = reload.flatMapLatest {
         val records = combine(
@@ -86,7 +96,7 @@ class InsightsViewModel @Inject constructor(
             prefs.skippedBills,
             ::Records,
         )
-        combine(records, choice) { r, c -> ready(r, c) }
+        combine(records, choice, question) { r, c, q -> ready(r, c, q) }
             .flowOn(Dispatchers.Default)
             .onStart<InsightsState> { emit(InsightsState.Loading) }
             .catch { emit(InsightsState.Failed("Couldn't load your data. Check your connection and try again.")) }
@@ -100,16 +110,22 @@ class InsightsViewModel @Inject constructor(
     fun setCustomStart(date: String) = choice.update { it.copy(customStart = date) }
     fun setCustomEnd(date: String) = choice.update { it.copy(customEnd = date) }
 
-    private fun ready(r: Records, c: PeriodChoice): InsightsState {
+    /** askQuestion: trimmed and cut to 200 characters; an empty one is ignored. Read on the device (guessSpec). */
+    fun ask(text: String) {
+        text.trim().take(ASK_MAX).takeIf { it.isNotEmpty() }?.let { question.value = it }
+    }
+
+    private fun ready(r: Records, c: PeriodChoice, q: String?): InsightsState {
         val today = LocalDate.now()
         val todayS = today.toString()
+        val ask = q?.let { guessSpec(it, todayS) }?.let { AskView(it, runQuery(it, r.expenses, r.income), todayS) }
         val f = forecast(r.expenses, todayS) { key, month -> "$key:$month" in r.skipped }
         return when (val range = periodRange(c.period, today, c.customStart, c.customEnd)) {
-            is Checked.Invalid -> InsightsState.Ready(c, f, null, range.message)
+            is Checked.Invalid -> InsightsState.Ready(c, f, null, range.message, ask)
             is Checked.Ok -> {
                 val s = summarize(r.expenses, r.income, r.debts, range.value)
                 val glance = Glance(range.value, s, budgetReport(r.expenses, r.settings.budget, range.value, todayS, f.total), pieSlices(s.categories))
-                InsightsState.Ready(c, f, glance, null)
+                InsightsState.Ready(c, f, glance, null, ask)
             }
         }
     }

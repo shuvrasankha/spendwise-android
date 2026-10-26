@@ -79,13 +79,29 @@ import com.spendwise.app.ui.dashboard.PlanDialogs
 import com.spendwise.app.ui.dashboard.PlansViewModel
 import com.spendwise.app.ui.expenses.PickDateDialog
 import com.spendwise.app.ui.format.formatDate
+import com.spendwise.app.domain.searchedText
+import com.spendwise.app.domain.askRows
+import com.spendwise.app.domain.askName
+import com.spendwise.app.domain.askHistory
+import com.spendwise.app.domain.answerFor
+import com.spendwise.app.domain.Entry
+import com.spendwise.app.domain.AskHistory
+import com.spendwise.app.domain.ASK_MAX
+import com.spendwise.app.domain.ASK_EXAMPLES
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import com.spendwise.app.ui.format.formatWhole
 import com.spendwise.app.ui.theme.SpendWiseTheme
 
-/** Insights (spec §1.7): the forecast, the period tabs, then the period's cards in the web's order. No AI. */
+/** Insights (spec §1.7): Ask (read on the device), the forecast, the period tabs, then the period's cards in the web's order. No AI. */
 @Composable
 fun InsightsScreen(
     onAddExpense: () -> Unit,
+    onOpenHistory: (AskHistory) -> Unit,
     insights: InsightsViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
 ) {
@@ -122,6 +138,7 @@ fun InsightsScreen(
                     }
                 }
                 is InsightsState.Ready -> {
+                    item { AskSection(s.ask, insights::ask, money, onOpenHistory) }
                     item { ForecastSection(s.forecast, money) }
                     item { Periods(s.choice, insights) }
                     val g = s.glance
@@ -441,3 +458,45 @@ private fun FixedSection(f: com.spendwise.app.domain.FixedCard) = Column(vertica
     Legend(fixed, f.fixed.first, f.fixed.second)
     Legend(flexible, f.flexible.first, f.flexible.second)
 }
+
+// ── Ask about your spending ──
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AskSection(ask: AskView?, onAsk: (String) -> Unit, money: (Double) -> String, onOpenHistory: (AskHistory) -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Title("Ask about your spending")
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it.take(ASK_MAX) },
+            placeholder = { Text("How much did I spend on Amazon last month?") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onAsk(text) }),
+            trailingIcon = { TextButton(onClick = { onAsk(text) }) { Text("Ask") } },
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Your question" },
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ASK_EXAMPLES.forEach { q -> AssistChip(onClick = { text = q; onAsk(q) }, label = { Text(q) }) }
+        }
+        ask ?: return@Column
+        val answer = answerFor(ask.spec, ask.result, money, ask.today)
+        Column(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(answer.headline, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+            Text(answer.sentence, style = MaterialTheme.typography.bodyLarge)
+            Muted("Searched: ${searchedText(ask.spec, ask.today)}")
+        }
+        askRows(ask.spec, ask.result).forEach { r ->
+            val sub = listOf(if (r is Entry.Earned) "Income" else r.kind, formatDate(r.date)).filter { it.isNotEmpty() }.joinToString(" · ")
+            Row2(askName(r).ifEmpty { if (r is Entry.Earned) "Income" else "" }, sub, money(r.amount))
+        }
+        val link = askHistory(ask.spec)
+        if (link != null && ask.result.count > 0) {
+            TextButton(onClick = { onOpenHistory(link) }) {
+                Text(if (ask.result.count > 5) "See all ${ask.result.count} in History" else "Open in History")
+            }
+        }
+    }
+}
+
