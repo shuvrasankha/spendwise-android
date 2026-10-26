@@ -18,7 +18,7 @@ Native Android rewrite of the SpendWise web app (vanilla JS + Firebase, hosted o
 - Firestore offline persistence for offline writes (no custom queue)
 - WorkManager for the local daily reminder
 - Charts drawn with Compose Canvas (no chart library)
-- No HTTP client in v1
+- No HTTP client library: Worker calls (Phase C) use `java.net.HttpURLConnection` with kotlinx-serialization (decision D1)
 - Hilt for dependency injection
 - minSdk 26, targetSdk/compileSdk = latest stable
 - Gradle Kotlin DSL with a version catalog (`gradle/libs.versions.toml`)

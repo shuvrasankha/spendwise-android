@@ -1,5 +1,6 @@
 package com.spendwise.app.data
 
+import com.spendwise.app.data.worker.WorkerPush
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -27,7 +28,7 @@ import javax.inject.Singleton
 // Live reads of income, debts, holdings and settings, and the writes of all but settings (its slice adds them).
 
 @Singleton
-class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
+class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, private val push: WorkerPush) {
     private val collection get() = db.collection("income")
 
     fun income(): Flow<List<Income>> = auth.forUser(emptyList()) { user ->
@@ -44,7 +45,7 @@ class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, pr
     fun add(input: IncomeInput): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         val ref = collection.document()
-        return PendingWrite(ref.id, ref.set(newIncomeFields(uid, input, FieldValue.serverTimestamp())))
+        return PendingWrite(ref.id, ref.set(newIncomeFields(uid, input, FieldValue.serverTimestamp())).addOnSuccessListener { push.logged() })
     }
 
     fun edit(id: String, input: IncomeInput): PendingWrite = PendingWrite(id, collection.document(id).update(editedIncomeFields(input)))
@@ -53,7 +54,7 @@ class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, pr
 }
 
 @Singleton
-class DebtRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
+class DebtRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, private val push: WorkerPush) {
     private val collection get() = db.collection("debts")
 
     /** Your own debts plus those shared with your verified email, from your side (split.js › fetchSharedDebts). */
@@ -73,7 +74,11 @@ class DebtRepository @Inject constructor(private val db: FirebaseFirestore, priv
         val user = checkNotNull(auth.currentUser) { "Not signed in" }
         val share = input.email.takeIf { it.isNotEmpty() }?.let { Share.of(it, user.displayName, user.email) }
         val ref = collection.document()
-        return PendingWrite(ref.id, ref.set(newDebtFields(user.uid, input, share, FieldValue.serverTimestamp())))
+        val write = ref.set(newDebtFields(user.uid, input, share, FieldValue.serverTimestamp())).addOnSuccessListener {
+            if (share != null) push.debt(ref.id)
+            push.logged()
+        }
+        return PendingWrite(ref.id, write)
     }
 
     fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
@@ -82,7 +87,8 @@ class DebtRepository @Inject constructor(private val db: FirebaseFirestore, priv
 
     fun removePayment(id: String, paid: List<Payment>) = update(id, mapOf("paid" to paidField(paid)))
 
-    fun claim(id: String, amount: Double, date: String) = update(id, claimFields(amount, date))
+    fun claim(id: String, amount: Double, date: String) =
+        PendingWrite(id, collection.document(id).update(claimFields(amount, date)).addOnSuccessListener { push.claim(id) })
 
     fun clearClaim(id: String) = update(id, clearClaimFields(FieldValue.delete()))
 

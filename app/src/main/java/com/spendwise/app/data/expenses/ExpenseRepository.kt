@@ -1,5 +1,6 @@
 package com.spendwise.app.data.expenses
 
+import com.spendwise.app.data.worker.WorkerPush
 import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -35,6 +36,7 @@ class PendingWrite(val id: String, private val task: Task<Void>) {
 class ExpenseRepository @Inject constructor(
     private val db: FirebaseFirestore,
     private val auth: AuthRepository,
+    private val push: WorkerPush,
 ) {
     private val collection get() = db.collection("expenses")
 
@@ -58,7 +60,7 @@ class ExpenseRepository @Inject constructor(
     fun add(input: ExpenseInput): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         val ref = collection.document()
-        return PendingWrite(ref.id, ref.set(newExpenseFields(uid, input, FieldValue.serverTimestamp())))
+        return PendingWrite(ref.id, ref.set(newExpenseFields(uid, input, FieldValue.serverTimestamp())).addOnSuccessListener { push.logged() })
     }
 
     /**
@@ -74,7 +76,11 @@ class ExpenseRepository @Inject constructor(
             val share = d.email.takeIf { it.isNotEmpty() }?.let { Share.of(it, user.displayName, user.email) }
             db.collection("debts").document().also { batch.set(it, newDebtFields(user.uid, d, share, FieldValue.serverTimestamp())) }.id
         }
-        return PendingWrite(ref.id, batch.commit()) to debtIds
+        val commit = batch.commit().addOnSuccessListener {
+            debtIds.forEachIndexed { i, id -> if (debts[i].email.isNotEmpty()) push.debt(id) }
+            push.logged()
+        }
+        return PendingWrite(ref.id, commit) to debtIds
     }
 
     /** Undo for a split: the expense and its debts. */
@@ -89,7 +95,7 @@ class ExpenseRepository @Inject constructor(
     fun addDue(template: Expense, due: String): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         val ref = collection.document()
-        return PendingWrite(ref.id, ref.set(dueExpenseFields(uid, template, due, FieldValue.serverTimestamp())))
+        return PendingWrite(ref.id, ref.set(dueExpenseFields(uid, template, due, FieldValue.serverTimestamp())).addOnSuccessListener { push.logged() })
     }
 
     fun edit(id: String, input: ExpenseInput): PendingWrite =
@@ -101,7 +107,7 @@ class ExpenseRepository @Inject constructor(
     fun addInvestment(input: InvestEntryInput): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         val ref = collection.document()
-        return PendingWrite(ref.id, ref.set(newInvestEntryFields(uid, input, FieldValue.serverTimestamp())))
+        return PendingWrite(ref.id, ref.set(newInvestEntryFields(uid, input, FieldValue.serverTimestamp())).addOnSuccessListener { push.logged() })
     }
 
     /** Investments › the entry dialog (invest.js › saveEntry). */

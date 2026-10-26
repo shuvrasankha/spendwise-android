@@ -55,6 +55,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (at == null) it.remove(REMINDER_AT) else it[REMINDER_AT] = at }
     }
 
+    /** "uid:YYYY-MM-DD" once /push/logged went through today (reminders.js › LOGGED_KEY). */
+    val loggedToday: Flow<String?> = store.data.map { it[LOGGED_TODAY] }
+
+    suspend fun setLoggedToday(key: String) {
+        store.edit { it[LOGGED_TODAY] = key }
+    }
+
     /** Account deletion: nothing of the account stays on the device (spec §8.2). */
     suspend fun clear() {
         store.edit { it.clear() }
@@ -83,5 +90,6 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val LAST_PAYMENT = stringPreferencesKey("last_payment")
         val SKIPPED_BILLS = stringSetPreferencesKey("skipped_bills")
         val REMINDER_AT = stringPreferencesKey("reminder_at")
+        val LOGGED_TODAY = stringPreferencesKey("logged_today")
     }
 }
