@@ -5,8 +5,17 @@ import kotlinx.serialization.Serializable
 // Destinations from spec §1.0: four tabs plus More (Income, Investments, Debts, Settings).
 
 @Serializable data object Dashboard
-/** [income]: open on the Income tab (the Income page's "All income"). */
-@Serializable data class History(val income: Boolean = false)
+/**
+ * [income]: open on the Income tab (the Income page's "All income"). The rest come from a link, as the
+ * web's history.html?q=&from=&to=&cat= (dashboard.js › initHistory).
+ */
+@Serializable data class History(
+    val income: Boolean = false,
+    val q: String? = null,
+    val from: String? = null,
+    val to: String? = null,
+    val cats: List<String> = emptyList(),
+)
 @Serializable data object AddExpense
 @Serializable data object Insights
 @Serializable data object Income

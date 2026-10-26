@@ -18,6 +18,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -58,8 +59,13 @@ private val moreItems = listOf(Income to "Income", Investments to "Investments",
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppShell() {
+fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}) {
     val nav = rememberNavController()
+    LaunchedEffect(link) {
+        if (link == null) return@LaunchedEffect
+        nav.openLink(link)
+        onLinkOpened()
+    }
     val destination = nav.currentBackStackEntryAsState().value?.destination
     var showMore by rememberSaveable { mutableStateOf(false) }
     val inMore = moreItems.any { (route, _) -> destination?.hasRoute(route::class) == true }
@@ -131,6 +137,10 @@ fun AppShell() {
         }
     }
 }
+
+/** A link opens a fresh copy of its page so its filters apply; the start page just switches to itself. */
+private fun NavHostController.openLink(route: Any) =
+    if (route == Dashboard) switchTo(route) else navigate(route) { popUpTo(graph.findStartDestination().id) { saveState = true } }
 
 /** Tab-style navigation: one copy of each destination, state kept when switching back. */
 private fun NavHostController.switchTo(route: Any) = navigate(route) {

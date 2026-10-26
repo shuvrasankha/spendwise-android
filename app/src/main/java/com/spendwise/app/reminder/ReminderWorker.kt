@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
+import com.spendwise.app.ui.navigation.LINK_SCHEME
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.auth.FirebaseAuth
@@ -48,7 +50,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         ReminderScheduler.createChannel(applicationContext)
         val open = PendingIntent.getActivity(
             applicationContext, 0,
-            Intent(applicationContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            // Opens Add Expense, as the web's reminder opens expense.html
+            Intent(Intent.ACTION_VIEW, "$LINK_SCHEME://add".toUri(), applicationContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(applicationContext, ReminderScheduler.CHANNEL_ID)

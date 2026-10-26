@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.expenses.ExpenseRepository
 import com.spendwise.app.data.export.ExportFiles
@@ -26,6 +27,7 @@ import com.spendwise.app.domain.kindsInUse
 import com.spendwise.app.domain.searchTag
 import com.spendwise.app.domain.tagsInUse
 import com.spendwise.app.domain.totalsBy
+import com.spendwise.app.ui.navigation.History
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +67,16 @@ data class HistoryFilters(
     val kinds: Set<String> = emptySet(),
     val shown: Int = HISTORY_STEP,
 )
+
+private val isDate = Regex("""^\d{4}-\d{2}-\d{2}$""")
+
+/** The filters a History link asks for: any valid date picks Custom dates, an invalid one is left blank (initHistory). */
+fun linkFilters(route: History): HistoryFilters {
+    val base = HistoryFilters(tab = if (route.income) HistoryTab.INCOME else HistoryTab.EXPENSES, kinds = route.cats.toSet())
+    val from = route.from?.takeIf { isDate.matches(it) }
+    val to = route.to?.takeIf { isDate.matches(it) }
+    return if (from == null && to == null) base else base.copy(range = HistoryRange.CUSTOM, customFrom = from.orEmpty(), customTo = to.orEmpty())
+}
 
 sealed interface HistoryItem {
     data class Day(val date: String, val label: String, val total: Double) : HistoryItem
@@ -131,11 +143,10 @@ class HistoryViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val reload = MutableStateFlow(0)
-    private val filters = MutableStateFlow(
-        HistoryFilters(tab = if (savedStateHandle.get<Boolean>("income") == true) HistoryTab.INCOME else HistoryTab.EXPENSES),
-    )
+    private val route = savedStateHandle.toRoute<History>()
+    private val filters = MutableStateFlow(linkFilters(route))
 
-    private val _query = MutableStateFlow("")
+    private val _query = MutableStateFlow(route.q.orEmpty())
     /** The search box's text, as typed. */
     val query: StateFlow<String> = _query.asStateFlow()
 

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The web's manifest.json shortcuts, minus Voice entry (voice is not in v1) -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@drawable/ic_tab_add"
+        android:shortcutId="add"
+        android:shortcutLongLabel="@string/shortcut_add"
+        android:shortcutShortLabel="@string/shortcut_add_short">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="spendwise://add"
+            android:targetClass="com.spendwise.app.MainActivity"
+            android:targetPackage="com.spendwise.app" />
+    </shortcut>
+    <shortcut
+        android:icon="@drawable/ic_tab_history"
+        android:shortcutId="history"
+        android:shortcutLongLabel="@string/shortcut_history"
+        android:shortcutShortLabel="@string/shortcut_history">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="spendwise://history"
+            android:targetClass="com.spendwise.app.MainActivity"
+            android:targetPackage="com.spendwise.app" />
+    </shortcut>
+</shortcuts>

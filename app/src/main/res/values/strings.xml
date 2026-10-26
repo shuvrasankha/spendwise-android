@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">spendwise-android</string>
+    <!-- Launcher shortcuts, worded as the web's manifest.json -->
+    <string name="shortcut_add">Add expense</string>
+    <string name="shortcut_add_short">Add</string>
+    <string name="shortcut_history">History</string>
 </resources>
