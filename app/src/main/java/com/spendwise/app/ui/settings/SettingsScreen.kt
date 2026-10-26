@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -59,6 +60,20 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             supportingContent = { Text("${state.currency.symbol} ${state.currency.code} — ${state.currency.name}") },
             modifier = Modifier.padding(top = 16.dp).clickable { pickingCurrency = true },
         )
+
+        Text(
+            "Account",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
+        )
+        ListItem(
+            headlineContent = { Text(state.name.ifEmpty { state.email }) },
+            supportingContent = if (state.name.isEmpty()) null else ({ Text(state.email) }),
+        )
+        OutlinedButton(
+            onClick = viewModel::logOut,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) { Text("Log out") }
     }
 
     if (pickingCurrency) {
