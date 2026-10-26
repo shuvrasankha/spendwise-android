@@ -8,6 +8,9 @@ import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.currencyOf
 import com.spendwise.app.domain.todayStr
+import com.spendwise.app.domain.emiPlans
+import com.spendwise.app.domain.expenseFigures
+import java.time.LocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,6 +33,9 @@ sealed interface ExpenseList {
     data class Ready(val all: List<Expense>) : ExpenseList {
         /** The Add page's "Today" list (spec §1.3). */
         val today get() = todayStr().let { day -> all.filter { it.date == day } }
+        /** The Add page's summary figures and EMIs card (spec §6.4, §6.5). */
+        val figures get() = expenseFigures(all, LocalDate.now())
+        val emis get() = emiPlans(all, todayStr())
     }
 }
 

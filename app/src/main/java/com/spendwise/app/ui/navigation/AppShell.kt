@@ -90,6 +90,7 @@ fun AppShell() {
                     onAddExpense = { nav.switchTo(AddExpense) },
                     onOpenIncome = { nav.switchTo(Income) },
                     onOpenDebts = { nav.switchTo(Debts) },
+                    onOpenInvest = { nav.navigate(Investments) },
                 )
             }
             composable<History> {

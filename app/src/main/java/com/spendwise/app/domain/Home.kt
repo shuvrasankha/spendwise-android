@@ -52,6 +52,9 @@ data class HomeFigures(
     val owed: Double,
     val score: MoneyScore?,
     val categories: List<CategoryBar>,
+    /** Repeating bills due this month, not yet entered or skipped. */
+    val due: List<DueBill>,
+    val goals: List<GoalRow>,
 )
 
 /** JS `n.toFixed(0)`: the exact binary value rounded, ties to the larger. */
@@ -98,11 +101,11 @@ fun homeFigures(
     val owe = active.filter { it.type == I_OWE }.sumOf { debtLeft(it.amount, it.paid) }
     val owed = active.filter { it.type == THEY_OWE }.sumOf { debtLeft(it.amount, it.paid) }
 
-    val linked = linkedToGoals(portfolio(holdings, expenses, todayS).rows)
+    val goals = goalRows(settings.goals, linkedToGoals(portfolio(holdings, expenses, todayS).rows), todayS)
     val score = financeScore(
         income = incomeTotal, spent = spent, invested = invested, budget = budget.total,
         monthShare = day.toDouble() / monthDays, owe = owe,
-        goals = settings.goals.map { goalPace(withLinked(it, linked), todayS).level },
+        goals = goals.map { it.pace.level },
     )
 
     // Top five categories, plus any close to or past its own limit so a warning is never cut off.
@@ -134,5 +137,7 @@ fun homeFigures(
         owed = owed,
         score = score,
         categories = categories,
+        due = dueRecurring(expenses, todayS, skipped),
+        goals = goals,
     )
 }

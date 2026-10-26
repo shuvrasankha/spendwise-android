@@ -2,6 +2,9 @@ package com.spendwise.app.data
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.spendwise.app.domain.Budget
+import com.spendwise.app.domain.Goal
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.domain.Debt
@@ -121,5 +124,14 @@ class SettingsRepository @Inject constructor(private val db: FirebaseFirestore, 
     /** `settings/{uid}`: budget and goals. A missing doc means neither is set. */
     fun settings(): Flow<UserSettings> = auth.forUser(UserSettings()) { user ->
         db.collection("settings").document(user.uid).live().map { settingsFrom(it.data) }
+    }
+
+    fun saveBudget(budget: Budget): PendingWrite = save(budgetFields(budget))
+
+    fun saveGoals(goals: List<Goal>): PendingWrite = save(goalsFields(goals))
+
+    private fun save(fields: Map<String, Any>): PendingWrite {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        return PendingWrite(uid, db.collection("settings").document(uid).set(fields, SetOptions.mergeFields(fields.keys.toList())))
     }
 }

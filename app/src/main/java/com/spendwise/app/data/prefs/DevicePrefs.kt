@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DEFAULT_PAYMENT
@@ -40,6 +41,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[LAST_PAYMENT] = payment }
     }
 
+    /** "Skip month" on a due bill, as "seriesKey:YYYY-MM" (spec §9.4, Q5): per device, like the web. */
+    val skippedBills: Flow<Set<String>> = store.data.map { it[SKIPPED_BILLS].orEmpty() }
+
+    suspend fun skipBill(key: String, month: String) {
+        store.edit { it[SKIPPED_BILLS] = it[SKIPPED_BILLS].orEmpty() + "$key:$month" }
+    }
+
     /** Like the web, System removes the key rather than storing it. */
     suspend fun setThemeMode(mode: ThemeMode) {
         store.edit {
@@ -61,5 +69,6 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val THEME = stringPreferencesKey("theme")
         val CURRENCY = stringPreferencesKey("currency")
         val LAST_PAYMENT = stringPreferencesKey("last_payment")
+        val SKIPPED_BILLS = stringSetPreferencesKey("skipped_bills")
     }
 }

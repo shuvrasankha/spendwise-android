@@ -92,6 +92,68 @@ fun upcomingBills(expenses: List<Expense>, today: String, skipped: SkippedBill =
     return bills.sortedBy { it.key }
 }
 
+/** One EMI's schedule. [next] and [ends] are null/the last month entered once it's paid off. */
+data class EmiPlan(
+    val key: String,
+    val template: Expense,
+    val paid: Int,
+    val total: Int,
+    val monthly: Double,
+    /** What's still to pay: payments to go × the monthly amount. */
+    val left: Double,
+    val done: Boolean,
+    val title: String,
+    val next: String?,
+    /** "YYYY-MM" of the last payment. */
+    val ends: String,
+)
+
+/**
+ * emiPlans: every series with a set number of payments, except one stopped before it was paid off.
+ * Running ones first, by next payment; paid-off ones by the month they ended.
+ */
+fun emiPlans(expenses: List<Expense>, today: String): List<EmiPlan> {
+    val month = today.take(7)
+    val s = recurringSeries(expenses)
+    val plans = mutableListOf<EmiPlan>()
+    for ((key, t) in s.template) {
+        val emi = emiOf(t, s.count.getValue(key)) ?: continue
+        if (t.repeat != "monthly" && !emi.done()) continue
+        val toGo = emi.total - emi.paid
+        val entered = s.latest.getValue(key).date.take(7)
+        val from = if (entered >= month) addMonths(month, 1) else month
+        plans += EmiPlan(
+            key, t, emi.paid, emi.total, t.amount, toGo * t.amount, toGo == 0, billTitle(t),
+            next = if (toGo > 0) dueIn(t, from) else null,
+            ends = if (toGo > 0) addMonths(from, toGo - 1) else entered,
+        )
+    }
+    return plans.sortedWith(compareBy<EmiPlan> { it.done }.thenBy { it.next ?: it.ends })
+}
+
+/** The plan's progress line on the Add page's EMIs card (dashboard.js › renderEmis). */
+fun EmiPlan.meta(today: java.time.LocalDate, whole: (Double) -> String): String {
+    val facts = if (done) listOf("Paid off ${monthYear(ends)}") else listOf(
+        "${whole(left)} left",
+        if (next!! < today.toString()) "Due ${shortDay(next, today)}" else "Next ${shortDay(next, today)}",
+        "Ends ${monthYear(ends)}",
+    )
+    return "$paid of $total paid · " + facts.joinToString(" · ")
+}
+
+/** The bar's width, at least 2% so a new plan still shows. */
+val EmiPlan.percent get() = maxOf(Math.round(paid.toDouble() / total * 100).toInt(), 2)
+
+/** "Due this month" row meta (dashboard.js › renderDue). */
+fun DueBill.meta(today: java.time.LocalDate) =
+    (emi?.let { "EMI ${it.paid + 1} of ${it.total} · " } ?: "") + "${template.category} · due ${shortDay(due, today)}"
+
+/** The Add page's EMIs card header: what the running ones cost a month, or "All paid off". */
+fun emiHeader(plans: List<EmiPlan>, whole: (Double) -> String): String {
+    val running = plans.filter { !it.done }
+    return if (running.isNotEmpty()) "${whole(running.sumOf { it.monthly })} a month" else "All paid off"
+}
+
 // ── Forecast (spec §6.6) ──
 
 private fun isFixed(e: Expense) = e.repeat == "monthly" || (e.emiTotal ?: 0) > 0

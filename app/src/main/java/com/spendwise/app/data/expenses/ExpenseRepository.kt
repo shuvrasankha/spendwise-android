@@ -12,6 +12,9 @@ import com.spendwise.app.data.editedEntryFields
 import com.spendwise.app.data.newInvestEntryFields
 import com.spendwise.app.domain.EntryEdit
 import com.spendwise.app.domain.InvestEntryInput
+import com.spendwise.app.domain.DebtInput
+import com.spendwise.app.data.Share
+import com.spendwise.app.data.newDebtFields
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -56,6 +59,37 @@ class ExpenseRepository @Inject constructor(
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         val ref = collection.document()
         return PendingWrite(ref.id, ref.set(newExpenseFields(uid, input, FieldValue.serverTimestamp())))
+    }
+
+    /**
+     * addExpense with a split: your share as the expense and a "they owe me" debt per person, in one batch so
+     * neither is saved without the other. Returns the write (its id is the expense's) and the debts' ids.
+     */
+    fun addSplit(input: ExpenseInput, debts: List<DebtInput>): Pair<PendingWrite, List<String>> {
+        val user = checkNotNull(auth.currentUser) { "Not signed in" }
+        val batch = db.batch()
+        val ref = collection.document()
+        batch.set(ref, newExpenseFields(user.uid, input, FieldValue.serverTimestamp()))
+        val debtIds = debts.map { d ->
+            val share = d.email.takeIf { it.isNotEmpty() }?.let { Share.of(it, user.displayName, user.email) }
+            db.collection("debts").document().also { batch.set(it, newDebtFields(user.uid, d, share, FieldValue.serverTimestamp())) }.id
+        }
+        return PendingWrite(ref.id, batch.commit()) to debtIds
+    }
+
+    /** Undo for a split: the expense and its debts. */
+    fun deleteSplit(id: String, debtIds: List<String>): PendingWrite {
+        val batch = db.batch()
+        batch.delete(collection.document(id))
+        debtIds.forEach { batch.delete(db.collection("debts").document(it)) }
+        return PendingWrite(id, batch.commit())
+    }
+
+    /** Dashboard › Due this month › Add (dashboard.js › addDue). */
+    fun addDue(template: Expense, due: String): PendingWrite {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        val ref = collection.document()
+        return PendingWrite(ref.id, ref.set(dueExpenseFields(uid, template, due, FieldValue.serverTimestamp())))
     }
 
     fun edit(id: String, input: ExpenseInput): PendingWrite =

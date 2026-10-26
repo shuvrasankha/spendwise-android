@@ -15,7 +15,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -67,12 +74,24 @@ fun DashboardScreen(
     onAddExpense: () -> Unit,
     onOpenIncome: () -> Unit,
     onOpenDebts: () -> Unit,
+    onOpenInvest: () -> Unit,
     dashboard: DashboardViewModel = hiltViewModel(),
+    plans: PlansViewModel = hiltViewModel(),
 ) {
     val state by dashboard.state.collectAsStateWithLifecycle()
     val currency by dashboard.currency.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val notice by plans.notice.collectAsStateWithLifecycle()
+    LaunchedEffect(notice) {
+        val n = notice ?: return@LaunchedEffect
+        plans.noticeShown()
+        val result = snackbar.showSnackbar(n.text, actionLabel = n.undoId?.let { "Undo" }, duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed) n.undoId?.let(plans::undoDue)
+    }
+    PlanDialogs(plans, currency)
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
+    Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0)) { padding ->
+    LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
         when (val s = state) {
             DashboardState.Loading -> item {
                 Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -85,16 +104,17 @@ fun DashboardScreen(
             }
             is DashboardState.Ready -> {
                 val money = { n: Double -> formatWhole(n, currency) }
-                item { Hero(s.home, money) }
+                item { Hero(s.home, money, plans::openBudget) }
                 item { Today(s.home, s.firstTime, currency, money, onAddExpense) }
                 item { Tiles(s.home, money, onOpenIncome, onOpenDebts) }
-                // Due this month goes here (repeating bills slice)
+                if (s.home.due.isNotEmpty()) item { DueThisMonth(s.home.due, money, plans) }
                 item { Score(s.home) }
-                // Savings goals go here (goals slice)
+                item { Goals(s.home, money, plans, onOpenInvest) }
                 item { WhereItWent(s.home, s.firstTime, money) }
                 overTime(s.overTime, currency, dashboard)
             }
         }
+    }
     }
 }
 
@@ -121,7 +141,7 @@ private fun Bar(fill: Double, color: Color, label: String, modifier: Modifier = 
 }
 
 @Composable
-private fun Hero(h: HomeFigures, money: (Double) -> String) {
+private fun Hero(h: HomeFigures, money: (Double) -> String, onBudget: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Muted("${h.monthName} so far")
         Text(money(h.spent), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
@@ -146,7 +166,7 @@ private fun Hero(h: HomeFigures, money: (Double) -> String) {
         if (h.perDay != null && h.forecastTotal != null) {
             Muted("${money(h.perDay)} a day · on track for ${money(h.forecastTotal)} by the end of ${h.monthName}")
         }
-        // "Set a monthly budget" arrives with the budget slice
+        TextButton(onClick = onBudget) { Text(if (h.budget.total != null) "Change budget" else "Set a monthly budget") }
     }
 }
 

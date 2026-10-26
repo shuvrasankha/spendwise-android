@@ -28,10 +28,35 @@ fun expenseFrom(id: String, data: Map<String, Any?>, pending: Boolean = false) =
 
 /** addExpense's document. [createdAt] is FieldValue.serverTimestamp() outside tests. */
 fun newExpenseFields(uid: String, input: ExpenseInput, createdAt: Any): Map<String, Any> =
-    mapOf("uid" to uid) + editedExpenseFields(input) + ("createdAt" to createdAt)
+    mapOf("uid" to uid) + editedExpenseFields(input) + ("createdAt" to createdAt) + listOfNotNull(
+        input.emiTotal?.let { "emiTotal" to it },
+        input.emiPaidBefore?.let { "emiPaidBefore" to it },
+    )
+
+/** dashboard.js › addDue: this month's entry of a repeating series, copied from its newest entry. */
+fun dueExpenseFields(uid: String, t: Expense, due: String, createdAt: Any): Map<String, Any> = linkedMapOf<String, Any>(
+    "uid" to uid,
+    "amount" to toFirestoreNumber(t.amount),
+    "category" to t.category,
+    "date" to due,
+    "payment" to t.payment.ifEmpty { "UPI" },
+    "cardName" to t.cardName,
+    "description" to t.description.ifEmpty { "-" },
+    "notes" to "",
+    "tags" to t.tags,
+    "repeat" to "monthly",
+    "encoding" to "plain",
+).apply {
+    t.holdingId?.takeIf { it.isNotEmpty() }?.let { put("holdingId", it) } // a SIP stays in its holding
+    t.emiTotal?.takeIf { it > 0 }?.let { total ->
+        put("emiTotal", total)
+        t.emiPaidBefore?.takeIf { it > 0 }?.let { put("emiPaidBefore", it) }
+    }
+    put("createdAt", createdAt)
+}
 
 /**
- * saveEditExpense's update. Only these fields change, so repeat, emiTotal, emiPaidBefore and holdingId
+ * saveEditExpense's update, with repeat only when it's set (editedRepeat). Only these fields change, so emiTotal, emiPaidBefore and holdingId
  * stay as they were (spec §2.3, §9.5). Editing also rewrites an old category name as the current one.
  */
 fun editedExpenseFields(input: ExpenseInput): Map<String, Any> = mapOf(
@@ -44,4 +69,4 @@ fun editedExpenseFields(input: ExpenseInput): Map<String, Any> = mapOf(
     "notes" to input.notes,
     "tags" to input.tags,
     "encoding" to "plain",
-)
+) + listOfNotNull(input.repeat?.let { "repeat" to it })

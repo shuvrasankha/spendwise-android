@@ -9,7 +9,18 @@ import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DUPLICATE_WINDOW_MS
 import com.spendwise.app.domain.ExpenseCheck
+import com.spendwise.app.data.auth.AuthRepository
+import com.spendwise.app.domain.Checked
+import com.spendwise.app.domain.DebtInput
+import com.spendwise.app.domain.MAX_SPLIT_PEOPLE
+import com.spendwise.app.domain.SplitRow
 import com.spendwise.app.domain.addTags
+import com.spendwise.app.domain.checkSplit
+import com.spendwise.app.domain.editedRepeat
+import com.spendwise.app.domain.sanitize
+import com.spendwise.app.domain.splitAmount
+import com.spendwise.app.domain.splitDebts
+import com.spendwise.app.domain.splitSaved
 import com.spendwise.app.domain.checkExpense
 import com.spendwise.app.domain.currencyOf
 import com.spendwise.app.domain.duplicateKey
@@ -38,7 +49,16 @@ data class ExpenseForm(
     val tags: List<String> = emptyList(),
     /** Text typed in the tag field, not yet turned into tags. */
     val tagDraft: String = "",
+    /** "Repeats every month"; the EMI fields count only while it's on, and only on Add. */
+    val repeat: Boolean = false,
+    val emiTotal: String = "",
+    val emiBefore: String = "",
+    /** Add only: the people to split with. */
+    val split: List<SplitRow> = emptyList(),
 )
+
+/** The snackbar after an Add: "Expense added." or "Split saved.", whose Undo deletes all of it. */
+data class AddedUndo(val id: String, val debtIds: List<String>, val label: String)
 
 data class FormMessage(val text: String, val success: Boolean = false)
 
@@ -51,8 +71,10 @@ data class EditorState(
     val form: ExpenseForm = ExpenseForm(),
     val message: FormMessage? = null,
     val confirmDelete: Boolean = false,
-    /** Add: the expense just saved, for the "Expense added. Undo" snackbar. */
-    val undoId: String? = null,
+    /** Add: what was just saved, for the Undo snackbar. */
+    val undo: AddedUndo? = null,
+    /** Split rows can take an email only on a verified account (firestore.rules › validShare). */
+    val canShare: Boolean = false,
     /** Edit: saved or deleted, so the screen closes. */
     val done: Boolean = false,
 )
@@ -63,16 +85,19 @@ class ExpenseEditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: ExpenseRepository,
     private val prefs: DevicePrefs,
+    private val auth: AuthRepository,
 ) : ViewModel() {
 
     private val editingId: String? = savedStateHandle["id"]
 
-    private val _state = MutableStateFlow(EditorState(editingId = editingId, loading = editingId != null))
+    private val _state = MutableStateFlow(EditorState(editingId = editingId, loading = editingId != null, canShare = auth.currentUser?.emailVerified == true))
     val state: StateFlow<EditorState> = _state.asStateFlow()
 
     val currency: StateFlow<Currency> = prefs.currency
         .stateIn(viewModelScope, SharingStarted.Eagerly, currencyOf(null))
 
+    /** Editing: the doc's repeat as loaded, so unticking stops a series (editedRepeat). */
+    private var wasRepeat: String? = null
     private var lastAdded: Pair<String, Long>? = null
     private var confirmedDuplicate: String? = null
 
@@ -99,6 +124,7 @@ class ExpenseEditorViewModel @Inject constructor(
             if (expense == null) {
                 it.copy(loading = false, missing = true)
             } else {
+                wasRepeat = expense.repeat
                 it.copy(
                     loading = false,
                     form = ExpenseForm(
@@ -110,6 +136,7 @@ class ExpenseEditorViewModel @Inject constructor(
                         description = expense.description,
                         notes = expense.notes,
                         tags = expense.tags,
+                        repeat = expense.repeat == "monthly",
                     ),
                 )
             }
@@ -136,6 +163,14 @@ class ExpenseEditorViewModel @Inject constructor(
     fun commitTagDraft() = updateForm { it.copy(tags = addTags(it.tags, it.tagDraft), tagDraft = "") }
     fun removeTag(tag: String) = updateForm { it.copy(tags = it.tags - tag) }
 
+    fun setRepeat(v: Boolean) = updateForm { it.copy(repeat = v) }
+    fun setEmiTotal(v: String) = updateForm { it.copy(emiTotal = v) }
+    fun setEmiBefore(v: String) = updateForm { it.copy(emiBefore = v) }
+
+    fun addSplitPerson() = updateForm { if (it.split.size < MAX_SPLIT_PEOPLE) it.copy(split = it.split + SplitRow()) else it }
+    fun setSplitPerson(i: Int, row: SplitRow) = updateForm { it.copy(split = it.split.toMutableList().also { l -> l[i] = row }) }
+    fun removeSplitPerson(i: Int) = updateForm { it.copy(split = it.split.filterIndexed { j, _ -> j != i }) }
+
     fun clear() = viewModelScope.launch {
         val payment = prefs.lastPayment.first()
         _state.update { it.copy(form = ExpenseForm(payment = payment), message = null) }
@@ -144,14 +179,32 @@ class ExpenseEditorViewModel @Inject constructor(
     fun save() {
         val form = _state.value.form
         val tags = addTags(form.tags, form.tagDraft) // the web adds a half-typed tag on blur
-        val check = checkExpense(form.amount, form.category, form.date, form.payment, form.cardName, form.description, form.notes, tags)
+        val check = checkExpense(
+            form.amount, form.category, form.date, form.payment, form.cardName, form.description, form.notes, tags,
+            repeat = form.repeat,
+            emiTotalText = if (editingId == null) form.emiTotal else "",
+            emiBeforeText = if (editingId == null) form.emiBefore else "",
+        )
         if (check is ExpenseCheck.Invalid) return _state.update { it.copy(message = FormMessage(check.message)) }
-        val input = (check as ExpenseCheck.Ok).input
+        var input = (check as ExpenseCheck.Ok).input
 
         if (editingId != null) {
-            watch(repo.edit(editingId, input), failure = "Couldn't save your changes. Check your connection and try again.")
+            watch(repo.edit(editingId, input.copy(repeat = editedRepeat(form.repeat, wasRepeat))), failure = "Couldn't save your changes. Check your connection and try again.")
             _state.update { it.copy(done = true) }
             return
+        }
+
+        // Split: your share becomes the expense, and each person owes you theirs
+        var debts = emptyList<DebtInput>()
+        when (val split = checkSplit(if (_state.value.canShare) form.split else form.split.map { it.copy(email = "") }, auth.currentUser?.email.orEmpty())) {
+            null -> Unit
+            is Checked.Invalid -> return _state.update { it.copy(message = FormMessage(split.message)) }
+            is Checked.Ok -> {
+                val (each, mine) = splitAmount(input.amount, split.value.size)
+                val label = sanitize(form.description.trim(), 300).ifEmpty { input.category }
+                debts = splitDebts(split.value, each, input.date, label)
+                input = input.copy(amount = mine)
+            }
         }
 
         val key = duplicateKey(input)
@@ -162,20 +215,26 @@ class ExpenseEditorViewModel @Inject constructor(
             val text = "You added ${formatMoney(input.amount, currency.value)} for ${input.category} a moment ago. Tap Add Expense again to save it twice."
             return _state.update { it.copy(message = FormMessage(text)) }
         }
-        val write = repo.add(input)
+        val (write, debtIds) = if (debts.isEmpty()) repo.add(input) to emptyList() else repo.addSplit(input, debts)
         watch(write, failure = "Couldn't save the expense. Check your connection and try again.")
         lastAdded = key to now
         viewModelScope.launch { prefs.setLastPayment(input.payment) }
+        val done = if (debts.isEmpty()) "Expense added successfully!" else splitSaved(debts.size, formatMoney(debts[0].amount, currency.value))
         _state.update {
-            it.copy(form = ExpenseForm(payment = input.payment), message = FormMessage("Expense added successfully!", success = true), undoId = write.id)
+            it.copy(
+                form = ExpenseForm(payment = input.payment),
+                message = FormMessage(done, success = true),
+                undo = AddedUndo(write.id, debtIds, if (debts.isEmpty()) "Expense added." else "Split saved."),
+            )
         }
     }
 
-    fun undoShown() = _state.update { it.copy(undoId = null) }
+    fun undoShown() = _state.update { it.copy(undo = null) }
 
-    /** "Expense added. Undo": deletes the expense just saved. */
-    fun undo(id: String) {
-        watch(repo.delete(id), failure = "Couldn't undo. Delete it from Today's list instead.")
+    /** Undo: deletes the expense just saved, and a split's debts with it. */
+    fun undo(added: AddedUndo) {
+        val write = if (added.debtIds.isEmpty()) repo.delete(added.id) else repo.deleteSplit(added.id, added.debtIds)
+        watch(write, failure = "Couldn't undo. Delete it from Today's list instead.")
         _state.update { it.copy(message = FormMessage("Expense removed.", success = true)) }
     }
 

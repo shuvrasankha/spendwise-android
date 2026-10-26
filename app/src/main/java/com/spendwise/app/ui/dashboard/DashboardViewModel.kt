@@ -93,7 +93,7 @@ class DashboardViewModel @Inject constructor(
             holdingRepo.holdings().catch { emit(emptyList()) },
             ::Sources,
         )
-        combine(sources, view) { s, v -> ready(s, v) }
+        combine(sources, view, prefs.skippedBills) { s, v, skipped -> ready(s, v, skipped) }
             .flowOn(Dispatchers.Default)
             .onStart { emit(DashboardState.Loading) }
             .catch { emit(DashboardState.Failed("Error loading data. Check your connection and try again.")) }
@@ -110,10 +110,10 @@ class DashboardViewModel @Inject constructor(
     fun selectYear(year: String?) = view.update { it.copy(period = it.period.copy(year = year), shown = PAGE) }
     fun showMore() = view.update { it.copy(shown = it.shown + PAGE) }
 
-    private fun ready(s: Sources, v: TimeView): DashboardState {
+    private fun ready(s: Sources, v: TimeView, skipped: Set<String>): DashboardState {
         val today = LocalDate.now()
         return DashboardState.Ready(
-            home = homeFigures(s.expenses, s.income, s.debts, s.settings, s.holdings, today),
+            home = homeFigures(s.expenses, s.income, s.debts, s.settings, s.holdings, today) { key, month -> "$key:$month" in skipped },
             firstTime = s.expenses.isEmpty(),
             overTime = OverTime(
                 view = v,

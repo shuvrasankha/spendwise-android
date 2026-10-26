@@ -59,11 +59,11 @@ fun AddExpenseScreen(
     val list by expenses.list.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.undoId) {
-        val id = state.undoId ?: return@LaunchedEffect
+    LaunchedEffect(state.undo) {
+        val added = state.undo ?: return@LaunchedEffect
         editor.undoShown()
-        val result = snackbar.showSnackbar("Expense added.", actionLabel = "Undo", duration = SnackbarDuration.Long)
-        if (result == SnackbarResult.ActionPerformed) editor.undo(id)
+        val result = snackbar.showSnackbar(added.label, actionLabel = "Undo", duration = SnackbarDuration.Long)
+        if (result == SnackbarResult.ActionPerformed) editor.undo(added)
     }
     ListMessages(expenses, snackbar)
 
@@ -75,6 +75,8 @@ fun AddExpenseScreen(
         ) {
             item { Text("Add expense", style = MaterialTheme.typography.headlineSmall) }
             item { ExpenseFormFields(state.form, currency, editor) }
+            item { RepeatFields(state.form, adding = true, editor) }
+            item { SplitFields(state, currency, editor) }
             item { FormMessageText(state.message) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -87,6 +89,10 @@ fun AddExpenseScreen(
                 Text("Today", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
             }
             expenseItems(list, currency, onEdit, expenses, empty = "Nothing added today yet.") { it.today }
+            (list as? ExpenseList.Ready)?.let { ready ->
+                item { ExpenseSummary(ready.figures, currency) }
+                ready.emis.takeIf { it.isNotEmpty() }?.let { plans -> item { EmiCard(plans, currency) } }
+            }
         }
     }
     ConfirmDeleteFromList(expenses)
@@ -121,6 +127,7 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
                 )
                 else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     item { ExpenseFormFields(state.form, currency, editor) }
+                    item { RepeatFields(state.form, adding = false, editor) }
                     item { FormMessageText(state.message) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
