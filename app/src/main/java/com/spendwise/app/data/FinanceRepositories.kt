@@ -130,6 +130,10 @@ class SettingsRepository @Inject constructor(private val db: FirebaseFirestore, 
 
     fun saveGoals(goals: List<Goal>): PendingWrite = save(goalsFields(goals))
 
+    fun saveRemindOn(on: Boolean): PendingWrite = save(remindOnFields(on))
+
+    fun saveRemindAt(at: String): PendingWrite = save(remindAtFields(at))
+
     private fun save(fields: Map<String, Any>): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         return PendingWrite(uid, db.collection("settings").document(uid).set(fields, SetOptions.mergeFields(fields.keys.toList())))

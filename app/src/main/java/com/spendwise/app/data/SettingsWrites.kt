@@ -20,3 +20,8 @@ fun goalsFields(goals: List<Goal>): Map<String, Any> = mapOf(
         mapOf("id" to it.id, "name" to it.name, "target" to toFirestoreNumber(it.target), "by" to it.by, "saved" to toFirestoreNumber(it.saved))
     },
 )
+
+/** reminders.js: the switch and the time are saved separately, each on its own. */
+fun remindOnFields(on: Boolean): Map<String, Any> = mapOf("remindOn" to on)
+
+fun remindAtFields(at: String): Map<String, Any> = mapOf("remindAt" to at)

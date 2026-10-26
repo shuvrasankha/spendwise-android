@@ -7,6 +7,8 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.AuthCredential
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -88,6 +90,10 @@ class AuthRepository @Inject constructor(
 
     /** [activityContext] must be an Activity: Credential Manager shows its sheet over it. */
     suspend fun signInWithGoogle(activityContext: Context) {
+        auth.signInWithCredential(googleCredential(activityContext)).await()
+    }
+
+    private suspend fun googleCredential(activityContext: Context): AuthCredential {
         val option = GetSignInWithGoogleOption.Builder(appContext.getString(R.string.default_web_client_id)).build()
         val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
         val credential = CredentialManager.create(activityContext).getCredential(activityContext, request).credential
@@ -95,7 +101,27 @@ class AuthRepository @Inject constructor(
             "Unexpected credential type"
         }
         val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+        return GoogleAuthProvider.getCredential(idToken, null)
+    }
+
+    /** Account deletion confirms with a password when the account has one, otherwise with Google. */
+    val usesPassword: Boolean get() = auth.currentUser?.providerData?.any { it.providerId == "password" } == true
+
+    /** A fresh sign-in, so Firebase lets the account be deleted (spec §8.2). Throws on a wrong password. */
+    suspend fun reauthenticateWithPassword(password: String) {
+        val user = checkNotNull(auth.currentUser) { "Not signed in" }
+        user.reauthenticate(EmailAuthProvider.getCredential(user.email.orEmpty(), password)).await()
+    }
+
+    /** Picking a different Google account fails (FirebaseAuthInvalidUserException), so only this one is confirmed. */
+    suspend fun reauthenticateWithGoogle(activityContext: Context) {
+        val user = checkNotNull(auth.currentUser) { "Not signed in" }
+        user.reauthenticate(googleCredential(activityContext)).await()
+    }
+
+    /** Deletes the sign-in itself; Firebase then signs out. */
+    suspend fun deleteUser() {
+        checkNotNull(auth.currentUser) { "Not signed in" }.delete().await()
     }
 
     suspend fun signOut() {

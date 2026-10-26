@@ -60,4 +60,10 @@ data class Holding(
 }
 
 /** What the dashboard reads from `settings/{uid}`. */
-data class UserSettings(val budget: Budget = Budget(), val goals: List<Goal> = emptyList())
+data class UserSettings(
+    val budget: Budget = Budget(),
+    val goals: List<Goal> = emptyList(),
+    /** The daily reminder: null when never set on any device (spec §7.5). */
+    val remindOn: Boolean? = null,
+    val remindAt: String? = null,
+)

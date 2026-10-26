@@ -48,6 +48,18 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[SKIPPED_BILLS] = it[SKIPPED_BILLS].orEmpty() + "$key:$month" }
     }
 
+    /** The time the daily reminder is scheduled for on this device, or null when it's off here. */
+    val reminderAt: Flow<String?> = store.data.map { it[REMINDER_AT] }
+
+    suspend fun setReminderAt(at: String?) {
+        store.edit { if (at == null) it.remove(REMINDER_AT) else it[REMINDER_AT] = at }
+    }
+
+    /** Account deletion: nothing of the account stays on the device (spec §8.2). */
+    suspend fun clear() {
+        store.edit { it.clear() }
+    }
+
     /** Like the web, System removes the key rather than storing it. */
     suspend fun setThemeMode(mode: ThemeMode) {
         store.edit {
@@ -70,5 +82,6 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val CURRENCY = stringPreferencesKey("currency")
         val LAST_PAYMENT = stringPreferencesKey("last_payment")
         val SKIPPED_BILLS = stringSetPreferencesKey("skipped_bills")
+        val REMINDER_AT = stringPreferencesKey("reminder_at")
     }
 }

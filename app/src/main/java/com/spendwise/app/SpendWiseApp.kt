@@ -1,7 +1,16 @@
 package com.spendwise.app
 
 import android.app.Application
+import com.spendwise.app.reminder.ReminderSync
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
 @HiltAndroidApp
-class SpendWiseApp : Application()
+class SpendWiseApp : Application() {
+    @Inject lateinit var reminderSync: ReminderSync
+
+    override fun onCreate() {
+        super.onCreate()
+        reminderSync.start()
+    }
+}

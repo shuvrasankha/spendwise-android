@@ -117,5 +117,5 @@ fun settingsFrom(data: Map<String, Any?>?): UserSettings {
         val saved = (g["saved"] as? Number)?.toDouble() ?: 0.0
         Goal(id, name, target, by, if (saved > 0) saved else 0.0)
     }
-    return UserSettings(Budget(total, cats), goals)
+    return UserSettings(Budget(total, cats), goals, data?.get("remindOn") as? Boolean, data?.get("remindAt") as? String)
 }
