@@ -70,6 +70,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[AI_CONSENT] = true }
     }
 
+    /** "I Understand & Continue" in the CSV upload dialog (csv-upload.js › csvUploadConsent); per device. */
+    val csvConsent: Flow<Boolean> = store.data.map { it[CSV_CONSENT] == true }
+
+    suspend fun setCsvConsent() {
+        store.edit { it[CSV_CONSENT] = true }
+    }
+
     /** The coach's conversation as JSON (SavedChat), kept a day on this device only, like the web's saveChat. */
     val coachChat: Flow<String?> = store.data.map { it[COACH_CHAT] }
 
@@ -107,6 +114,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val REMINDER_AT = stringPreferencesKey("reminder_at")
         val LOGGED_TODAY = stringPreferencesKey("logged_today")
         val AI_CONSENT = booleanPreferencesKey("ai_consent")
+        val CSV_CONSENT = booleanPreferencesKey("csv_consent")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
     }
 }

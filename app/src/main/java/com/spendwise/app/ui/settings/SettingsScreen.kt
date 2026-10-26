@@ -67,6 +67,7 @@ import com.spendwise.app.ui.dashboard.PlansViewModel
 /** Settings (spec §1.9), in the web's order: Account, Display, Money, Notifications, Your data, then Log out; plus Delete account (§8.2). */
 @Composable
 fun SettingsScreen(
+    onImport: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
     backup: BackupViewModel = hiltViewModel(),
@@ -139,6 +140,11 @@ fun SettingsScreen(
         state.reminderNote?.let { Muted(it) }
 
         Group("Your data")
+        ListItem(
+            headlineContent = { Text("Import from a bank statement") },
+            supportingContent = { Text("A CSV file: AI sorts it into expenses and income, and you check it before saving") },
+            modifier = Modifier.clickable(onClick = onImport),
+        )
         ListItem(
             headlineContent = { Text("Backup & restore") },
             supportingContent = { Text("Download everything as a file, or restore from one") },

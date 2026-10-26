@@ -59,6 +59,7 @@ import com.spendwise.app.ui.history.HistoryScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
 import com.spendwise.app.ui.income.IncomeScreen
 import com.spendwise.app.ui.settings.SettingsScreen
+import com.spendwise.app.ui.settings.CsvImportScreen
 
 private data class Tab(val route: Any, val label: String, @param:DrawableRes val icon: Int)
 
@@ -139,7 +140,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             }
             composable<Investments> { InvestScreen(onAllHistory = { nav.navigate(History()) }) }
             composable<Debts> { DebtsScreen() }
-            composable<Settings> { SettingsScreen() }
+            composable<Settings> { SettingsScreen(onImport = { nav.navigate(CsvImport) }) }
+            composable<CsvImport> { CsvImportScreen(onDone = { nav.popBackStack() }) }
         }
     }
 
