@@ -1,5 +1,6 @@
 package com.spendwise.app.data.worker
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
@@ -49,6 +50,7 @@ class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
                 c.setRequestProperty("Content-Type", "application/json")
                 c.outputStream.use { it.write(body.toString().toByteArray()) }
                 val status = c.responseCode
+                Log.d("WorkerClient", "POST $path: $status") // the path and status only, never the body
                 val text = (if (status < 400) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
                 WorkerResponse(status, text)
             } finally {
@@ -58,13 +60,10 @@ class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
     }
 }
 
-/** callAI's body: one system and one user message, as the web sends them. */
-fun aiRequest(model: String, system: String, user: String, maxTokens: Int, temperature: Double): JsonObject = buildJsonObject {
+/** callAI's body: [messages] as (role, content), as the web sends them. */
+fun aiRequest(model: String, messages: List<Pair<String, String>>, maxTokens: Int, temperature: Double): JsonObject = buildJsonObject {
     put("model", model)
-    putJsonArray("messages") {
-        addJsonObject { put("role", "system"); put("content", system) }
-        addJsonObject { put("role", "user"); put("content", user) }
-    }
+    putJsonArray("messages") { messages.forEach { (role, content) -> addJsonObject { put("role", role); put("content", content) } } }
     put("max_tokens", maxTokens)
     put("temperature", temperature)
 }

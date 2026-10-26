@@ -104,8 +104,13 @@ fun InsightsScreen(
     onOpenHistory: (AskHistory) -> Unit,
     insights: InsightsViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
+    coach: CoachViewModel = hiltViewModel(),
 ) {
     val state by insights.state.collectAsStateWithLifecycle()
+    val asking by insights.asking.collectAsStateWithLifecycle()
+    val coachState by coach.state.collectAsStateWithLifecycle()
+    val consentAsked by insights.consentAsked.collectAsStateWithLifecycle()
+    if (consentAsked) ConsentDialog(insights::answerConsent)
     val currency by insights.currency.collectAsStateWithLifecycle()
     // insights-v2.js › money: whole, with a no-break space so the symbol never wraps from its number
     val money = { n: Double -> formatWhole(n, currency).replaceFirst(' ', ' ') }
@@ -138,7 +143,7 @@ fun InsightsScreen(
                     }
                 }
                 is InsightsState.Ready -> {
-                    item { AskSection(s.ask, insights::ask, money, onOpenHistory) }
+                    item { AskSection(s.ask, asking, insights::ask, money, onOpenHistory) }
                     item { ForecastSection(s.forecast, money) }
                     item { Periods(s.choice, insights) }
                     val g = s.glance
@@ -162,6 +167,7 @@ fun InsightsScreen(
                             fixedCard(g.summary, money)?.let { f -> item { FixedSection(f) } }
                         }
                     }
+                    item { CoachSection(coachState, g.takeIf { s.periodError == null }, coach) }
                 }
             }
         }
@@ -463,7 +469,7 @@ private fun FixedSection(f: com.spendwise.app.domain.FixedCard) = Column(vertica
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AskSection(ask: AskView?, onAsk: (String) -> Unit, money: (Double) -> String, onOpenHistory: (AskHistory) -> Unit) {
+private fun AskSection(ask: AskView?, asking: Boolean, onAsk: (String) -> Unit, money: (Double) -> String, onOpenHistory: (AskHistory) -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Title("Ask about your spending")
@@ -474,12 +480,15 @@ private fun AskSection(ask: AskView?, onAsk: (String) -> Unit, money: (Double) -
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onAsk(text) }),
-            trailingIcon = { TextButton(onClick = { onAsk(text) }) { Text("Ask") } },
+            trailingIcon = {
+                TextButton(onClick = { onAsk(text) }, enabled = !asking) { Text(if (asking) "Working it out" else "Ask") }
+            },
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Your question" },
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ASK_EXAMPLES.forEach { q -> AssistChip(onClick = { text = q; onAsk(q) }, label = { Text(q) }) }
         }
+        if (asking) Muted("Looking through your entries…")
         ask ?: return@Column
         val answer = answerFor(ask.spec, ask.result, money, ask.today)
         Column(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(4.dp)) {

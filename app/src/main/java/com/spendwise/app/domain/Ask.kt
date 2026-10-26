@@ -1,12 +1,17 @@
 package com.spendwise.app.domain
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
 // "Ask about your spending" (Insights), ported from ask-data.js (spec §1.7, §6.9): a question becomes a
 // search spec, the spec runs over the user's own entries on the device, and the answer is worded here.
-// Only the on-device reading (guessSpec) is ported; the AI's reading (askPrompt, readSpec) comes with AI.
+// The AI only turns the question into a spec (askPrompt, readSpec); guessSpec does the same without it.
 
 enum class AskType { EXPENSE, INCOME, BOTH }
 enum class AskMeasure { TOTAL, COUNT, BIGGEST, LIST }
@@ -247,3 +252,46 @@ fun askHistory(spec: AskSpec): AskHistory? {
 
 const val ASK_MAX = 200
 val ASK_EXAMPLES = listOf("Amazon last month", "Food this week", "Biggest expense this year", "Salary this month")
+
+const val ASK_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+/** The instructions for the AI: the question becomes one JSON spec. It gets today's date and the category names only. */
+fun askPrompt(today: String): String {
+    val weekday = LocalDate.parse(today).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.US)
+    return """Turn a question about the user's own spending or income into a search. Today is $weekday, $today.
+Reply with one JSON object only, no other text:
+{"type":"expense"|"income"|"both","text":string|null,"tag":string|null,"categories":[string],"from":"YYYY-MM-DD"|null,"to":"YYYY-MM-DD"|null,"measure":"total"|"count"|"biggest"|"list"}
+- text: a shop, brand, person or word to look for in the entries (like "amazon", "swiggy", "netflix"), lowercase; null if none.
+- tag: a #tag without the "#", if the question names one; else null.
+- categories: only from this list, and only if the question names a kind of spending: ${EXPENSE_CATEGORIES.joinToString(", ")}. Else [].
+- from/to: the dates the question means, both inclusive ("last month" is the whole previous calendar month, "this month" runs to today, a month name means its most recent past occurrence). null for all time.
+- measure: "count" for how many, "biggest" for the largest one, "list" to show them, else "total".
+- type: "income" for money received (salary, freelance, refunds), "both" if it asks about both, else "expense"."""
+}
+
+private val SPEC_DATE = Regex("""^\d{4}-\d{2}-\d{2}$""")
+
+/** readSpec: the AI's reply as a clean spec, or null when it isn't one. Anything unknown is dropped. */
+fun readSpec(raw: String): AskSpec? {
+    val i = raw.indexOf('{')
+    val j = raw.lastIndexOf('}')
+    if (i < 0 || j < i) return null
+    val o = runCatching { Json.parseToJsonElement(raw.substring(i, j + 1)) }.getOrNull() as? JsonObject ?: return null
+    fun string(key: String) = (o[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    fun str(key: String) = string(key)?.trim()?.takeIf { it.isNotEmpty() }?.lowercase()?.take(60)
+    var from = string("from")?.takeIf { SPEC_DATE.matches(it) }
+    var to = string("to")?.takeIf { SPEC_DATE.matches(it) }
+    if (from != null && to != null && from > to) from = to.also { to = from }
+    // JS String(c): null reads as "Other", numbers as their digits
+    val cats = (o["categories"] as? JsonArray)?.map { c -> normalizeCategory(if (c is JsonNull) null else (c as? JsonPrimitive)?.content ?: "[object]") }
+        ?.filter { it in EXPENSE_CATEGORIES }?.distinct().orEmpty()
+    return AskSpec(
+        type = when (string("type")) { "income" -> AskType.INCOME; "both" -> AskType.BOTH; else -> AskType.EXPENSE },
+        text = str("text"),
+        tag = str("tag")?.removePrefix("#")?.takeIf { it.isNotEmpty() },
+        categories = cats,
+        from = from,
+        to = to,
+        measure = when (string("measure")) { "count" -> AskMeasure.COUNT; "biggest" -> AskMeasure.BIGGEST; "list" -> AskMeasure.LIST; else -> AskMeasure.TOTAL },
+    )
+}

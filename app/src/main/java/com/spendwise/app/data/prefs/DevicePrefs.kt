@@ -2,6 +2,7 @@ package com.spendwise.app.data.prefs
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -62,6 +63,20 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[LOGGED_TODAY] = key }
     }
 
+    /** "Continue" in the AI dialog (insights-v2.js › aiAdvisorConsentV3); per device, like the web. */
+    val aiConsent: Flow<Boolean> = store.data.map { it[AI_CONSENT] == true }
+
+    suspend fun setAiConsent() {
+        store.edit { it[AI_CONSENT] = true }
+    }
+
+    /** The coach's conversation as JSON (SavedChat), kept a day on this device only, like the web's saveChat. */
+    val coachChat: Flow<String?> = store.data.map { it[COACH_CHAT] }
+
+    suspend fun setCoachChat(json: String?) {
+        store.edit { if (json == null) it.remove(COACH_CHAT) else it[COACH_CHAT] = json }
+    }
+
     /** Account deletion: nothing of the account stays on the device (spec §8.2). */
     suspend fun clear() {
         store.edit { it.clear() }
@@ -91,5 +106,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val SKIPPED_BILLS = stringSetPreferencesKey("skipped_bills")
         val REMINDER_AT = stringPreferencesKey("reminder_at")
         val LOGGED_TODAY = stringPreferencesKey("logged_today")
+        val AI_CONSENT = booleanPreferencesKey("ai_consent")
+        val COACH_CHAT = stringPreferencesKey("coach_chat")
     }
 }

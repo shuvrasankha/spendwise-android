@@ -143,7 +143,7 @@ class PlansViewModel @Inject constructor(
     /** Only the facts' numbers go out; null on any failure, so the device's plan is used. */
     private suspend fun askAi(facts: BudgetFacts, currency: Currency): BudgetSuggestion? = try {
         val (system, user) = budgetPrompt(facts, currency)
-        val res = worker.post("/", aiRequest(BUDGET_AI_MODEL, system, user, maxTokens = 400, temperature = 0.2))
+        val res = worker.post("/", aiRequest(BUDGET_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 400, temperature = 0.2))
         if (res.ok) checkReply(readReply(aiContent(res.body)), facts) else null
     } catch (e: CancellationException) {
         throw e

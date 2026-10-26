@@ -18,7 +18,7 @@ class WorkerPushTest {
 class AiRequestTest {
     @Test fun `request body as the web sends it`() = assertEquals(
         """{"model":"m","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"max_tokens":400,"temperature":0.2}""",
-        aiRequest("m", "s", "u", 400, 0.2).toString(),
+        aiRequest("m", listOf("system" to "s", "user" to "u"), 400, 0.2).toString(),
     )
 
     @Test fun `reply content`() {
