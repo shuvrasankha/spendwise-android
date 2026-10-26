@@ -134,6 +134,8 @@ class SettingsRepository @Inject constructor(private val db: FirebaseFirestore, 
 
     fun saveRemindAt(at: String): PendingWrite = save(remindAtFields(at))
 
+    fun saveNotif(seen: List<String>, cleared: List<String>): PendingWrite = save(notifFields(seen, cleared))
+
     private fun save(fields: Map<String, Any>): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
         return PendingWrite(uid, db.collection("settings").document(uid).set(fields, SetOptions.mergeFields(fields.keys.toList())))

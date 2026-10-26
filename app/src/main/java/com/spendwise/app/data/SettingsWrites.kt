@@ -25,3 +25,6 @@ fun goalsFields(goals: List<Goal>): Map<String, Any> = mapOf(
 fun remindOnFields(on: Boolean): Map<String, Any> = mapOf("remindOn" to on)
 
 fun remindAtFields(at: String): Map<String, Any> = mapOf("remindAt" to at)
+
+/** notifications.js › syncIds: both lists together, each the last 200, newest last. */
+fun notifFields(seen: List<String>, cleared: List<String>): Map<String, Any> = mapOf("notif" to mapOf("seen" to seen, "cleared" to cleared))

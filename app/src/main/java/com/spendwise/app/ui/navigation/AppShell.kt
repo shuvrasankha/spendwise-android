@@ -85,7 +85,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val inMore = moreItems.any { (route, _) -> destination?.hasRoute(route::class) == true }
 
     Scaffold(
-        topBar = { Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut) },
+        topBar = { Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->
@@ -158,10 +158,10 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     }
 }
 
-/** The header on every signed-in page (spec §1.0): sync status, and the avatar menu with who's signed in. */
+/** The header on every signed-in page (spec §1.0): sync status, the bell, and the avatar menu with who's signed in. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> Unit) {
+private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> Unit, onOpenDebts: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     TopAppBar(
         title = {
@@ -173,6 +173,7 @@ private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> 
             )
         },
         actions = {
+            Bell(onOpenDebts)
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Account menu" }) {
                     Avatar(header.name.ifEmpty { header.email }, size = 32.dp)

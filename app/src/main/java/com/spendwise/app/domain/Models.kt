@@ -36,6 +36,8 @@ data class Debt(
     val shared: Boolean = false,
     /** Written on this device and not yet synced: no actions until it is. */
     val pending: Boolean = false,
+    /** Shared debts only: createdAt in ms, 0 when unknown (sharedDebtView); orders the bell's items. */
+    val createdAt: Long = 0,
 )
 
 const val I_OWE = "i-owe"
@@ -66,4 +68,7 @@ data class UserSettings(
     /** The daily reminder: null when never set on any device (spec §7.5). */
     val remindOn: Boolean? = null,
     val remindAt: String? = null,
+    /** The bell's item ids seen and cleared on any device, newest last (spec §7.6). */
+    val notifSeen: List<String> = emptyList(),
+    val notifCleared: List<String> = emptyList(),
 )

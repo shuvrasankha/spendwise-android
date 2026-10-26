@@ -1,5 +1,6 @@
 package com.spendwise.app.data
 
+import com.google.firebase.Timestamp
 import com.spendwise.app.domain.Budget
 import com.spendwise.app.domain.Debt
 import com.spendwise.app.domain.Goal
@@ -86,6 +87,7 @@ fun sharedDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false
     email = data.text("fromEmail"),
     shared = true,
     pending = pending,
+    createdAt = (data["createdAt"] as? Timestamp)?.toDate()?.time ?: 0,
 )
 
 /** invest.js › load: the doc as stored. [Holding.valued] decides whether the value counts. */
@@ -117,5 +119,7 @@ fun settingsFrom(data: Map<String, Any?>?): UserSettings {
         val saved = (g["saved"] as? Number)?.toDouble() ?: 0.0
         Goal(id, name, target, by, if (saved > 0) saved else 0.0)
     }
-    return UserSettings(Budget(total, cats), goals, data?.get("remindOn") as? Boolean, data?.get("remindAt") as? String)
+    val notif = data?.get("notif") as? Map<*, *>
+    fun ids(key: String) = (notif?.get(key) as? List<*>).orEmpty().filterIsInstance<String>()
+    return UserSettings(Budget(total, cats), goals, data?.get("remindOn") as? Boolean, data?.get("remindAt") as? String, ids("seen"), ids("cleared"))
 }
