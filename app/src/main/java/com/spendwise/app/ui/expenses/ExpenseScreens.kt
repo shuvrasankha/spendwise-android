@@ -74,8 +74,13 @@ fun AddExpenseScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item { Text("Add expense", style = MaterialTheme.typography.headlineSmall) }
-            item { ExpenseFormFields(state.form, currency, editor) }
-            item { RepeatFields(state.form, adding = true, editor) }
+            item { ExpenseFormFields(state.form, state.tiles, currency, editor) }
+            // The web's collapsed "More details", whose summary is the payment method
+            item {
+                Collapsible("More details", state.form.payment) {
+                    ExpenseDetailFields(state.form, editor) { RepeatFields(state.form, adding = true, editor) }
+                }
+            }
             item { SplitFields(state, currency, editor) }
             item { FormMessageText(state.message) }
             item {
@@ -126,8 +131,8 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
                 else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    item { ExpenseFormFields(state.form, currency, editor) }
-                    item { RepeatFields(state.form, adding = false, editor) }
+                    item { ExpenseFormFields(state.form, state.tiles, currency, editor) }
+                    item { ExpenseDetailFields(state.form, editor) { RepeatFields(state.form, adding = false, editor) } }
                     item { FormMessageText(state.message) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

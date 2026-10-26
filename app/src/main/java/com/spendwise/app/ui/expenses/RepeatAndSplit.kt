@@ -26,6 +26,7 @@ import com.spendwise.app.R
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.MAX_SPLIT_PEOPLE
 import com.spendwise.app.domain.splitSummary
+import com.spendwise.app.ui.components.PersonSuggestions
 import com.spendwise.app.ui.format.formatMoney
 
 /** "Repeats every month", and on Add the EMI's payments (spec §2.3, §6.5). */
@@ -83,11 +84,7 @@ fun RepeatFields(form: ExpenseForm, adding: Boolean, viewModel: ExpenseEditorVie
 fun SplitFields(state: EditorState, currency: Currency, viewModel: ExpenseEditorViewModel) {
     val form = state.form
     val (hint, note) = splitSummary(form.split, form.amount) { formatMoney(it, currency) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Split with others", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    Collapsible("Split with others", hint) { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         form.split.forEachIndexed { i, row ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -99,6 +96,7 @@ fun SplitFields(state: EditorState, currency: Currency, viewModel: ExpenseEditor
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    PersonSuggestions(row.name, row.email, state.known) { viewModel.pickSplitPerson(i, it) }
                     if (state.canShare) {
                         OutlinedTextField(
                             value = row.email,
@@ -126,5 +124,5 @@ fun SplitFields(state: EditorState, currency: Currency, viewModel: ExpenseEditor
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
+    } }
 }

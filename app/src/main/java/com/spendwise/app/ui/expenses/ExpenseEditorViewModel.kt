@@ -33,9 +33,20 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.spendwise.app.data.DebtRepository
+import com.spendwise.app.domain.CATEGORY_TILE_LABELS
+import com.spendwise.app.domain.KnownPerson
+import com.spendwise.app.domain.orderedTiles
+import com.spendwise.app.domain.peopleFrom
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class ExpenseForm(
@@ -77,6 +88,10 @@ data class EditorState(
     val canShare: Boolean = false,
     /** Edit: saved or deleted, so the screen closes. */
     val done: Boolean = false,
+    /** The category tiles as (category, label); on Add, ordered by recent use once per visit. */
+    val tiles: List<Pair<String, String>> = CATEGORY_TILE_LABELS.toList(),
+    /** Add: people from past debts, suggested on the split rows (people.js). */
+    val known: List<KnownPerson> = emptyList(),
 )
 
 /** The Add form, and the edit screen for one expense (route arg "id"). Spec §1.3, §2.3. */
@@ -84,6 +99,7 @@ data class EditorState(
 class ExpenseEditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repo: ExpenseRepository,
+    debtRepo: DebtRepository,
     private val prefs: DevicePrefs,
     private val auth: AuthRepository,
 ) : ViewModel() {
@@ -106,9 +122,21 @@ class ExpenseEditorViewModel @Inject constructor(
             if (editingId == null) {
                 val payment = prefs.lastPayment.first()
                 updateForm { it.copy(payment = payment) }
+                // Once, from the first non-empty load: the web orders tiles once per visit, after expenses arrive
+                val expenses = repo.expenses().catch { }.firstOrNull { it.isNotEmpty() }
+                if (expenses != null) _state.update { it.copy(tiles = orderedTiles(expenses, LocalDate.now())) }
             } else {
                 loadForEdit(editingId)
             }
+        }
+    }
+
+    init {
+        // Suggestions are a nicety: a debts load error just leaves them empty, as the web's people.js does
+        if (editingId == null) {
+            debtRepo.debts().map { peopleFrom(it) }.catch { emit(emptyList()) }
+                .onEach { known -> _state.update { it.copy(known = known) } }
+                .launchIn(viewModelScope)
         }
     }
 
@@ -168,7 +196,21 @@ class ExpenseEditorViewModel @Inject constructor(
     fun setEmiBefore(v: String) = updateForm { it.copy(emiBefore = v) }
 
     fun addSplitPerson() = updateForm { if (it.split.size < MAX_SPLIT_PEOPLE) it.copy(split = it.split + SplitRow()) else it }
-    fun setSplitPerson(i: Int, row: SplitRow) = updateForm { it.copy(split = it.split.toMutableList().also { l -> l[i] = row }) }
+    fun setSplitPerson(i: Int, row: SplitRow) = updateForm { f ->
+        // people.js: an email you've used before fills in their name, if none is typed
+        val old = f.split[i]
+        val known = if (row.email != old.email && row.name.isBlank()) {
+            _state.value.known.firstOrNull { it.email.isNotEmpty() && it.email == row.email.trim().lowercase() }
+        } else null
+        f.copy(split = f.split.toMutableList().also { l -> l[i] = if (known != null) row.copy(name = known.name) else row })
+    }
+
+    /** A suggestion: their name, and their email when known and this account can share (people.js). */
+    fun pickSplitPerson(i: Int, p: KnownPerson) = setSplitPerson(
+        i, f(i).copy(name = p.name, email = if (p.email.isNotEmpty() && _state.value.canShare) p.email else f(i).email),
+    )
+
+    private fun f(i: Int) = _state.value.form.split[i]
     fun removeSplitPerson(i: Int) = updateForm { it.copy(split = it.split.filterIndexed { j, _ -> j != i }) }
 
     fun clear() = viewModelScope.launch {

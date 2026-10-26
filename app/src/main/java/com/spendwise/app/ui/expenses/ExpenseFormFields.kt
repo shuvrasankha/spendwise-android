@@ -1,5 +1,12 @@
 package com.spendwise.app.ui.expenses
 
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -36,7 +43,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.spendwise.app.R
-import com.spendwise.app.domain.CATEGORY_TILE_LABELS
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.PAYMENT_METHODS
 import com.spendwise.app.domain.isCard
@@ -47,10 +53,13 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-/** The Add form's fields (spec §1.3), shared by Add and Edit. Stateless: the ViewModel owns [form]. */
+/**
+ * The Add form's main fields (spec §1.3), shared by Add and Edit. Stateless: the ViewModel owns [form].
+ * [tiles] are (category, label) in the order to show.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ExpenseFormFields(form: ExpenseForm, currency: Currency, viewModel: ExpenseEditorViewModel) {
+fun ExpenseFormFields(form: ExpenseForm, tiles: List<Pair<String, String>>, currency: Currency, viewModel: ExpenseEditorViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedTextField(
             value = form.amount,
@@ -67,7 +76,7 @@ fun ExpenseFormFields(form: ExpenseForm, currency: Currency, viewModel: ExpenseE
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Category", style = MaterialTheme.typography.titleSmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CATEGORY_TILE_LABELS.forEach { (category, label) ->
+                tiles.forEach { (category, label) ->
                     FilterChip(
                         selected = form.category == category,
                         onClick = { viewModel.setCategory(category) },
@@ -85,7 +94,17 @@ fun ExpenseFormFields(form: ExpenseForm, currency: Currency, viewModel: ExpenseE
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
 
+/**
+ * Payment, card name, notes, [repeat] and tags: the web's "More details" on Add, shown open on Edit.
+ * The order is the web's (expense.html › #exp-more).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ExpenseDetailFields(form: ExpenseForm, viewModel: ExpenseEditorViewModel, repeat: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Payment method", style = MaterialTheme.typography.titleSmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -113,6 +132,8 @@ fun ExpenseFormFields(form: ExpenseForm, currency: Currency, viewModel: ExpenseE
             modifier = Modifier.fillMaxWidth(),
         )
 
+        repeat()
+
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = form.tagDraft,
@@ -139,6 +160,31 @@ fun ExpenseFormFields(form: ExpenseForm, currency: Currency, viewModel: ExpenseE
                 }
             }
         }
+    }
+}
+
+/** A collapsed section like the web's <details>: [title], a short [hint] of what's inside, and its [content]. */
+@Composable
+fun Collapsible(title: String, hint: String, content: @Composable () -> Unit) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClickLabel = if (open) "Hide" else "Show") { open = !open }
+                .semantics { stateDescription = if (open) "Expanded" else "Collapsed" }
+                .padding(vertical = 12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                painterResource(R.drawable.ic_back),
+                contentDescription = null,
+                modifier = Modifier.padding(start = 8.dp).size(18.dp).rotate(if (open) 90f else -90f),
+            )
+        }
+        if (open) content()
     }
 }
 

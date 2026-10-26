@@ -74,4 +74,18 @@ class ExpensesTest {
         assertEquals(duplicateKey(a), duplicateKey(a.copy(description = "other", payment = "Cash")))
         assertTrue(duplicateKey(a) != duplicateKey(a.copy(date = "2026-10-25")))
     }
+
+    @Test fun orderedTiles_mostUsedInLast60Days_tiesKeepOrder() {
+        val today = java.time.LocalDate.parse("2026-10-26")
+        val tiles = orderedTiles(
+            listOf(
+                ex(1.0, "Travel", "2026-10-01", id = "a"), ex(1.0, "Travel", "2026-08-27", id = "b"), // 60 days back counts
+                ex(1.0, "Health", "2026-10-20", id = "c"),
+                ex(1.0, "Shopping", "2026-08-26", id = "d"), ex(1.0, "Shopping", "2026-08-01", id = "e"), // too old
+            ),
+            today,
+        ).map { it.second }
+        assertEquals(listOf("Travel", "Health", "Food", "Groceries", "Transport", "Shopping"), tiles.take(6))
+        assertEquals(CATEGORY_TILE_LABELS.values.toList(), orderedTiles(emptyList(), today).map { it.second })
+    }
 }

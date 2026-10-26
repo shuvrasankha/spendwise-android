@@ -1,5 +1,7 @@
 package com.spendwise.app.domain
 
+import java.time.LocalDate
+
 // Expenses (spec §1.3, §2.3, §3.1). Ported from dashboard.js › addExpense, saveEditExpense, addTag, toggleCardName
 // and helpers.js › sanitize.
 
@@ -51,6 +53,16 @@ val CATEGORY_TILE_LABELS = mapOf(
     "Shopping" to "Shopping", "Bills & Utilities" to "Bills", "Home & Rent" to "Home", "Health" to "Health",
     "Entertainment" to "Fun", "Education" to "Education", "Savings & Investments" to "Savings", "Other" to "Other",
 )
+
+/**
+ * orderCategoryTiles: the tiles as (category, label), most-used in the last 60 days first; ties keep
+ * the default order. The web does this once per visit so tiles don't move under a finger.
+ */
+fun orderedTiles(expenses: List<Expense>, today: LocalDate): List<Pair<String, String>> {
+    val since = today.minusDays(60).toString()
+    val counts = expenses.filter { it.date >= since }.groupingBy { it.category }.eachCount()
+    return CATEGORY_TILE_LABELS.toList().sortedByDescending { counts[it.first] ?: 0 } // stable, so ties keep order
+}
 
 private val controlCharacters = Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]")
 

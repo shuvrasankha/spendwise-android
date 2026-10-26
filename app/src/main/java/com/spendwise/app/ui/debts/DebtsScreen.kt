@@ -1,7 +1,6 @@
 package com.spendwise.app.ui.debts
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +32,6 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,6 +71,7 @@ import com.spendwise.app.domain.reopenMessage
 import com.spendwise.app.domain.settledMeta
 import com.spendwise.app.domain.shortDay
 import com.spendwise.app.domain.sub
+import com.spendwise.app.ui.components.PersonSuggestions
 import com.spendwise.app.ui.expenses.DateField
 import com.spendwise.app.ui.expenses.FormMessageText
 import com.spendwise.app.ui.format.formatMoney
@@ -217,18 +216,7 @@ private fun AddForm(form: DebtForm, vm: DebtsViewModel, known: List<KnownPerson>
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(form.person, vm::setPerson, label = { Text("Person") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            // Like the web's datalist: people from past debts whose name contains what's typed
-            val typed = form.person.trim().lowercase()
-            val matches = known.filter { typed.isNotEmpty() && it.name.lowercase().contains(typed) && !(it.name.equals(form.person.trim(), true) && it.email == form.email.trim().lowercase()) }.take(6)
-            if (matches.isNotEmpty()) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    matches.forEach { p ->
-                        // Two people with one name are told apart by their email (people.js)
-                        val twin = known.count { it.name.equals(p.name, true) } > 1
-                        SuggestionChip(onClick = { vm.pickPerson(p) }, label = { Text(if (twin) "${p.name} · ${p.email}" else p.name) })
-                    }
-                }
-            }
+            PersonSuggestions(form.person, form.email, known, vm::pickPerson)
         }
         if (vm.canShare) {
             OutlinedTextField(
