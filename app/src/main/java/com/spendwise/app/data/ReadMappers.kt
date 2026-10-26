@@ -51,7 +51,7 @@ private fun paymentsFrom(raw: Any?): List<Payment> = (raw as? List<*>).orEmpty()
 }
 
 /** dashboard.js › loadDebts: your own debt. `settled` may be true, "true" or 1 on old docs. */
-fun ownDebtFrom(id: String, data: Map<String, Any?>): Debt {
+fun ownDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false): Debt {
     val settled = data["settled"]
     return Debt(
         id = id,
@@ -66,11 +66,12 @@ fun ownDebtFrom(id: String, data: Map<String, Any?>): Debt {
         claimDate = data.text("claimDate"),
         claimAmount = jsNumberOrZero(data["claimAmount"]).takeIf { it > 0 },
         email = data.text("withEmail"),
+        pending = pending,
     )
 }
 
 /** helpers.js › sharedDebtView: a debt someone else recorded against your email, from your side. */
-fun sharedDebtFrom(id: String, data: Map<String, Any?>) = Debt(
+fun sharedDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false) = Debt(
     id = id,
     amount = jsNumberOrZero(data["amount"]),
     type = if (data["type"] == THEY_OWE) I_OWE else THEY_OWE,
@@ -84,6 +85,7 @@ fun sharedDebtFrom(id: String, data: Map<String, Any?>) = Debt(
     claimAmount = jsNumberOrZero(data["claimAmount"]).takeIf { it > 0 },
     email = data.text("fromEmail"),
     shared = true,
+    pending = pending,
 )
 
 /** invest-data.js › portfolio's "valued" test: a number ≥ 0 with a valueDate. */

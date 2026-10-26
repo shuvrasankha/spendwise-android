@@ -21,7 +21,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class AuthUser(val uid: String, val email: String, val displayName: String)
+/** [emailVerified] gates sharing debts, as the rules do (firestore.rules › emailVerified). */
+data class AuthUser(val uid: String, val email: String, val displayName: String, val emailVerified: Boolean = false)
 
 sealed interface AuthState {
     data object Loading : AuthState
@@ -47,6 +48,8 @@ class AuthRepository @Inject constructor(
     }
 
     val currentUid: String? get() = auth.currentUser?.uid
+
+    val currentUser: AuthUser? get() = (auth.currentUser.toState() as? AuthState.SignedIn)?.user
 
     suspend fun signIn(email: String, password: String) {
         val user = auth.signInWithEmailAndPassword(email.trim(), password).await().user
@@ -106,6 +109,6 @@ class AuthRepository @Inject constructor(
 
     private fun FirebaseUser?.toState(): AuthState = when {
         this == null || needsVerification() -> AuthState.SignedOut
-        else -> AuthState.SignedIn(AuthUser(uid, email.orEmpty(), displayName.orEmpty()))
+        else -> AuthState.SignedIn(AuthUser(uid, email.orEmpty(), displayName.orEmpty(), isEmailVerified))
     }
 }

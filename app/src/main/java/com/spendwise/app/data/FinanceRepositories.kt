@@ -5,9 +5,11 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.domain.Debt
+import com.spendwise.app.domain.DebtInput
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.Income
 import com.spendwise.app.domain.IncomeInput
+import com.spendwise.app.domain.Payment
 import com.spendwise.app.domain.UserSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -18,7 +20,7 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Live reads of income, debts, holdings and settings, and income's writes. The others' writes arrive with their slices.
+// Live reads of income, debts, holdings and settings, and income's and debts' writes. The others' writes arrive with their slices.
 
 @Singleton
 class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
@@ -48,17 +50,45 @@ class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, pr
 
 @Singleton
 class DebtRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
-    /** Your own debts plus those shared with your (verified) email, from your side (split.js › fetchSharedDebts). */
+    private val collection get() = db.collection("debts")
+
+    /** Your own debts plus those shared with your verified email, from your side (split.js › fetchSharedDebts). */
     fun debts(): Flow<List<Debt>> = auth.forUser(emptyList()) { user ->
-        val own = db.collection("debts").whereEqualTo("uid", user.uid).live()
-            .map { s -> s.documents.map { ownDebtFrom(it.id, it.data.orEmpty()) } }
+        val own = collection.whereEqualTo("uid", user.uid).live()
+            .map { s -> s.documents.map { ownDebtFrom(it.id, it.data.orEmpty(), it.metadata.hasPendingWrites()) } }
         // A second where, on withEmail, as the rules require; the web treats a failure as no shared debts
-        val shared = if (user.email.isEmpty()) flowOf(emptyList()) else
-            db.collection("debts").whereEqualTo("withEmail", user.email.lowercase()).live()
-                .map { s -> s.documents.map { sharedDebtFrom(it.id, it.data.orEmpty()) } }
+        val shared = if (user.email.isEmpty() || !user.emailVerified) flowOf(emptyList()) else
+            collection.whereEqualTo("withEmail", user.email.lowercase()).live()
+                .map { s -> s.documents.map { sharedDebtFrom(it.id, it.data.orEmpty(), it.metadata.hasPendingWrites()) } }
                 .catch { emit(emptyList()) }
         combine(own, shared) { a, b -> (a + b).sortedByDescending { it.date } }
     }
+
+    /** Shared when [DebtInput.email] is set; the caller only offers that to a verified account. */
+    fun add(input: DebtInput): PendingWrite {
+        val user = checkNotNull(auth.currentUser) { "Not signed in" }
+        val share = input.email.takeIf { it.isNotEmpty() }?.let { Share.of(it, user.displayName, user.email) }
+        val ref = collection.document()
+        return PendingWrite(ref.id, ref.set(newDebtFields(user.uid, input, share, FieldValue.serverTimestamp())))
+    }
+
+    fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
+
+    fun pay(id: String, paid: List<Payment>, settles: Boolean, date: String) = update(id, payFields(paid, settles, date, FieldValue.delete()))
+
+    fun removePayment(id: String, paid: List<Payment>) = update(id, mapOf("paid" to paidField(paid)))
+
+    fun claim(id: String, amount: Double, date: String) = update(id, claimFields(amount, date))
+
+    fun clearClaim(id: String) = update(id, clearClaimFields(FieldValue.delete()))
+
+    fun confirmClaim(id: String, paid: List<Payment>, settles: Boolean, date: String) =
+        update(id, confirmClaimFields(paid, settles, date, FieldValue.delete()))
+
+    fun reopen(id: String, paid: List<Payment>?) = update(id, reopenFields(paid))
+
+    /** Field-path updates only, so fields this client doesn't know about are kept. */
+    private fun update(id: String, fields: Map<String, Any>) = PendingWrite(id, collection.document(id).update(fields))
 }
 
 @Singleton

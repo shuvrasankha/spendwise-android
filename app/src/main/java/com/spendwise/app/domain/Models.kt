@@ -34,6 +34,8 @@ data class Debt(
     /** The other person's email: withEmail on your own debts, fromEmail on shared ones. */
     val email: String = "",
     val shared: Boolean = false,
+    /** Written on this device and not yet synced: no actions until it is. */
+    val pending: Boolean = false,
 )
 
 const val I_OWE = "i-owe"
