@@ -116,7 +116,7 @@ class DashboardTest {
         assertEquals("0", toFixed0(0.49999999999999994))
     }
 
-    @Test fun linkedGoalValues_valueThenWhatWasPutInAfter() {
+    @Test fun linkedToGoals_valueThenWhatWasPutInAfter() {
         val holdings = listOf(
             Holding("h1", "Index fund", "mf", 10000.0, "2026-10-01", "g1"),
             Holding("h2", "Gold", "other", null, null, "g1"),
@@ -127,7 +127,7 @@ class DashboardTest {
             ex(300.0, INVEST, "2026-10-02", holdingId = "h2"),
             ex(900.0, INVEST, "2026-10-30", holdingId = "h2"), // future-dated
         )
-        assertEquals(mapOf("g1" to 11000.0), linkedGoalValues(holdings, list, "2026-10-26"))
+        assertEquals(mapOf("g1" to 11000.0), linkedToGoals(portfolio(holdings, list, "2026-10-26").rows))
         val goal = Goal("g1", "Trip", 50000.0, "2027-03", 1000.0)
         assertEquals(12000.0, withLinked(goal, mapOf("g1" to 11000.0)).saved, 0.0)
     }

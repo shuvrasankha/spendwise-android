@@ -44,7 +44,10 @@ const val THEY_OWE = "they-owe"
 /** `settings.budget` (spec §3.5), normalized like budget.js › normalize: no total means no budget. */
 data class Budget(val total: Double? = null, val cats: Map<String, Double> = emptyMap())
 
-/** A `holdings` doc (spec §3.4). [value] is null unless it's a number ≥ 0 with a valueDate (invest-data.js). */
+/**
+ * A `holdings` doc (spec §3.4), as stored: [value] is the number given, or null; [valueDate] the string, or null.
+ * The holding dialog reads them raw; only [valued] ones count as worth that much (invest-data.js › portfolio).
+ */
 data class Holding(
     val id: String,
     val name: String,
@@ -52,7 +55,9 @@ data class Holding(
     val value: Double?,
     val valueDate: String?,
     val goalId: String?,
-)
+) {
+    val valued: Boolean get() = value != null && value >= 0 && !valueDate.isNullOrEmpty()
+}
 
 /** What the dashboard reads from `settings/{uid}`. */
 data class UserSettings(val budget: Budget = Budget(), val goals: List<Goal> = emptyList())

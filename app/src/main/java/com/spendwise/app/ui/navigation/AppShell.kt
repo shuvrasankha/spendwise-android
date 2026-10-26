@@ -35,6 +35,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.app.R
 import com.spendwise.app.ui.debts.DebtsScreen
+import com.spendwise.app.ui.invest.InvestScreen
 import com.spendwise.app.ui.dashboard.DashboardScreen
 import com.spendwise.app.ui.expenses.AddExpenseScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
@@ -106,7 +107,7 @@ fun AppShell() {
             composable<Income> {
                 IncomeScreen(onEdit = { nav.navigate(EditIncome(it)) }, onAllIncome = { nav.navigate(History(income = true)) })
             }
-            composable<Investments> { Placeholder("Investments") }
+            composable<Investments> { InvestScreen(onAllHistory = { nav.navigate(History()) }) }
             composable<Debts> { DebtsScreen() }
             composable<Settings> { SettingsScreen() }
         }

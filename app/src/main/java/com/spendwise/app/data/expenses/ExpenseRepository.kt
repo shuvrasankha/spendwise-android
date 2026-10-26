@@ -8,6 +8,10 @@ import com.spendwise.app.data.forUser
 import com.spendwise.app.data.live
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.ExpenseInput
+import com.spendwise.app.data.editedEntryFields
+import com.spendwise.app.data.newInvestEntryFields
+import com.spendwise.app.domain.EntryEdit
+import com.spendwise.app.domain.InvestEntryInput
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -58,4 +62,18 @@ class ExpenseRepository @Inject constructor(
         PendingWrite(id, collection.document(id).update(editedExpenseFields(input)))
 
     fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
+
+    /** Investments › Put money in (invest.js › addEntry). */
+    fun addInvestment(input: InvestEntryInput): PendingWrite {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        val ref = collection.document()
+        return PendingWrite(ref.id, ref.set(newInvestEntryFields(uid, input, FieldValue.serverTimestamp())))
+    }
+
+    /** Investments › the entry dialog (invest.js › saveEntry). */
+    fun editInvestment(id: String, edit: EntryEdit, hadHoldingId: Boolean): PendingWrite =
+        PendingWrite(id, collection.document(id).update(editedEntryFields(edit, hadHoldingId, FieldValue.delete())))
+
+    /** A deleted holding's SIP stops, so the Dashboard doesn't keep offering it (invest.js › deleteHolding). */
+    fun stopRepeat(id: String): PendingWrite = PendingWrite(id, collection.document(id).update("repeat", "stopped"))
 }

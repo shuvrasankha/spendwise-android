@@ -54,10 +54,14 @@ class ReadMappersTest {
     }
 
     @Test fun holding_valuedOnlyWithADate() {
-        assertNull(holdingFrom("h1", mapOf("name" to "Gold", "value" to 500L)).value)
-        assertNull(holdingFrom("h2", mapOf("value" to -1L, "valueDate" to "2026-10-01")).value)
+        val noDate = holdingFrom("h1", mapOf("name" to "Gold", "value" to 500L))
+        assertEquals(500.0, noDate.value!!, 0.0) // kept as stored, for the dialog
+        assertFalse(noDate.valued)
+        assertFalse(holdingFrom("h2", mapOf("value" to -1L, "valueDate" to "2026-10-01")).valued)
+        assertFalse(holdingFrom("h4", mapOf("value" to "500", "valueDate" to "2026-10-01")).valued)
         val h = holdingFrom("h3", mapOf("name" to "Fund", "kind" to "mf", "value" to 0L, "valueDate" to "2026-10-01", "goalId" to "g1"))
         assertEquals(0.0, h.value!!, 0.0)
+        assertTrue(h.valued)
         assertEquals("g1", h.goalId)
     }
 

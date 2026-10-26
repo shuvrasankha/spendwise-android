@@ -90,7 +90,7 @@ class DashboardViewModel @Inject constructor(
             incomeRepo.income().catch { emit(emptyList()) },
             debtRepo.debts().catch { emit(emptyList()) },
             settingsRepo.settings().catch { emit(UserSettings()) },
-            holdingRepo.holdings(),
+            holdingRepo.holdings().catch { emit(emptyList()) },
             ::Sources,
         )
         combine(sources, view) { s, v -> ready(s, v) }

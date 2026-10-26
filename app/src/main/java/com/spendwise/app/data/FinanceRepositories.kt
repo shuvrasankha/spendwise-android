@@ -7,6 +7,7 @@ import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.domain.Debt
 import com.spendwise.app.domain.DebtInput
 import com.spendwise.app.domain.Holding
+import com.spendwise.app.domain.HoldingFields
 import com.spendwise.app.domain.Income
 import com.spendwise.app.domain.IncomeInput
 import com.spendwise.app.domain.Payment
@@ -20,7 +21,7 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Live reads of income, debts, holdings and settings, and income's and debts' writes. The others' writes arrive with their slices.
+// Live reads of income, debts, holdings and settings, and the writes of all but settings (its slice adds them).
 
 @Singleton
 class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
@@ -93,12 +94,26 @@ class DebtRepository @Inject constructor(private val db: FirebaseFirestore, priv
 
 @Singleton
 class HoldingRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
-    /** The web shows nothing for holdings that fail to load (dashboard.js › loadHoldings), so neither does this. */
+    private val collection get() = db.collection("holdings")
+
+    /** Throws on a failed read; the Dashboard shows nothing then (dashboard.js › loadHoldings), Investments says why. */
     fun holdings(): Flow<List<Holding>> = auth.forUser(emptyList()) { user ->
-        db.collection("holdings").whereEqualTo("uid", user.uid).live()
+        collection.whereEqualTo("uid", user.uid).live()
             .map { s -> s.documents.map { holdingFrom(it.id, it.data.orEmpty()) } }
-            .catch { emit(emptyList()) }
     }
+
+    fun add(fields: HoldingFields): PendingWrite {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        val ref = collection.document()
+        return PendingWrite(ref.id, ref.set(newHoldingFields(uid, fields, FieldValue.serverTimestamp())))
+    }
+
+    /** Field-path update, so uid and createdAt stay as they were (the rules check uid). */
+    fun edit(was: Holding, fields: HoldingFields): PendingWrite =
+        PendingWrite(was.id, collection.document(was.id).update(editedHoldingFields(fields, was, FieldValue.delete())))
+
+    /** Its entries keep holdingId and description, so a new holding with that name takes them back. */
+    fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
 }
 
 @Singleton

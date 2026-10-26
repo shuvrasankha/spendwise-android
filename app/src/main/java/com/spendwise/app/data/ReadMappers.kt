@@ -88,20 +88,15 @@ fun sharedDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false
     pending = pending,
 )
 
-/** invest-data.js › portfolio's "valued" test: a number ≥ 0 with a valueDate. */
-fun holdingFrom(id: String, data: Map<String, Any?>): Holding {
-    val value = (data["value"] as? Number)?.toDouble()
-    val valueDate = (data["valueDate"] as? String)?.takeIf { it.isNotEmpty() }
-    val valued = value != null && value >= 0 && valueDate != null
-    return Holding(
-        id = id,
-        name = data["name"]?.toString().orEmpty(),
-        kind = data.text("kind"),
-        value = if (valued) value else null,
-        valueDate = if (valued) valueDate else null,
-        goalId = (data["goalId"] as? String)?.takeIf { it.isNotEmpty() },
-    )
-}
+/** invest.js › load: the doc as stored. [Holding.valued] decides whether the value counts. */
+fun holdingFrom(id: String, data: Map<String, Any?>) = Holding(
+    id = id,
+    name = data["name"]?.toString().orEmpty(),
+    kind = data.text("kind"),
+    value = (data["value"] as? Number)?.toDouble(),
+    valueDate = data["valueDate"] as? String,
+    goalId = (data["goalId"] as? String)?.takeIf { it.isNotEmpty() },
+)
 
 private val goalMonth = Regex("""^\d{4}-\d{2}$""")
 

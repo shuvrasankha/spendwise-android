@@ -54,39 +54,6 @@ data class HomeFigures(
     val categories: List<CategoryBar>,
 )
 
-private fun nameKey(s: String) = s.trim().lowercase()
-
-/** invest-data.js › holdingOf: by holdingId, else a holding named like the entry's description. */
-fun holdingOf(e: Expense, holdings: List<Holding>): Holding? {
-    if (isSpending(e.category)) return null
-    e.holdingId?.let { id -> holdings.firstOrNull { it.id == id }?.let { return it } }
-    val key = nameKey(e.description)
-    return if (key.isEmpty()) null else holdings.firstOrNull { nameKey(it.name) == key }
-}
-
-/**
- * What each goal's linked holdings are worth (invest-data.js › portfolio rows, then linkedToGoals): the value
- * last given plus what was put in after that day, or with no value given, what was put in.
- */
-fun linkedGoalValues(holdings: List<Holding>, expenses: List<Expense>, today: String): Map<String, Double> {
-    val entries = expenses.filter { !isSpending(it.category) && it.date.isNotEmpty() && it.date <= today }
-    val byHolding = entries.groupBy { holdingOf(it, holdings)?.id }
-    val linked = mutableMapOf<String, Double>()
-    for (h in holdings) {
-        val list = byHolding[h.id].orEmpty()
-        val value = if (h.value != null && h.valueDate != null) {
-            h.value + list.filter { it.date > h.valueDate }.sumOf { it.amount }
-        } else {
-            list.sumOf { it.amount }
-        }
-        h.goalId?.let { linked[it] = (linked[it] ?: 0.0) + value }
-    }
-    return linked
-}
-
-/** goals.js › getGoals' saved, plus linked holdings (invest-data.js › withLinked). */
-fun withLinked(goal: Goal, linked: Map<String, Double>) = goal.copy(saved = goal.saved + (linked[goal.id] ?: 0.0))
-
 /** JS `n.toFixed(0)`: the exact binary value rounded, ties to the larger. */
 fun toFixed0(n: Double): String = BigDecimal(n).setScale(0, RoundingMode.HALF_UP).toPlainString()
 
@@ -131,7 +98,7 @@ fun homeFigures(
     val owe = active.filter { it.type == I_OWE }.sumOf { debtLeft(it.amount, it.paid) }
     val owed = active.filter { it.type == THEY_OWE }.sumOf { debtLeft(it.amount, it.paid) }
 
-    val linked = linkedGoalValues(holdings, expenses, todayS)
+    val linked = linkedToGoals(portfolio(holdings, expenses, todayS).rows)
     val score = financeScore(
         income = incomeTotal, spent = spent, invested = invested, budget = budget.total,
         monthShare = day.toDouble() / monthDays, owe = owe,
