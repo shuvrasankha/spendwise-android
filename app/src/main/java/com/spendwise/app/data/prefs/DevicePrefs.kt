@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.Currency
+import com.spendwise.app.domain.DEFAULT_PAYMENT
+import com.spendwise.app.domain.PAYMENT_METHODS
 import com.spendwise.app.domain.currencyOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -29,6 +31,15 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
 
     val currency: Flow<Currency> = store.data.map { currencyOf(it[CURRENCY]) }
 
+    /** The Add form starts on the last payment method used (dashboard.js › lastPayment). */
+    val lastPayment: Flow<String> = store.data.map { prefs ->
+        prefs[LAST_PAYMENT]?.takeIf { it in PAYMENT_METHODS } ?: DEFAULT_PAYMENT
+    }
+
+    suspend fun setLastPayment(payment: String) {
+        store.edit { it[LAST_PAYMENT] = payment }
+    }
+
     /** Like the web, System removes the key rather than storing it. */
     suspend fun setThemeMode(mode: ThemeMode) {
         store.edit {
@@ -49,5 +60,6 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
     private companion object {
         val THEME = stringPreferencesKey("theme")
         val CURRENCY = stringPreferencesKey("currency")
+        val LAST_PAYMENT = stringPreferencesKey("last_payment")
     }
 }

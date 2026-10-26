@@ -1,8 +1,8 @@
 package com.spendwise.app.data
 
-// How the web reads and writes amounts (spec §3.0, §3.7, §9.10)
+import com.spendwise.app.domain.jsParseFloat
 
-private val leadingNumber = Regex("""^[+-]?(Infinity|(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)""")
+// How the web reads and writes amounts (spec §3.0, §3.7, §9.10)
 
 /**
  * Reads an amount the way the web does: `parseFloat(raw)`, with NaN as 0.
@@ -11,10 +11,10 @@ private val leadingNumber = Regex("""^[+-]?(Infinity|(\d+(\.\d*)?|\.\d+)([eE][+-
 fun readAmount(raw: Any?): Double {
     val value = when (raw) {
         is Number -> raw.toDouble()
-        is String -> leadingNumber.find(raw.trimStart { it.isWhitespace() || it == '﻿' })?.value?.toDouble()
-        else -> null
+        is String -> jsParseFloat(raw)
+        else -> Double.NaN
     }
-    return if (value == null || value.isNaN()) 0.0 else value
+    return if (value.isNaN()) 0.0 else value
 }
 
 private const val MAX_SAFE_INTEGER = 9_007_199_254_740_991.0

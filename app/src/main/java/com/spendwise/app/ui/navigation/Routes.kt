@@ -12,3 +12,4 @@ import kotlinx.serialization.Serializable
 @Serializable data object Investments
 @Serializable data object Debts
 @Serializable data object Settings
+@Serializable data class EditExpense(val id: String)

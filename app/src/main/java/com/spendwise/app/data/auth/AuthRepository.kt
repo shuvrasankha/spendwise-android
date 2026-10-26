@@ -46,6 +46,8 @@ class AuthRepository @Inject constructor(
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
+    val currentUid: String? get() = auth.currentUser?.uid
+
     suspend fun signIn(email: String, password: String) {
         val user = auth.signInWithEmailAndPassword(email.trim(), password).await().user
         if (user == null || user.needsVerification()) {
