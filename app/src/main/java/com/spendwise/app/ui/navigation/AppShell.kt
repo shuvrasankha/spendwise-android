@@ -53,6 +53,7 @@ import com.spendwise.app.ui.insights.InsightsScreen
 import com.spendwise.app.ui.invest.InvestScreen
 import com.spendwise.app.ui.dashboard.DashboardScreen
 import com.spendwise.app.ui.expenses.AddExpenseScreen
+import com.spendwise.app.ui.expenses.VoiceScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
 import com.spendwise.app.ui.history.HistoryScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
@@ -123,7 +124,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     onAddIncome = { nav.switchTo(Income) },
                 )
             }
-            composable<AddExpense> { AddExpenseScreen(onEdit = { nav.navigate(EditExpense(it)) }) }
+            composable<AddExpense> { AddExpenseScreen(onEdit = { nav.navigate(EditExpense(it)) }, onVoice = { nav.navigate(Voice) }) }
+            composable<Voice> { VoiceScreen(onDone = { nav.popBackStack() }) }
             composable<EditExpense> { EditExpenseScreen(onDone = { nav.popBackStack() }) }
             composable<EditIncome> { EditIncomeScreen(onDone = { nav.popBackStack() }) }
             composable<Insights> {

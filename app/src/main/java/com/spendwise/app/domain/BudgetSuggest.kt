@@ -1,12 +1,8 @@
 package com.spendwise.app.domain
 
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -129,18 +125,6 @@ fun checkReply(raw: JsonObject?, f: BudgetFacts): BudgetSuggestion? {
     if (raw == null) return null
     val cats = (raw["cats"] as? JsonObject).orEmpty().map { (k, v) -> k to jsNumberOf(v) }
     return checkSuggestion(jsNumberOf(raw["total"]), cats, (raw["tip"] as? JsonPrimitive)?.takeIf { it.isString }?.content, f)
-}
-
-/** JS Number(v) for a JSON value: "8020" is 8020, true is 1, null is 0; missing or not a number is NaN. */
-private fun jsNumberOf(v: JsonElement?): Double = when (v) {
-    null -> Double.NaN
-    JsonNull -> 0.0
-    is JsonPrimitive -> when {
-        v.isString -> v.content.trim().let { if (it.isEmpty()) 0.0 else it.toDoubleOrNull() ?: Double.NaN }
-        v.booleanOrNull != null -> if (v.booleanOrNull == true) 1.0 else 0.0
-        else -> v.content.toDoubleOrNull() ?: Double.NaN
-    }
-    is JsonArray, is JsonObject -> Double.NaN // shortcut: JS reads [] as 0 and [5] as 5; both fail the > 0 checks anyway
 }
 
 /** readReply: the JSON object in a reply that may wrap it in a code block or add words around it. */

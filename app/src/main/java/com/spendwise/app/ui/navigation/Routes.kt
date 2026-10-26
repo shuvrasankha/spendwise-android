@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
     val cats: List<String> = emptyList(),
 )
 @Serializable data object AddExpense
+@Serializable data object Voice
 @Serializable data object Insights
 @Serializable data object Income
 @Serializable data object Investments

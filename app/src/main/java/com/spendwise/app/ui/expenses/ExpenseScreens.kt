@@ -52,6 +52,7 @@ import com.spendwise.app.ui.format.formatMoney
 @Composable
 fun AddExpenseScreen(
     onEdit: (String) -> Unit,
+    onVoice: () -> Unit,
     editor: ExpenseEditorViewModel = hiltViewModel(),
     expenses: ExpensesViewModel = hiltViewModel(),
 ) {
@@ -74,7 +75,12 @@ fun AddExpenseScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item { Text("Add expense", style = MaterialTheme.typography.headlineSmall) }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Add expense", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = onVoice) { Text("Speak or type") }
+                }
+            }
             item { ExpenseFormFields(state.form, state.tiles, currency, editor) }
             // The web's collapsed "More details", whose summary is the payment method
             item {

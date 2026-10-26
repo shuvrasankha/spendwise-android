@@ -61,11 +61,12 @@ class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
 }
 
 /** callAI's body: [messages] as (role, content), as the web sends them. */
-fun aiRequest(model: String, messages: List<Pair<String, String>>, maxTokens: Int, temperature: Double): JsonObject = buildJsonObject {
+fun aiRequest(model: String, messages: List<Pair<String, String>>, maxTokens: Int, temperature: Double, topP: Double? = null): JsonObject = buildJsonObject {
     put("model", model)
     putJsonArray("messages") { messages.forEach { (role, content) -> addJsonObject { put("role", role); put("content", content) } } }
     put("max_tokens", maxTokens)
     put("temperature", temperature)
+    if (topP != null) put("top_p", topP)
 }
 
 /** choices[0].message.content of an AI reply, or null. */
