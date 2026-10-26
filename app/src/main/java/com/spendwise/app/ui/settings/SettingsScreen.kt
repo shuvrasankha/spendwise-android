@@ -64,9 +64,13 @@ import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.ui.dashboard.PlanDialogs
 import com.spendwise.app.ui.dashboard.PlansViewModel
 
-/** Settings (spec §1.9), in the web's order: Account, Display, Money, Notifications, then Log out; plus Delete account (§8.2). */
+/** Settings (spec §1.9), in the web's order: Account, Display, Money, Notifications, Your data, then Log out; plus Delete account (§8.2). */
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel(), plans: PlansViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    plans: PlansViewModel = hiltViewModel(),
+    backup: BackupViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
     var pickingCurrency by rememberSaveable { mutableStateOf(false) }
@@ -134,6 +138,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel(), plans: PlansV
         )
         state.reminderNote?.let { Muted(it) }
 
+        Group("Your data")
+        ListItem(
+            headlineContent = { Text("Backup & restore") },
+            supportingContent = { Text("Download everything as a file, or restore from one") },
+            modifier = Modifier.clickable(onClick = backup::open),
+        )
+
         Group("App")
         OutlinedButton(onClick = viewModel::logOut, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text("Log out") }
         TextButton(onClick = viewModel::askDelete, modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)) {
@@ -145,6 +156,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel(), plans: PlansV
     if (pickingTime) TimeDialog(state.reminderAt, viewModel::setReminderTime) { pickingTime = false }
     PlanDialogs(plans, state.currency)
     DeletionDialog(deletion, viewModel)
+    BackupDialog(backup)
 }
 
 @Composable
