@@ -1,5 +1,10 @@
 package com.spendwise.app.ui.income
 
+import com.spendwise.app.domain.SMS_READ
+import com.spendwise.app.domain.SmsEntry
+import com.spendwise.app.ui.navigation.ShareInbox
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.IncomeRepository
@@ -52,6 +57,7 @@ sealed interface IncomePage {
 class IncomeViewModel @Inject constructor(
     private val repo: IncomeRepository,
     prefs: DevicePrefs,
+    inbox: ShareInbox,
 ) : ViewModel(), IncomeFormActions {
 
     private val reload = MutableStateFlow(0)
@@ -79,6 +85,14 @@ class IncomeViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<FormMessage?>(null)
     val message: StateFlow<FormMessage?> = _message.asStateFlow()
+
+    init {
+        inbox.shared.onEach {
+            val e = inbox.take { it.entry is SmsEntry.Earned }?.entry as? SmsEntry.Earned ?: return@onEach
+            _form.value = IncomeForm(amount = e.amount.toBigDecimal().stripTrailingZeros().toPlainString(), date = e.date, paymentType = e.paymentType).withSource(e.source).withBank(e.bank)
+            _message.value = FormMessage(SMS_READ, success = true)
+        }.launchIn(viewModelScope)
+    }
 
     fun retry() = reload.update { it + 1 }
 

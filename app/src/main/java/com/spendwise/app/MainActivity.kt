@@ -23,6 +23,8 @@ import com.spendwise.app.data.prefs.ThemeMode
 import com.spendwise.app.ui.auth.AuthLoading
 import com.spendwise.app.ui.auth.SignInScreen
 import com.spendwise.app.ui.navigation.AppShell
+import com.spendwise.app.ui.navigation.ShareInbox
+import com.spendwise.app.ui.navigation.sharedText
 import com.spendwise.app.ui.navigation.linkRoute
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -33,6 +35,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var prefs: DevicePrefs
     @Inject lateinit var auth: AuthRepository
+    @Inject lateinit var inbox: ShareInbox
 
     /** A link waiting to open; it survives sign-in and is cleared once the shell has opened it. */
     private var link by mutableStateOf<Any?>(null)
@@ -40,7 +43,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Only a fresh start: after a rotation the link has already been opened
-        if (savedInstanceState == null) link = intent.linkRoute()
+        if (savedInstanceState == null) link = intent.route()
         enableEdgeToEdge()
         setContent {
             val themeMode by prefs.themeMode.collectAsStateWithLifecycle(ThemeMode.SYSTEM)
@@ -71,6 +74,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.linkRoute()?.let { link = it }
+        intent.route()?.let { link = it }
     }
+
+    private fun Intent.route(): Any? = sharedText()?.let(inbox::receive) ?: linkRoute()
 }

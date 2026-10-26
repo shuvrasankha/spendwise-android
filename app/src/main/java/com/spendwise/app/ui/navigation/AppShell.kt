@@ -194,9 +194,12 @@ private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> 
     )
 }
 
-/** A link opens a fresh copy of its page so its filters apply; the start page just switches to itself. */
+/**
+ * History opens a fresh copy so its filters apply. The rest switch to their tab: a fresh Add would lose
+ * shared text to the old copy's ViewModel, which takes it first.
+ */
 private fun NavHostController.openLink(route: Any) =
-    if (route == Dashboard) switchTo(route) else navigate(route) { popUpTo(graph.findStartDestination().id) { saveState = true } }
+    if (route is History) navigate(route) { popUpTo(graph.findStartDestination().id) { saveState = true } } else switchTo(route)
 
 /** Tab-style navigation: one copy of each destination, state kept when switching back. */
 private fun NavHostController.switchTo(route: Any) = navigate(route) {

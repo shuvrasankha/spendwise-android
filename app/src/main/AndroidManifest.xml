@@ -38,6 +38,14 @@
 
                 <data android:scheme="spendwise" />
             </intent-filter>
+            <!-- Share a bank SMS (or any text) into Add; read on the device, no READ_SMS (spec §7.4) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="text/plain" />
+            </intent-filter>
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />

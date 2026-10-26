@@ -1,5 +1,10 @@
 package com.spendwise.app.ui.expenses
 
+import com.spendwise.app.domain.SMS_READ
+import com.spendwise.app.domain.SMS_UNREAD
+import com.spendwise.app.domain.SmsEntry
+import com.spendwise.app.ui.navigation.SharedText
+import com.spendwise.app.ui.navigation.ShareInbox
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -102,6 +107,7 @@ class ExpenseEditorViewModel @Inject constructor(
     debtRepo: DebtRepository,
     private val prefs: DevicePrefs,
     private val auth: AuthRepository,
+    inbox: ShareInbox,
 ) : ViewModel() {
 
     private val editingId: String? = savedStateHandle["id"]
@@ -137,6 +143,27 @@ class ExpenseEditorViewModel @Inject constructor(
             debtRepo.debts().map { peopleFrom(it) }.catch { emit(emptyList()) }
                 .onEach { known -> _state.update { it.copy(known = known) } }
                 .launchIn(viewModelScope)
+        }
+    }
+
+    init {
+        // Add only: a shared SMS that isn't money in, or any other shared text
+        if (editingId == null) {
+            inbox.shared.onEach { inbox.take { it.entry !is SmsEntry.Earned }?.let(::prefill) }.launchIn(viewModelScope)
+        }
+    }
+
+    private fun prefill(s: SharedText) {
+        val e = s.entry as? SmsEntry.Spent
+        _state.update {
+            it.copy(
+                form = if (e != null) {
+                    ExpenseForm(amount = e.amount.toPlainString(), date = e.date, category = e.category, payment = e.payment, cardName = e.cardName, description = e.description)
+                } else {
+                    ExpenseForm(payment = it.form.payment, description = sanitize(s.text.replace(Regex("\\s+"), " "), 300))
+                },
+                message = FormMessage(if (e != null) SMS_READ else SMS_UNREAD, success = e != null),
+            )
         }
     }
 
