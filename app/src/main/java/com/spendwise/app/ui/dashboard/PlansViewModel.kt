@@ -2,7 +2,27 @@ package com.spendwise.app.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.SettingsRepository
+import com.spendwise.app.data.worker.WorkerClient
+import com.spendwise.app.data.worker.aiContent
+import com.spendwise.app.data.worker.aiRequest
+import com.spendwise.app.domain.BUDGET_AI_MODEL
+import com.spendwise.app.domain.BudgetFacts
+import com.spendwise.app.domain.BudgetSuggestion
+import com.spendwise.app.domain.Currency
+import com.spendwise.app.domain.SUGGEST_NOTHING
+import com.spendwise.app.domain.SUGGEST_NO_INCOME
+import com.spendwise.app.domain.SUGGEST_NO_RECORDS
+import com.spendwise.app.domain.budgetFacts
+import com.spendwise.app.domain.budgetPrompt
+import com.spendwise.app.domain.checkReply
+import com.spendwise.app.domain.readReply
+import com.spendwise.app.domain.suggestFromFacts
+import com.spendwise.app.domain.suggestionText
+import com.spendwise.app.domain.todayStr
+import com.spendwise.app.ui.format.formatWhole
+import kotlinx.coroutines.flow.first
 import com.spendwise.app.data.expenses.ExpenseRepository
 import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.data.prefs.DevicePrefs
@@ -33,6 +53,9 @@ import javax.inject.Inject
 /** A snackbar on Home; [undoId] is an expense its Undo deletes. */
 data class Notice(val text: String, val undoId: String? = null, val error: Boolean = false)
 
+/** "Suggest from my income": [fill] goes into the dialog's fields for a look before saving. */
+data class SuggestState(val working: Boolean = false, val keeps: String = "", val text: String = "", val error: Boolean = false, val fill: BudgetSuggestion? = null)
+
 /** The goal dialog: "add" money to [goal], or edit it ([goal] null for a new one). */
 data class GoalEditing(val adding: Boolean, val goal: Goal?)
 
@@ -42,6 +65,8 @@ class PlansViewModel @Inject constructor(
     private val expenses: ExpenseRepository,
     private val settingsRepo: SettingsRepository,
     private val prefs: DevicePrefs,
+    private val income: IncomeRepository,
+    private val worker: WorkerClient,
 ) : ViewModel() {
 
     private val settings: StateFlow<UserSettings> = settingsRepo.settings().catch { emit(UserSettings()) }
@@ -79,7 +104,7 @@ class PlansViewModel @Inject constructor(
     /** The budget as saved, to fill the dialog. */
     val budget: Budget get() = settings.value.budget
 
-    fun openBudget() { _budgetError.update { null }; _budgetOpen.update { true } }
+    fun openBudget() { _budgetError.update { null }; _suggest.update { null }; _budgetOpen.update { true } }
     fun closeBudget() = _budgetOpen.update { false }
 
     fun saveBudget(totalText: String, cats: Map<String, String>) {
@@ -90,6 +115,41 @@ class PlansViewModel @Inject constructor(
     }
 
     fun removeBudget() = writeBudget(Budget())
+
+    private val _suggest = MutableStateFlow<SuggestState?>(null)
+    val suggest: StateFlow<SuggestState?> = _suggest.asStateFlow()
+
+    /** budget.js › suggest: the AI's plan when it can be asked and holds up, else one worked out here. */
+    fun suggestBudget() {
+        if (_suggest.value?.working == true) return
+        _suggest.update { SuggestState(working = true) }
+        viewModelScope.launch {
+            val facts = try {
+                budgetFacts(expenses.expenses().first(), income.income().first(), settings.value.goals, todayStr())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return@launch _suggest.update { SuggestState(text = SUGGEST_NO_RECORDS, error = true) }
+            }
+            if (facts == null) return@launch _suggest.update { SuggestState(text = SUGGEST_NO_INCOME, error = true) }
+            val currency = prefs.currency.first()
+            val ai = askAi(facts, currency)
+            val s = ai ?: suggestFromFacts(facts) ?: return@launch _suggest.update { SuggestState(text = SUGGEST_NOTHING, error = true) }
+            val (keeps, rest) = suggestionText(s, facts, ai != null) { formatWhole(it, currency) }
+            _suggest.update { SuggestState(keeps = keeps, text = rest, fill = s) }
+        }
+    }
+
+    /** Only the facts' numbers go out; null on any failure, so the device's plan is used. */
+    private suspend fun askAi(facts: BudgetFacts, currency: Currency): BudgetSuggestion? = try {
+        val (system, user) = budgetPrompt(facts, currency)
+        val res = worker.post("/", aiRequest(BUDGET_AI_MODEL, system, user, maxTokens = 400, temperature = 0.2))
+        if (res.ok) checkReply(readReply(aiContent(res.body)), facts) else null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
 
     private fun writeBudget(b: Budget) {
         watch(settingsRepo.saveBudget(b), "Couldn't save the budget to your account. Check your connection and try again.")

@@ -4,7 +4,16 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
@@ -48,3 +57,20 @@ class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
         }
     }
 }
+
+/** callAI's body: one system and one user message, as the web sends them. */
+fun aiRequest(model: String, system: String, user: String, maxTokens: Int, temperature: Double): JsonObject = buildJsonObject {
+    put("model", model)
+    putJsonArray("messages") {
+        addJsonObject { put("role", "system"); put("content", system) }
+        addJsonObject { put("role", "user"); put("content", user) }
+    }
+    put("max_tokens", maxTokens)
+    put("temperature", temperature)
+}
+
+/** choices[0].message.content of an AI reply, or null. */
+fun aiContent(body: String): String? = runCatching {
+    Json.parseToJsonElement(body).jsonObject["choices"]?.jsonArray?.firstOrNull()
+        ?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
+}.getOrNull()

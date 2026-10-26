@@ -14,3 +14,16 @@ class WorkerPushTest {
         assertEquals(false, WorkerResponse(429, "").ok)
     }
 }
+
+class AiRequestTest {
+    @Test fun `request body as the web sends it`() = assertEquals(
+        """{"model":"m","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"max_tokens":400,"temperature":0.2}""",
+        aiRequest("m", "s", "u", 400, 0.2).toString(),
+    )
+
+    @Test fun `reply content`() {
+        assertEquals("hi", aiContent("""{"choices":[{"message":{"content":"hi"}}]}"""))
+        assertEquals(null, aiContent("""{"choices":[]}"""))
+        assertEquals(null, aiContent("not json"))
+    }
+}
