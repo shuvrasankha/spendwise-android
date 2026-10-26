@@ -3,7 +3,10 @@ package com.spendwise.app.ui.expenses
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.speech.RecognizerIntent
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +66,7 @@ import com.spendwise.app.domain.isCard
 import com.spendwise.app.domain.voiceSaveLabel
 import com.spendwise.app.ui.format.formatMoney
 
-/** Speak or type (spec §7.4): the system's speech input or a text box, then a review card per entry. */
+/** Speak, type or photograph (spec §7.4): speech input, a text box or a receipt photo, then a review card per entry. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
@@ -79,11 +82,16 @@ fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
         }
     }
 
+    // Receipts: the camera saves into the app's cache; the system photo picker needs no permission
+    var photo by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken -> vm.scanReceipt(photo.takeIf { taken }) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { vm.scanReceipt(it) }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
-                title = { Text("Speak or type") },
+                title = { Text("Speak, type or scan") },
                 windowInsets = WindowInsets(0),
                 navigationIcon = { IconButton(onClick = onDone) { Icon(painterResource(R.drawable.ic_back), contentDescription = "Back") } },
             )
@@ -136,6 +144,18 @@ fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
                         },
                     ) { Text("Speak") }
                     Button(onClick = vm::submit, enabled = !state.reading, modifier = Modifier.weight(1f)) { Text("Read it") }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { vm.newPhotoUri().also { photo = it; camera.launch(it) } }, enabled = !state.reading, modifier = Modifier.weight(1f)) {
+                        Text("Take a photo")
+                    }
+                    OutlinedButton(
+                        onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        enabled = !state.reading,
+                        modifier = Modifier.weight(1f),
+                    ) { Text("From gallery") }
                 }
             }
             if (noMic) item { Text("Speech input isn't available on this device. Type it instead.", color = MaterialTheme.colorScheme.error) }

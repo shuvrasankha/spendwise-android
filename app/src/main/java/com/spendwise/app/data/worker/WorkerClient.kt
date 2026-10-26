@@ -6,7 +6,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -61,7 +63,11 @@ class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
 }
 
 /** callAI's body: [messages] as (role, content), as the web sends them. */
-fun aiRequest(model: String, messages: List<Pair<String, String>>, maxTokens: Int, temperature: Double, topP: Double? = null): JsonObject = buildJsonObject {
+fun aiRequest(model: String, messages: List<Pair<String, String>>, maxTokens: Int, temperature: Double, topP: Double? = null): JsonObject =
+    aiRequestOf(model, messages.map { (role, content) -> role to JsonPrimitive(content) }, maxTokens, temperature, topP)
+
+/** The same, where a message's content may be a list of parts (text and an image, for a receipt). */
+fun aiRequestOf(model: String, messages: List<Pair<String, JsonElement>>, maxTokens: Int, temperature: Double, topP: Double? = null): JsonObject = buildJsonObject {
     put("model", model)
     putJsonArray("messages") { messages.forEach { (role, content) -> addJsonObject { put("role", role); put("content", content) } } }
     put("max_tokens", maxTokens)

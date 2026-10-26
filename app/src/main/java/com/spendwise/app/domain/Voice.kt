@@ -7,6 +7,10 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -276,6 +280,19 @@ If the photo is not a receipt or bill, reply {"type":"none"}.
 Pick the category from what the shop sells, using its exact name:
 ${categoryGuide()}"""
 
+/** scanReceipt's messages: the prompt, then the photo as a JPEG data URL. */
+fun receiptMessages(today: String, image: String): List<Pair<String, JsonElement>> = listOf(
+    "system" to JsonPrimitive(receiptPrompt(today)),
+    "user" to buildJsonArray {
+        addJsonObject { put("type", "text"); put("text", "Read this receipt.") }
+        addJsonObject { put("type", "image_url"); putJsonObject("image_url") { put("url", image) } }
+    },
+)
+
+/** Only expenses; a misread year can land in the future, and a receipt is never dated after today. */
+fun receiptEntries(entries: List<VoiceEntry>, today: String) =
+    entries.filter { it.type == ENTRY_EXPENSE }.map { if (it.date > today) it.copy(date = today) else it }
+
 /** toDocData: the reviewed entry as its Add form's input. */
 fun VoiceEntry.expenseInput() = ExpenseInput(
     amount, category, date, payment, if (isCard(payment)) cardName else "", description.ifEmpty { "-" }, notes, tags,
@@ -308,3 +325,6 @@ const val VOICE_RATE_LIMITED = "Daily AI limit reached. Please try again later."
 const val VOICE_MODEL_LOADING = "AI model is loading. Please try again in 20-30 seconds."
 const val VOICE_FAILED = "Something went wrong reading that. Nothing was saved, so please try again."
 const val VOICE_SAVE_FAILED = "Couldn't save. Nothing was saved, so it's safe to try again."
+const val RECEIPT_BUSY = "Sending the photo to AI to read it…"
+const val RECEIPT_NONE = "Couldn't find a total on that photo. Try a sharper, closer shot."
+const val RECEIPT_BAD_PHOTO = "Couldn't open that photo. Try a JPG or PNG."

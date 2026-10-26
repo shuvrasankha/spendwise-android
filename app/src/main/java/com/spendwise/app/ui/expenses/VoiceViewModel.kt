@@ -8,7 +8,17 @@ import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.data.worker.WorkerClient
 import com.spendwise.app.data.worker.aiContent
-import com.spendwise.app.data.worker.aiRequest
+import com.spendwise.app.data.worker.aiRequestOf
+import com.spendwise.app.data.ReceiptPhotos
+import android.net.Uri
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import com.spendwise.app.domain.RECEIPT_AI_MODEL
+import com.spendwise.app.domain.RECEIPT_BAD_PHOTO
+import com.spendwise.app.domain.RECEIPT_BUSY
+import com.spendwise.app.domain.RECEIPT_NONE
+import com.spendwise.app.domain.receiptEntries
+import com.spendwise.app.domain.receiptMessages
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.VOICE_AI_MODEL
 import com.spendwise.app.domain.VOICE_BUSY
@@ -68,6 +78,7 @@ class VoiceViewModel @Inject constructor(
     private val worker: WorkerClient,
     private val batch: EntryBatch,
     private val auth: AuthRepository,
+    private val photos: ReceiptPhotos,
     sync: SyncStatus,
     prefs: DevicePrefs,
 ) : ViewModel() {
@@ -87,28 +98,58 @@ class VoiceViewModel @Inject constructor(
         if (text.isEmpty()) return _state.update { it.copy(message = FormMessage(VOICE_EMPTY)) }
         parseSms(text, LocalDate.now())?.let { sms -> return show(listOf(voiceEntryFrom(sms)), VOICE_FROM_SMS) }
         if (!online.value) return _state.update { it.copy(message = FormMessage(VOICE_OFFLINE)) }
-        _state.update { it.copy(reading = true, message = FormMessage(VOICE_BUSY, success = true)) }
+        val today = LocalDate.now()
+        val messages = listOf("system" to voicePrompt(today, _state.value.language), "user" to text)
+        viewModelScope.launch { read(VOICE_AI_MODEL, messages.map { (r, c) -> r to JsonPrimitive(c) }, VOICE_BUSY, VOICE_NONE) { it } }
+    }
+
+    /** Where the camera saves the next receipt photo. */
+    fun newPhotoUri(): Uri = photos.newUri()
+
+    /** scanReceipt: the total, date, shop and category off a photo; a photo the camera took is deleted once read. */
+    fun scanReceipt(uri: Uri?) {
+        if (uri == null) return photos.clear()
+        if (!online.value) {
+            photos.clear()
+            return _state.update { it.copy(entries = emptyList(), ids = emptyList(), message = FormMessage(VOICE_OFFLINE)) }
+        }
+        _state.update { it.copy(entries = emptyList(), ids = emptyList(), reading = true, message = FormMessage(RECEIPT_BUSY, success = true)) }
         viewModelScope.launch {
-            val failure = try {
-                val today = LocalDate.now()
-                val messages = listOf("system" to voicePrompt(today, _state.value.language), "user" to text)
-                val res = worker.post("/", aiRequest(VOICE_AI_MODEL, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
-                when {
-                    res.status == 429 -> VOICE_RATE_LIMITED
-                    res.status == 503 -> VOICE_MODEL_LOADING
-                    else -> {
-                        val content = (if (res.ok) aiContent(res.body) else null) ?: throw IOException("AI ${res.status}")
-                        val entries = readEntries(content).mapNotNull { cleanEntry(it, todayStr(today)) }
-                        if (entries.isEmpty()) VOICE_NONE else return@launch show(entries, foundText(entries.size))
-                    }
-                }
+            val image = try {
+                photos.dataUrl(uri)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                VOICE_FAILED
+                null
+            } finally {
+                photos.clear()
             }
-            _state.update { it.copy(reading = false, message = FormMessage(failure)) }
+            if (image == null) return@launch _state.update { it.copy(reading = false, message = FormMessage(RECEIPT_BAD_PHOTO)) }
+            val today = todayStr()
+            read(RECEIPT_AI_MODEL, receiptMessages(today, image), RECEIPT_BUSY, RECEIPT_NONE) { receiptEntries(it, today) }
         }
+    }
+
+    /** parseWithAI: sends the messages and opens the review cards with what comes back; nothing is saved yet. */
+    private suspend fun read(model: String, messages: List<Pair<String, JsonElement>>, busy: String, none: String, fix: (List<VoiceEntry>) -> List<VoiceEntry>) {
+        _state.update { it.copy(reading = true, message = FormMessage(busy, success = true)) }
+        val failure = try {
+            val res = worker.post("/", aiRequestOf(model, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
+            when {
+                res.status == 429 -> VOICE_RATE_LIMITED
+                res.status == 503 -> VOICE_MODEL_LOADING
+                else -> {
+                    val content = (if (res.ok) aiContent(res.body) else null) ?: throw IOException("AI ${res.status}")
+                    val entries = fix(readEntries(content).mapNotNull { cleanEntry(it, todayStr()) })
+                    if (entries.isEmpty()) none else return show(entries, foundText(entries.size))
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            VOICE_FAILED
+        }
+        _state.update { it.copy(reading = false, message = FormMessage(failure)) }
     }
 
     private fun show(entries: List<VoiceEntry>, status: String) {

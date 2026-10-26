@@ -121,4 +121,19 @@ class VoiceTest {
         assertTrue(p.contains("हिन्दी (hi-IN)"))
         EXPENSE_CATEGORIES.forEach { assertTrue(p.contains("- $it: ")) }
     }
+
+    @Test fun `a receipt keeps only expenses and is never dated after today`() {
+        val e = VoiceEntry(ENTRY_EXPENSE, 10.0, "2027-01-02", "")
+        val read = receiptEntries(listOf(e, VoiceEntry(ENTRY_INCOME, 5.0, today, ""), e.copy(date = "2026-10-01")), today)
+        assertEquals(listOf(today, "2026-10-01"), read.map { it.date })
+    }
+
+    @Test fun `a receipt is sent as text and an image part`() {
+        val (system, user) = receiptMessages(today, "data:image/jpeg;base64,AA")
+        assertEquals("system", system.first)
+        assertEquals(
+            """[{"type":"text","text":"Read this receipt."},{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,AA"}}]""",
+            user.second.toString(),
+        )
+    }
 }
