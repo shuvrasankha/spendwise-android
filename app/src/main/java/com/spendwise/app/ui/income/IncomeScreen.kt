@@ -1,6 +1,6 @@
 package com.spendwise.app.ui.income
 
-import androidx.compose.foundation.clickable
+import com.spendwise.app.ui.components.Panel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -47,16 +46,20 @@ fun IncomeScreen(onEdit: (String) -> Unit, onAllIncome: () -> Unit, income: Inco
     val currency by income.currency.collectAsStateWithLifecycle()
     val ready = page as? IncomePage.Ready
 
-    LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text("Income", style = MaterialTheme.typography.headlineSmall) }
-        item { Hero(page, currency) }
-        item { Text("Add income", style = MaterialTheme.typography.titleMedium) }
-        item { IncomeFormFields(form, income, ready?.sources.orEmpty(), ready?.banks.orEmpty()) }
-        item { FormMessageText(message) }
+        item { Panel { Hero(page, currency) } }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = income::clear, modifier = Modifier.weight(1f)) { Text("Clear") }
-                Button(onClick = income::add, modifier = Modifier.weight(1f)) { Text("Add income") }
+            Panel {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("Add income", style = MaterialTheme.typography.titleMedium)
+                    IncomeFormFields(form, income, ready?.sources.orEmpty(), ready?.banks.orEmpty())
+                    FormMessageText(message)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(onClick = income::clear, modifier = Modifier.weight(1f)) { Text("Clear") }
+                        Button(onClick = income::add, modifier = Modifier.weight(1f)) { Text("Add income") }
+                    }
+                }
             }
         }
         item {
@@ -108,9 +111,8 @@ private fun Hero(page: IncomePage, currency: Currency) {
 @Composable
 private fun IncomeRow(i: Income, currency: Currency, onEdit: () -> Unit) {
     // An entry waiting to sync has no server record yet, so it can't be edited
-    val modifier = if (i.pending) Modifier else Modifier.clickable(onClickLabel = "Edit", onClick = onEdit)
-    Column {
-        Row(modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Panel(onClick = onEdit.takeUnless { i.pending }, onClickLabel = "Edit") {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(i.source.ifEmpty { "Income" }, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(recentMeta(i, LocalDate.now()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -121,6 +123,5 @@ private fun IncomeRow(i: Income, currency: Currency, onEdit: () -> Unit) {
             // "+" says it's money in, as well as the colour
             Text("+" + formatMoney(i.amount, currency), color = SpendWiseTheme.moneyColors.moneyIn)
         }
-        HorizontalDivider()
     }
 }

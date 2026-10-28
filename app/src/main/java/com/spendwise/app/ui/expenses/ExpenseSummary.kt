@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,7 +28,6 @@ private fun entries(n: Int) = "$n ${if (n == 1) "entry" else "entries"}"
 @Composable
 fun ExpenseSummary(f: ExpenseFigures, currency: Currency) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        HorizontalDivider()
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Figure("This Month", formatMoney(f.month, currency), entries(f.monthCount), Modifier.weight(1f))
             Figure("This Year", formatMoney(f.year, currency), entries(f.yearCount), Modifier.weight(1f))
@@ -56,7 +54,6 @@ fun EmiCard(plans: List<EmiPlan>, currency: Currency) {
     val whole = { n: Double -> formatWhole(n, currency) }
     val today = LocalDate.now()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        HorizontalDivider()
         Row {
             Text("EMIs", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Text(emiHeader(plans, whole), style = MaterialTheme.typography.bodyMedium)

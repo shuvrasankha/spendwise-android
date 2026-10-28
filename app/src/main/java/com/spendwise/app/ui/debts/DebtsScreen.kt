@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.debts
 
+import com.spendwise.app.ui.components.Panel
 import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -104,17 +104,21 @@ fun DebtsScreen(vm: DebtsViewModel = hiltViewModel()) {
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).imePadding(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { Text("Debts", style = MaterialTheme.typography.headlineSmall) }
-            item { Hero(ready, fmt) }
-            item { Text("Add a debt", style = MaterialTheme.typography.titleMedium) }
-            item { AddForm(form, vm, ready?.known.orEmpty(), currency) }
-            item { FormMessageText(formMessage) }
+            item { Panel { Hero(ready, fmt) } }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = vm::clear, modifier = Modifier.weight(1f)) { Text("Clear") }
-                    Button(onClick = vm::add, modifier = Modifier.weight(1f)) { Text("Add debt") }
+                Panel {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text("Add a debt", style = MaterialTheme.typography.titleMedium)
+                        AddForm(form, vm, ready?.known.orEmpty(), currency)
+                        FormMessageText(formMessage)
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedButton(onClick = vm::clear, modifier = Modifier.weight(1f)) { Text("Clear") }
+                            Button(onClick = vm::add, modifier = Modifier.weight(1f)) { Text("Add debt") }
+                        }
+                    }
                 }
             }
             when (val p = page) {
@@ -246,14 +250,12 @@ private fun SectionTitle(title: String, count: String) {
 @Composable
 private fun PersonRow(p: DebtPerson, on: Boolean, fmt: (Double) -> String, onClick: () -> Unit) {
     val balance = p.balance(fmt)
-    Column {
-        Row(
-            Modifier.fillMaxWidth()
-                .clickable(onClickLabel = if (on) "Show all" else "Show only theirs", onClick = onClick)
-                .semantics { contentDescription = "${p.name}: $balance. ${if (on) "Showing only theirs" else "Show only theirs"}" }
-                .padding(vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    Panel(
+        Modifier.semantics { contentDescription = "${p.name}: $balance. ${if (on) "Showing only theirs" else "Show only theirs"}" },
+        onClick = onClick,
+        onClickLabel = if (on) "Show all" else "Show only theirs",
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(p.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 Text(p.sub(fmt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -269,7 +271,6 @@ private fun PersonRow(p: DebtPerson, on: Boolean, fmt: (Double) -> String, onCli
                 )
             }
         }
-        HorizontalDivider()
     }
 }
 
@@ -278,8 +279,8 @@ private fun PersonRow(p: DebtPerson, on: Boolean, fmt: (Double) -> String, onCli
 private fun DebtRow(d: Debt, meta: String, fmt: (Double) -> String, actions: @Composable () -> Unit) {
     val paid = debtPaid(d.paid)
     val part = !d.settled && paid > 0
-    Column {
-        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.Top) {
+    Panel {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(d.person, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -300,7 +301,6 @@ private fun DebtRow(d: Debt, meta: String, fmt: (Double) -> String, actions: @Co
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) { actions() }
-        HorizontalDivider()
     }
 }
 

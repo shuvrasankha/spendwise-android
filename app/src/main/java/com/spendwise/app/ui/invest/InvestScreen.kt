@@ -1,7 +1,7 @@
 package com.spendwise.app.ui.invest
 
+import com.spendwise.app.ui.components.Panel
 import com.spendwise.app.ui.components.show
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +23,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -99,7 +98,7 @@ fun InvestScreen(onAllHistory: () -> Unit, vm: InvestViewModel = hiltViewModel()
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).imePadding(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { Text("Investments", style = MaterialTheme.typography.headlineSmall) }
             when (val p = page) {
@@ -113,10 +112,16 @@ fun InvestScreen(onAllHistory: () -> Unit, vm: InvestViewModel = hiltViewModel()
                     }
                 }
                 is InvestPage.Ready -> {
-                    item { Hero(p, debts, whole) }
-                    item { Text("Put money in", style = MaterialTheme.typography.titleMedium) }
-                    item { PutMoneyIn(p, form, vm, currency.symbol) }
-                    item { FormMessageText(formMessage) }
+                    item { Panel { Hero(p, debts, whole) } }
+                    item {
+                        Panel {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Text("Put money in", style = MaterialTheme.typography.titleMedium)
+                                PutMoneyIn(p, form, vm, currency.symbol)
+                                FormMessageText(formMessage)
+                            }
+                        }
+                    }
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Holdings", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -233,9 +238,8 @@ private fun Row2(
     title: String, meta: String, amount: String, under: String? = null,
     underColor: Color? = null, onClickLabel: String? = null, onClick: () -> Unit = {},
 ) {
-    val modifier = if (onClickLabel != null) Modifier.clickable(onClickLabel = onClickLabel, onClick = onClick) else Modifier
-    Column {
-        Row(modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Panel(onClick = onClick.takeIf { onClickLabel != null }, onClickLabel = onClickLabel) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -247,7 +251,6 @@ private fun Row2(
                 }
             }
         }
-        HorizontalDivider()
     }
 }
 

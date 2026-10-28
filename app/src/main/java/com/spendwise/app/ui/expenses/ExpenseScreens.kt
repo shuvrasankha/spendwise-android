@@ -1,5 +1,9 @@
 package com.spendwise.app.ui.expenses
 
+import com.spendwise.app.ui.components.PanelShape
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.ui.draw.clip
+import com.spendwise.app.ui.components.Panel
 import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -73,7 +76,7 @@ fun AddExpenseScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -81,29 +84,28 @@ fun AddExpenseScreen(
                     OutlinedButton(onClick = onVoice) { Text("Speak or type") }
                 }
             }
-            item { ExpenseFormFields(state.form, state.tiles, currency, editor) }
-            // The web's collapsed "More details", whose summary is the payment method
             item {
-                Collapsible("More details", state.form.payment) {
-                    ExpenseDetailFields(state.form, editor) { RepeatFields(state.form, adding = true, editor) }
+                Panel {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        ExpenseFormFields(state.form, state.tiles, currency, editor)
+                        // The web's collapsed "More details", whose summary is the payment method
+                        Collapsible("More details", state.form.payment) {
+                            ExpenseDetailFields(state.form, editor) { RepeatFields(state.form, adding = true, editor) }
+                        }
+                        SplitFields(state, currency, editor)
+                        FormMessageText(state.message)
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            OutlinedButton(onClick = { editor.clear() }, modifier = Modifier.weight(1f)) { Text("Clear") }
+                            Button(onClick = editor::save, modifier = Modifier.weight(1f)) { Text("Add Expense") }
+                        }
+                    }
                 }
             }
-            item { SplitFields(state, currency, editor) }
-            item { FormMessageText(state.message) }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { editor.clear() }, modifier = Modifier.weight(1f)) { Text("Clear") }
-                    Button(onClick = editor::save, modifier = Modifier.weight(1f)) { Text("Add Expense") }
-                }
-            }
-            item {
-                HorizontalDivider()
-                Text("Today", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
-            }
+            item { Text("Today", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
             expenseItems(list, currency, onEdit, expenses, empty = "Nothing added today yet.") { it.today }
             (list as? ExpenseList.Ready)?.let { ready ->
-                item { ExpenseSummary(ready.figures, currency) }
-                ready.emis.takeIf { it.isNotEmpty() }?.let { plans -> item { EmiCard(plans, currency) } }
+                item { Panel { ExpenseSummary(ready.figures, currency) } }
+                ready.emis.takeIf { it.isNotEmpty() }?.let { plans -> item { Panel { EmiCard(plans, currency) } } }
             }
         }
     }
@@ -182,7 +184,6 @@ private fun LazyListScope.expenseItems(
             }
             items(rows, key = { it.id }) { expense ->
                 ExpenseRow(expense, currency, onEdit = { onEdit(expense.id) }, onDelete = { viewModel.askDelete(expense) })
-                HorizontalDivider()
             }
         }
     }
@@ -209,7 +210,8 @@ private fun ExpenseRow(expense: Expense, currency: Currency, onEdit: () -> Unit,
                 }
             }
         },
-        modifier = if (expense.pending) Modifier else Modifier.clickable(onClickLabel = "Edit", onClick = onEdit),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier = Modifier.clip(PanelShape).then(if (expense.pending) Modifier else Modifier.clickable(onClickLabel = "Edit", onClick = onEdit)),
     )
 }
 

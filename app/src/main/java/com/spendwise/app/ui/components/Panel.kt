@@ -14,7 +14,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
-private val PanelShape = RoundedCornerShape(16.dp)
+/** For rows drawn by a Material component, so they match a Panel. */
+val PanelShape = RoundedCornerShape(16.dp)
 
 /** A flat filled block that groups one section: no border, shadow or tint (CLAUDE.md design rules). */
 @Composable
