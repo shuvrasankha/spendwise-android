@@ -17,6 +17,7 @@ import com.spendwise.app.domain.DebtInput
 import com.spendwise.app.data.Share
 import com.spendwise.app.data.newDebtFields
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -44,8 +45,9 @@ class ExpenseRepository @Inject constructor(
      * The signed-in user's expenses, live, in the web's order: newest date first, then Firestore's document
      * order. Ties matter to the repeating-bill helpers. One where on uid, as the rules require (spec §4.3).
      */
-    fun expenses(): Flow<List<Expense>> = auth.forUser(emptyList()) { user ->
-        collection.whereEqualTo("uid", user.uid).live().map { snapshot ->
+    fun expenses(serverOnly: Boolean = false): Flow<List<Expense>> = auth.forUser(emptyList()) { user ->
+        // serverOnly: skips snapshots read from the local cache, which may be missing entries (dashboard.js › syncPush)
+        collection.whereEqualTo("uid", user.uid).live().filter { !serverOnly || !it.metadata.isFromCache }.map { snapshot ->
             snapshot.documents
                 .map { expenseFrom(it.id, it.data.orEmpty(), pending = it.metadata.hasPendingWrites()) }
                 .sortedByDescending { it.date }

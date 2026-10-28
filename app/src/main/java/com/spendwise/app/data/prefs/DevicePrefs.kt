@@ -70,6 +70,27 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[AI_CONSENT] = true }
     }
 
+    /** This device's endpoint ("fcm:<token>") while the Worker sends its reminder, else null (local reminder). */
+    val pushEndpoint: Flow<String?> = store.data.map { it[PUSH_ENDPOINT] }
+
+    /** The reminder time the Worker has for [pushEndpoint]. */
+    val pushAt: Flow<String?> = store.data.map { it[PUSH_AT] }
+
+    suspend fun setPushEndpoint(endpoint: String?, at: String?) {
+        store.edit {
+            if (endpoint == null) it.remove(PUSH_ENDPOINT) else it[PUSH_ENDPOINT] = endpoint
+            if (at == null) it.remove(PUSH_AT) else it[PUSH_AT] = at
+        }
+    }
+
+    /** The body the Worker last took for [path] ("uid\nbody"), so an unchanged one isn't resent (reminders.js › pushSync). */
+    fun pushSynced(path: String): Flow<String?> = store.data.map { it[stringPreferencesKey("push_sync:$path")] }
+
+    suspend fun setPushSynced(path: String, value: String?) {
+        val key = stringPreferencesKey("push_sync:$path")
+        store.edit { if (value == null) it.remove(key) else it[key] = value }
+    }
+
     /** "I Understand & Continue" in the CSV upload dialog (csv-upload.js › csvUploadConsent); per device. */
     val csvConsent: Flow<Boolean> = store.data.map { it[CSV_CONSENT] == true }
 
@@ -115,6 +136,8 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val LOGGED_TODAY = stringPreferencesKey("logged_today")
         val AI_CONSENT = booleanPreferencesKey("ai_consent")
         val CSV_CONSENT = booleanPreferencesKey("csv_consent")
+        val PUSH_ENDPOINT = stringPreferencesKey("push_endpoint")
+        val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
     }
 }

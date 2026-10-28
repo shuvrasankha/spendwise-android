@@ -241,7 +241,9 @@ Spec: §7.4 CSV import.
   registers the token through `/push/subscribe {endpoint, remindAt, tz}`.
 - Handle bill alerts, debt and claim pushes, and month summaries.
 - Decide whether the local WorkManager reminder stays as the fallback or is replaced, so users
-  never get two reminders.
+  never get two reminders. **Decided:** the Worker sends the reminder once it accepts this device,
+  and the local job is cancelled then. If the Worker refuses (409, more than 10 devices) or can't
+  be reached, the local job runs, and ReminderSync tries the Worker again on the next settings change.
 
 ---
 

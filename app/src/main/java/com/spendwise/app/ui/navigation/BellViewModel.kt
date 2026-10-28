@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.navigation
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.DebtRepository
@@ -11,6 +12,9 @@ import com.spendwise.app.domain.UserSettings
 import com.spendwise.app.domain.currencyOf
 import com.spendwise.app.domain.mergeIds
 import com.spendwise.app.domain.notificationsFrom
+import com.spendwise.app.domain.pushTagsFor
+import com.spendwise.app.reminder.Notifications
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +29,7 @@ data class BellState(val items: List<NotifItem> = emptyList(), val unread: Set<S
 /** The header's bell (spec §7.6, notifications.js): built from debts; seen and cleared live in settings.notif. */
 @HiltViewModel
 class BellViewModel @Inject constructor(
+    @param:ApplicationContext private val context: Context,
     debts: DebtRepository,
     private val settings: SettingsRepository,
     prefs: DevicePrefs,
@@ -39,9 +44,10 @@ class BellViewModel @Inject constructor(
 
     val currency: StateFlow<Currency> = prefs.currency.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), currencyOf(null))
 
-    /** open(): everything listed counts as seen; written only when something was new. */
+    /** open(): everything listed counts as seen and leaves the tray; written only when something was new. */
     fun markSeen() {
         val s = state.value
+        Notifications.cancel(context, pushTagsFor(s.items.map { it.id }))
         if (s.unread.isEmpty()) return
         settings.saveNotif(mergeIds(s.seen, s.items.map { it.id }), s.cleared)
     }
@@ -51,5 +57,6 @@ class BellViewModel @Inject constructor(
         val s = state.value
         if (ids.isEmpty()) return
         settings.saveNotif(mergeIds(s.seen, ids), mergeIds(s.cleared, ids))
+        Notifications.cancel(context, pushTagsFor(ids))
     }
 }

@@ -15,6 +15,7 @@ fun linkRoute(scheme: String?, page: String?, fragment: String?, param: (String)
         "dashboard" -> Dashboard
         "add" -> AddExpense
         "insights" -> Insights
+        "debts" -> Debts
         "history" -> History(
             income = fragment == "income" || param("tab").firstOrNull() == "income",
             q = param("q").firstOrNull(),

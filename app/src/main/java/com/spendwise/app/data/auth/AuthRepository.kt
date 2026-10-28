@@ -1,5 +1,6 @@
 package com.spendwise.app.data.auth
 
+import com.spendwise.app.data.worker.PushRegistry
 import android.content.Context
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
@@ -40,6 +41,7 @@ class EmailNotVerifiedException : Exception()
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     @param:ApplicationContext private val appContext: Context,
+    private val push: PushRegistry,
 ) {
 
     /** An unverified email-and-password user counts as signed out, so a half-finished sign-up never reaches the app. */
@@ -121,10 +123,13 @@ class AuthRepository @Inject constructor(
 
     /** Deletes the sign-in itself; Firebase then signs out. */
     suspend fun deleteUser() {
-        checkNotNull(auth.currentUser) { "Not signed in" }.delete().await()
+        val user = checkNotNull(auth.currentUser) { "Not signed in" }
+        push.unregister() // needs the sign-in to reach the Worker
+        user.delete().await()
     }
 
     suspend fun signOut() {
+        push.unregister() // needs the sign-in to reach the Worker
         auth.signOut()
         // So the next Google sign-in asks which account, instead of reusing this one
         runCatching { CredentialManager.create(appContext).clearCredentialState(ClearCredentialStateRequest()) }

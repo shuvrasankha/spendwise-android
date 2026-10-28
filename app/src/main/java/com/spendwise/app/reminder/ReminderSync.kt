@@ -54,6 +54,9 @@ class ReminderSync @Inject constructor(
         val steps = reminderSteps(s.remindOn, s.remindAt, prefs.reminderAt.first(), scheduler.permitted())
         if (steps.cancel) scheduler.cancel()
         steps.schedule?.let { scheduler.schedule(it) }
+        // Not on the Worker yet (offline, or it refused): try again, the local reminder covers it meanwhile
+        val at = prefs.reminderAt.first()
+        if (!steps.cancel && steps.schedule == null && at != null && prefs.pushAt.first() != at) scheduler.schedule(at)
         if (steps.uploadOn) runCatching { settings.saveRemindOn(true) }
         steps.uploadAt?.let { at -> runCatching { settings.saveRemindAt(at) } }
     }
