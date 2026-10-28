@@ -24,7 +24,7 @@ Web logic is ported exactly, quirks included, with `// web quirk: §9.N` comment
 | D1 | **HTTP client.** The Worker (AI and `/push/*`) needs HTTP, and CLAUDE.md says "No HTTP client in v1". | Phase C | **Decided: (a).** (a) `java.net.HttpURLConnection` plus the kotlinx-serialization already installed, so no new library (recommended). (b) Add OkHttp. |
 | D2 | **Biometric library.** App lock needs `androidx.biometric`, which isn't in the stack. | Slice 18 | **Decided: not now (slice 18 parked).** Approve `androidx.biometric:biometric`, or drop app lock. |
 | D3 | **Profile photo.** Showing the Google photo needs image loading. | Slice 14 | (a) Keep the initial only (recommended for now). (b) Add Coil. (c) Decode the photo URL by hand with HttpURLConnection, once D1 is decided. |
-| D4 | **Native push.** The Worker's `validEndpoint` only accepts browser Web Push hosts, so a native FCM token can't register (spec §7.1). This needs a Worker change **in the web repo**, which this project must not modify. | Phase D | Change the Worker in the web repo first, then add `firebase-messaging`. Or keep the local WorkManager reminder only. |
+| D4 | **Native push.** The Worker's `validEndpoint` only accepts browser Web Push hosts, so a native FCM token can't register (spec §7.1). This needs a Worker change **in the web repo**, which this project must not modify. | Phase D | Change the Worker in the web repo first, then add `firebase-messaging`. Or keep the local WorkManager reminder only. The Worker change is specified in `docs/WORKER_FCM_SPEC.md`. |
 | D5 | **AI privacy consent on Android.** The web shows a consent dialog once (`ensureConsent`). | Phase C | **Decided: as recommended.** Show the same text once per device, stored in DataStore (recommended). |
 
 ---
@@ -234,6 +234,7 @@ Spec: §7.4 CSV import.
 ## Phase D: native push (blocked on D4, needs a web-repo change first)
 
 ### Slice 26: FCM push
+- Contract with the Worker: `docs/WORKER_FCM_SPEC.md` (§6 is this slice's checklist).
 - A prerequisite done outside this project: the Worker accepts native FCM tokens. That means a
   `validEndpoint` change, a token-based subscribe body, and sending through the FCM HTTP v1 API.
 - Android: add `firebase-messaging` from the BoM, plus a `FirebaseMessagingService` that
