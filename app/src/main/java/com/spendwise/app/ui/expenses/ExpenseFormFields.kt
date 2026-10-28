@@ -21,6 +21,7 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.spendwise.app.R
+import com.spendwise.app.ui.components.categoryIcon
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.PAYMENT_METHODS
 import com.spendwise.app.domain.isCard
@@ -81,6 +83,12 @@ fun ExpenseFormFields(form: ExpenseForm, tiles: List<Pair<String, String>>, curr
                         selected = form.category == category,
                         onClick = { viewModel.setCategory(category) },
                         label = { Text(label) },
+                        leadingIcon = { Icon(painterResource(categoryIcon(category)), contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) },
+                        // Grey icons: the accent is kept for the selected state (CLAUDE.md colour meanings)
+                        colors = FilterChipDefaults.filterChipColors(
+                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+                        ),
                     )
                 }
             }

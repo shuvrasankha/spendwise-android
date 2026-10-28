@@ -1,6 +1,9 @@
 package com.spendwise.app.ui.history
 
 import com.spendwise.app.ui.components.show
+import com.spendwise.app.ui.components.IconBadge
+import com.spendwise.app.ui.components.categoryIcon
+import com.spendwise.app.R
 import android.content.ClipData
 import android.content.Intent
 import androidx.compose.foundation.clickable
@@ -258,7 +261,8 @@ private fun HistoryRow(row: HistoryItem.Row, currency: Currency, onEdit: () -> U
     // An entry waiting to sync has no server record yet, so it can't be edited (spec §1.6)
     val modifier = if (e.pending) Modifier else Modifier.clickable(onClickLabel = "Edit", onClick = onEdit)
     Row(modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+        if (income) IconBadge(R.drawable.ic_cat_income, SpendWiseTheme.moneyColors.moneyIn) else IconBadge(categoryIcon(e.kind))
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(e.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (meta.isNotEmpty()) {
                 Text(meta.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)

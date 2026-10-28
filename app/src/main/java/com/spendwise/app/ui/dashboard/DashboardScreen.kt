@@ -1,14 +1,19 @@
 package com.spendwise.app.ui.dashboard
 
+import com.spendwise.app.ui.components.IconBadge
+import com.spendwise.app.ui.components.Panel
+import com.spendwise.app.ui.components.categoryIcon
 import com.spendwise.app.ui.components.Toast
 import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -93,7 +98,7 @@ fun DashboardScreen(
     PlanDialogs(plans, currency)
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0)) { padding ->
-    LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(28.dp)) {
+    LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when (val s = state) {
             DashboardState.Loading -> item {
                 Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -107,12 +112,12 @@ fun DashboardScreen(
             is DashboardState.Ready -> {
                 val money = { n: Double -> formatWhole(n, currency) }
                 item { Hero(s.home, money, plans::openBudget) }
-                item { Today(s.home, s.firstTime, currency, money, onAddExpense) }
+                item { Panel { Today(s.home, s.firstTime, currency, money, onAddExpense) } }
                 item { Tiles(s.home, money, onOpenIncome, onOpenDebts) }
-                if (s.home.due.isNotEmpty()) item { DueThisMonth(s.home.due, money, plans) }
-                item { Score(s.home) }
-                item { Goals(s.home, money, plans, onOpenInvest) }
-                item { WhereItWent(s.home, s.firstTime, money) }
+                if (s.home.due.isNotEmpty()) item { Panel { DueThisMonth(s.home.due, money, plans) } }
+                item { Panel { Score(s.home) } }
+                item { Panel { Goals(s.home, money, plans, onOpenInvest) } }
+                item { Panel { WhereItWent(s.home, s.firstTime, money) } }
                 overTime(s.overTime, currency, dashboard)
             }
         }
@@ -144,7 +149,7 @@ private fun Bar(fill: Double, color: Color, label: String, modifier: Modifier = 
 
 @Composable
 private fun Hero(h: HomeFigures, money: (Double) -> String, onBudget: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Muted("${h.monthName} so far")
         Text(money(h.spent), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
         val colors = MaterialTheme.colorScheme
@@ -168,7 +173,7 @@ private fun Hero(h: HomeFigures, money: (Double) -> String, onBudget: () -> Unit
         if (h.perDay != null && h.forecastTotal != null) {
             Muted("${money(h.perDay)} a day · on track for ${money(h.forecastTotal)} by the end of ${h.monthName}")
         }
-        TextButton(onClick = onBudget) { Text(if (h.budget.total != null) "Change budget" else "Set a monthly budget") }
+        TextButton(onClick = onBudget, contentPadding = PaddingValues(0.dp)) { Text(if (h.budget.total != null) "Change budget" else "Set a monthly budget") }
     }
 }
 
@@ -211,7 +216,8 @@ private fun TodayRow(e: Expense, currency: Currency) {
         e.payment,
         if (e.pending) "waiting to sync" else "",
     ).filter { it.isNotEmpty() }.joinToString(" · ")
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        IconBadge(categoryIcon(e.category))
         Column(Modifier.weight(1f)) {
             Text(named.ifEmpty { e.category }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (meta.isNotEmpty()) Muted(meta)
@@ -234,29 +240,32 @@ private fun Tiles(h: HomeFigures, money: (Double) -> String, onOpenIncome: () ->
     }
     val moneyIn = SpendWiseTheme.moneyColors.moneyIn
     val owedColor = MaterialTheme.colorScheme.error
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    // Each pair matches the taller tile's height
+    val pair = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(pair, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Tile(
                 "Income", if (h.income > 0) money(h.income) else "—",
                 if (h.incomeCount > 0) "${plural(h.incomeCount, "entry", "entries")} this month" else "None this month",
-                moneyIn, Modifier.weight(1f).clickable(onClick = onOpenIncome),
+                moneyIn, Modifier.weight(1f), onOpenIncome,
             )
             Tile(
                 "Saved", h.saved?.let { if (it < 0) "−${money(-it)}" else money(it) } ?: "—", savedSub,
                 if ((h.saved ?: 0.0) < 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Tile("You owe", money(h.owe), null, if (h.owe > 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).clickable(onClick = onOpenDebts))
-            Tile("Owed to you", money(h.owed), null, if (h.owed > 0) moneyIn else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f).clickable(onClick = onOpenDebts))
+        Row(pair, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Tile("You owe", money(h.owe), null, if (h.owe > 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
+            Tile("Owed to you", money(h.owed), null, if (h.owed > 0) moneyIn else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
         }
     }
 }
 
 @Composable
-private fun Tile(label: String, value: String, sub: String?, color: Color, modifier: Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun Tile(label: String, value: String, sub: String?, color: Color, modifier: Modifier, onClick: (() -> Unit)? = null) {
+    Panel(modifier.fillMaxHeight(), onClick = onClick, onClickLabel = onClick?.let { "Open $label" }) {
         Muted(label)
+        Spacer(Modifier.height(2.dp))
         Text(value, style = MaterialTheme.typography.titleLarge, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
@@ -325,7 +334,7 @@ private val MONTH_NAMES = listOf("January", "February", "March", "April", "May",
 
 private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: DashboardViewModel) {
     item {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle("Spending over time")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Picker(

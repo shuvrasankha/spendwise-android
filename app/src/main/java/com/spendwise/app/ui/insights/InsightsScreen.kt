@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.insights
 
+import com.spendwise.app.ui.components.Panel
 import com.spendwise.app.ui.components.Toast
 import com.spendwise.app.ui.components.show
 import androidx.compose.foundation.Canvas
@@ -127,7 +128,7 @@ fun InsightsScreen(
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { Text("Insights", style = MaterialTheme.typography.headlineSmall) }
             when (val s = state) {
@@ -143,9 +144,9 @@ fun InsightsScreen(
                     }
                 }
                 is InsightsState.Ready -> {
-                    item { AskSection(s.ask, asking, insights::ask, money, onOpenHistory) }
+                    item { Panel { AskSection(s.ask, asking, insights::ask, money, onOpenHistory) } }
                     item { ForecastSection(s.forecast, money) }
-                    item { Periods(s.choice, insights) }
+                    item { Box(Modifier.padding(top = 8.dp)) { Periods(s.choice, insights) } }
                     val g = s.glance
                     when {
                         s.periodError != null -> item { Text(s.periodError, color = MaterialTheme.colorScheme.error) }
@@ -153,21 +154,21 @@ fun InsightsScreen(
                         !g.summary.hasData -> item {
                             Column {
                                 Muted("Nothing recorded in ${g.range.label}. Try a longer period, or add an expense.")
-                                TextButton(onClick = onAddExpense) { Text("Add an expense") }
+                                TextButton(onClick = onAddExpense, contentPadding = PaddingValues(0.dp)) { Text("Add an expense") }
                             }
                         }
                         else -> {
-                            item { CompareSection(g.summary, g, money) }
-                            item { BudgetSection(g.budget, money, plans::openBudget) }
-                            if (g.pie.isNotEmpty()) item { PieSection(g.pie, g.summary.spent, money) }
-                            if (g.summary.movers.isNotEmpty()) item { ChangedSection(g.summary, money) }
-                            if (g.summary.biggest.isNotEmpty()) item { BiggestSection(g.summary, money) }
-                            weekdayCard(g.summary, money)?.let { w -> item { WeekdaySection(g.summary, w, money) } }
-                            paymentRows(g.summary, money).takeIf { it.isNotEmpty() }?.let { rows -> item { PaymentSection(rows) } }
-                            fixedCard(g.summary, money)?.let { f -> item { FixedSection(f) } }
+                            item { Panel { CompareSection(g.summary, g, money) } }
+                            item { Panel { BudgetSection(g.budget, money, plans::openBudget) } }
+                            if (g.pie.isNotEmpty()) item { Panel { PieSection(g.pie, g.summary.spent, money) } }
+                            if (g.summary.movers.isNotEmpty()) item { Panel { ChangedSection(g.summary, money) } }
+                            if (g.summary.biggest.isNotEmpty()) item { Panel { BiggestSection(g.summary, money) } }
+                            weekdayCard(g.summary, money)?.let { w -> item { Panel { WeekdaySection(g.summary, w, money) } } }
+                            paymentRows(g.summary, money).takeIf { it.isNotEmpty() }?.let { rows -> item { Panel { PaymentSection(rows) } } }
+                            fixedCard(g.summary, money)?.let { f -> item { Panel { FixedSection(f) } } }
                         }
                     }
-                    item { CoachSection(coachState, g.takeIf { s.periodError == null }, coach) }
+                    item { Panel { CoachSection(coachState, g.takeIf { s.periodError == null }, coach) } }
                 }
             }
         }
@@ -233,9 +234,9 @@ private fun StackBar(parts: List<Pair<Double, Color>>, label: String, height: In
     }
 }
 
-/** The accent mixed into the surface, like the web's color-mix for the forecast's and split's shades. */
+/** The accent mixed into the panel behind it, like the web's color-mix for the forecast's and split's shades. */
 @Composable
-private fun shade(amount: Float) = lerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.primary, amount)
+private fun shade(amount: Float) = lerp(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.colorScheme.primary, amount)
 
 // ── Forecast ──
 
@@ -243,6 +244,7 @@ private fun shade(amount: Float) = lerp(MaterialTheme.colorScheme.surface, Mater
 private fun ForecastSection(f: Forecast, money: (Double) -> String) {
     val card = forecastCard(f, money) ?: return
     val colors = listOf(shade(1f), shade(0.55f), shade(0.25f))
+    Panel {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Title("Forecast")
         BigFigure(card.figure)
@@ -258,6 +260,7 @@ private fun ForecastSection(f: Forecast, money: (Double) -> String) {
             Text(card.nextTotal, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 12.dp))
         }
         Muted(card.nextNote)
+    }
     }
 }
 
@@ -307,7 +310,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
         Title("Against your budget")
         if (rep == null) {
             Muted("See how each month goes against a plan.")
-            TextButton(onClick = onBudget) { Text("Set a monthly budget") }
+            TextButton(onClick = onBudget, contentPadding = PaddingValues(0.dp)) { Text("Set a monthly budget") }
             return@Column
         }
         rep.figure(money)?.let { BigFigure(it) }
@@ -327,7 +330,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
             cats.forEach { Row2(it.category, it.sub, it.value, if (it.over) colors.error else SpendWiseTheme.moneyColors.moneyIn) }
         }
         Muted("Measured against the budget you have now.")
-        TextButton(onClick = onBudget) { Text("Change budget") }
+        TextButton(onClick = onBudget, contentPadding = PaddingValues(0.dp)) { Text("Change budget") }
     }
 }
 
@@ -336,7 +339,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
 private fun BudgetBar(spent: Double, projected: Double, limit: Double, current: Boolean, over: Boolean, label: String) {
     val track = MaterialTheme.colorScheme.surfaceVariant
     val done = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val ahead = lerp(MaterialTheme.colorScheme.surface, done, 0.4f)
+    val ahead = lerp(MaterialTheme.colorScheme.surfaceContainerLow, done, 0.4f)
     val tick = MaterialTheme.colorScheme.onSurface
     val max = maxOf(limit, projected).takeIf { it != 0.0 } ?: 1.0
     fun w(v: Double) = minOf(v / max, 1.0).toFloat()

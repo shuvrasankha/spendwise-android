@@ -6,7 +6,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 
 // One typeface (the system sans), two weights: Normal for reading, SemiBold for titles, labels and figures.
-private fun TextStyle.weight(weight: FontWeight) = copy(fontFamily = FontFamily.Default, fontWeight = weight)
+// Tabular digits everywhere, so amounts line up in lists and don't shift width as they change.
+private fun TextStyle.weight(weight: FontWeight) = copy(fontFamily = FontFamily.Default, fontWeight = weight, fontFeatureSettings = "tnum")
 
 val Typography = Typography().run {
     copy(
