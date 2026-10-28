@@ -46,6 +46,7 @@ data class SettingsUiState(
     val reminderOn: Boolean = false,
     val reminderAt: String = DEFAULT_REMIND_AT,
     val reminderNote: String? = null,
+    val photoUrl: String = "",
 )
 
 /** Delete account (spec §8.2): confirm → sign in again → delete, with progress and a way to finish after a failure. */
@@ -84,7 +85,7 @@ class SettingsViewModel @Inject constructor(
             s.remindOn == true -> REMINDER_ASK
             else -> null
         }
-        SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual)
+        SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setThemeMode(mode: ThemeMode) {

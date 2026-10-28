@@ -25,7 +25,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** [emailVerified] gates sharing debts, as the rules do (firestore.rules › emailVerified). */
-data class AuthUser(val uid: String, val email: String, val displayName: String, val emailVerified: Boolean = false)
+data class AuthUser(val uid: String, val email: String, val displayName: String, val emailVerified: Boolean = false, val photoUrl: String = "")
 
 sealed interface AuthState {
     data object Loading : AuthState
@@ -140,6 +140,9 @@ class AuthRepository @Inject constructor(
 
     private fun FirebaseUser?.toState(): AuthState = when {
         this == null || needsVerification() -> AuthState.SignedOut
-        else -> AuthState.SignedIn(AuthUser(uid, email.orEmpty(), displayName.orEmpty(), isEmailVerified))
+        // A password account that later added Google keeps the photo on the Google entry only
+        else -> AuthState.SignedIn(
+            AuthUser(uid, email.orEmpty(), displayName.orEmpty(), isEmailVerified, (photoUrl ?: providerData.firstNotNullOfOrNull { it.photoUrl })?.toString().orEmpty()),
+        )
     }
 }

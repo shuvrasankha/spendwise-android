@@ -83,7 +83,7 @@ fun SettingsScreen(
 
         Group("Account")
         ListItem(
-            leadingContent = { Avatar(state.name.ifEmpty { state.email }) },
+            leadingContent = { Avatar(state.name.ifEmpty { state.email }, photoUrl = state.photoUrl) },
             headlineContent = { Text(state.name.ifEmpty { state.email }) },
             supportingContent = if (state.name.isEmpty()) null else ({ Text(state.email) }),
         )

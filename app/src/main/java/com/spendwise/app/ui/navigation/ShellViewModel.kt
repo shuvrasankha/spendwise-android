@@ -33,7 +33,7 @@ fun syncLine(online: Boolean, pending: Int, backOnline: Boolean): String? {
     }
 }
 
-data class HeaderState(val name: String, val email: String, val status: String?)
+data class HeaderState(val name: String, val email: String, val status: String?, val photoUrl: String = "")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -50,10 +50,10 @@ class ShellViewModel @Inject constructor(private val auth: AuthRepository, sync:
 
     val header: StateFlow<HeaderState> = combine(sync.online, sync.pending, backOnline) { online, pending, back ->
         val user = auth.currentUser
-        HeaderState(user?.displayName.orEmpty(), user?.email.orEmpty(), syncLine(online, pending, back))
+        HeaderState(user?.displayName.orEmpty(), user?.email.orEmpty(), syncLine(online, pending, back), user?.photoUrl.orEmpty())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HeaderState("", "", null).withUser())
 
-    private fun HeaderState.withUser() = auth.currentUser?.let { copy(name = it.displayName, email = it.email) } ?: this
+    private fun HeaderState.withUser() = auth.currentUser?.let { copy(name = it.displayName, email = it.email, photoUrl = it.photoUrl) } ?: this
 
     fun logOut() {
         viewModelScope.launch { auth.signOut() }

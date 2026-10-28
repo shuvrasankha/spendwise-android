@@ -180,7 +180,7 @@ private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> 
             Bell(onOpenDebts)
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Account menu" }) {
-                    Avatar(header.name.ifEmpty { header.email }, size = 32.dp)
+                    Avatar(header.name.ifEmpty { header.email }, size = 32.dp, photoUrl = header.photoUrl)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
