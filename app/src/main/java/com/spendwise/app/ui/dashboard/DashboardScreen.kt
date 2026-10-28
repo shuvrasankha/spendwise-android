@@ -111,7 +111,7 @@ fun DashboardScreen(
             }
             is DashboardState.Ready -> {
                 val money = { n: Double -> formatWhole(n, currency) }
-                item { Hero(s.home, money, plans::openBudget) }
+                item { Panel { Hero(s.home, money, plans::openBudget) } }
                 item { Panel { Today(s.home, s.firstTime, currency, money, onAddExpense) } }
                 item { Tiles(s.home, money, onOpenIncome, onOpenDebts) }
                 if (s.home.due.isNotEmpty()) item { Panel { DueThisMonth(s.home.due, money, plans) } }
@@ -149,7 +149,7 @@ private fun Bar(fill: Double, color: Color, label: String, modifier: Modifier = 
 
 @Composable
 private fun Hero(h: HomeFigures, money: (Double) -> String, onBudget: () -> Unit) {
-    Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Muted("${h.monthName} so far")
         Text(money(h.spent), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
         val colors = MaterialTheme.colorScheme

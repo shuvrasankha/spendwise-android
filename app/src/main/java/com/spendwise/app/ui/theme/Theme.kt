@@ -39,7 +39,8 @@ private fun scheme(dark: Boolean): ColorScheme {
         tertiaryContainer = accentContainer, onTertiaryContainer = text,
         background = bg, onBackground = text,
         surface = bg, onSurface = text,
-        surfaceVariant = container, onSurfaceVariant = muted,
+        // A step above the panels (surfaceContainerLow), so bar and chart tracks still show inside one
+        surfaceVariant = containerHigh, onSurfaceVariant = muted,
         surfaceTint = bg, // no tonal tint: surfaces stay flat
         surfaceBright = bg, surfaceDim = container,
         surfaceContainerLowest = bg, surfaceContainerLow = container, surfaceContainer = container,
