@@ -24,6 +24,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
@@ -174,11 +180,13 @@ fun HistoryScreen(
     ExportDialogHost(history, currency)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Filters(v: HistoryView, query: String, vm: HistoryViewModel) {
     val f = v.filters
     val focus = LocalFocusManager.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
+    var sheet by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             HistoryTab.entries.forEachIndexed { i, tab ->
@@ -198,21 +206,40 @@ private fun Filters(v: HistoryView, query: String, vm: HistoryViewModel) {
             trailingIcon = if (query.isEmpty()) null else ({ TextButton(onClick = { vm.setQuery("") }) { Text("Clear") } }),
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Picker(f.range.label, HistoryRange.entries.map { it to it.label }, vm::selectRange)
-            Picker(f.sort.label, HistorySort.entries.map { it to it.label }, vm::selectSort)
-        }
-        if (f.range == HistoryRange.CUSTOM || f.range == HistoryRange.ALL) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(onClick = { picking = "from" }, label = { Text("From ${if (f.customFrom.isEmpty()) "start" else formatDate(f.customFrom)}") })
-                AssistChip(onClick = { picking = "to" }, label = { Text("To ${if (f.customTo.isEmpty()) "today" else formatDate(f.customTo)}") })
+        val active = listOfNotNull(f.range.takeIf { it != HistoryRange.ALL }?.label, f.sort.takeIf { it != HistorySort.NEWEST }?.label) + f.kinds
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = { sheet = true }) {
+                Icon(painterResource(R.drawable.ic_filter), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (active.isEmpty()) "Filters" else "Filters (${active.size})")
+            }
+            if (active.isNotEmpty()) {
+                Text(active.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (v.kinds.isNotEmpty()) {
-            ChipRow(v.kinds, selected = { it in f.kinds }, label = { it }, onToggle = vm::toggleKind)
-        }
-        if (v.tags.isNotEmpty()) {
-            ChipRow(v.tags, selected = { it.lowercase() == v.searchedTag }, label = { "#$it" }, onToggle = vm::toggleTag)
+    }
+    if (sheet) ModalBottomSheet(onDismissRequest = { sheet = false }) {
+        Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Filters", style = MaterialTheme.typography.titleMedium)
+            Text("Dates", style = MaterialTheme.typography.titleSmall)
+            Picker(f.range.label, HistoryRange.entries.map { it to it.label }, vm::selectRange)
+            if (f.range == HistoryRange.CUSTOM || f.range == HistoryRange.ALL) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(onClick = { picking = "from" }, label = { Text("From ${if (f.customFrom.isEmpty()) "start" else formatDate(f.customFrom)}") })
+                    AssistChip(onClick = { picking = "to" }, label = { Text("To ${if (f.customTo.isEmpty()) "today" else formatDate(f.customTo)}") })
+                }
+            }
+            Text("Sort", style = MaterialTheme.typography.titleSmall)
+            Picker(f.sort.label, HistorySort.entries.map { it to it.label }, vm::selectSort)
+            if (v.kinds.isNotEmpty()) {
+                Text("Categories", style = MaterialTheme.typography.titleSmall)
+                ChipRow(v.kinds, selected = { it in f.kinds }, label = { it }, onToggle = vm::toggleKind)
+            }
+            if (v.tags.isNotEmpty()) {
+                Text("Tags", style = MaterialTheme.typography.titleSmall)
+                ChipRow(v.tags, selected = { it.lowercase() == v.searchedTag }, label = { "#$it" }, onToggle = vm::toggleTag)
+            }
+            Button(onClick = { sheet = false }, modifier = Modifier.fillMaxWidth()) { Text("Done") }
         }
     }
     when (picking) {
