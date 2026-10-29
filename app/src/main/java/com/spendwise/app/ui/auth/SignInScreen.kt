@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +21,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -64,8 +66,10 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Decorative, as the web's alt="": the name beside it says it
-        Image(painterResource(R.drawable.logo_icon), contentDescription = null, modifier = Modifier.size(72.dp))
-        Text("SpendWise", style = MaterialTheme.typography.headlineMedium)
+        Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Image(painterResource(R.drawable.logo_icon), contentDescription = null, modifier = Modifier.size(88.dp))
+            Text("SpendWise", style = MaterialTheme.typography.headlineMedium)
+        }
 
         SecondaryTabRow(selectedTabIndex = state.tab.ordinal) {
             Tab(selected = login, onClick = { viewModel.selectTab(AuthTab.LOGIN) }, text = { Text("Login") })
@@ -86,6 +90,7 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
             value = state.email,
             onValueChange = viewModel::setEmail,
             label = { Text("Email") },
+            leadingIcon = { Icon(painterResource(R.drawable.ic_mail), contentDescription = null) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth(),
@@ -94,6 +99,7 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
             value = state.password,
             onValueChange = viewModel::setPassword,
             label = { Text("Password") },
+            leadingIcon = { Icon(painterResource(R.drawable.ic_lock), contentDescription = null) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             supportingText = if (login) null else ({ Text(PASSWORD_RULES) }),
@@ -101,6 +107,11 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
             keyboardActions = KeyboardActions(onDone = { if (login) viewModel.login() else viewModel.signUp() }),
             modifier = Modifier.fillMaxWidth(),
         )
+        if (login) {
+            TextButton(onClick = viewModel::openForgot, modifier = Modifier.align(Alignment.End)) {
+                Text("Forgot password?")
+            }
+        }
 
         state.message?.let { message ->
             Text(
@@ -127,13 +138,12 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
                 Text(if (login) "Log in" else "Create account")
             }
         }
-        if (login) {
-            TextButton(onClick = viewModel::openForgot, modifier = Modifier.align(Alignment.End)) {
-                Text("Forgot password?")
-            }
-        }
 
-        HorizontalDivider()
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HorizontalDivider(Modifier.weight(1f))
+            Text("or", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            HorizontalDivider(Modifier.weight(1f))
+        }
         OutlinedButton(
             onClick = { viewModel.signInWithGoogle(context) },
             enabled = !state.busy,
