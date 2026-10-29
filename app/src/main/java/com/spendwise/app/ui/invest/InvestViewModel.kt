@@ -126,7 +126,7 @@ class InvestViewModel @Inject constructor(
     val chosenId: StateFlow<String?> = _chosen.asStateFlow()
 
     /** The holding the form puts money into: the one picked, else the first. */
-    fun chosen(p: InvestPage.Ready): Holding? = p.holdings.firstOrNull { it.id == _chosen.value } ?: p.holdings.firstOrNull()
+    fun chosen(p: InvestPage.Ready, id: String? = _chosen.value): Holding? = p.holdings.firstOrNull { it.id == id } ?: p.holdings.firstOrNull()
 
     private val _form = MutableStateFlow(InvestForm())
     val form: StateFlow<InvestForm> = _form.asStateFlow()

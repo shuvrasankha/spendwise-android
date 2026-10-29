@@ -82,7 +82,7 @@ fun InvestScreen(onAllHistory: () -> Unit, vm: InvestViewModel = hiltViewModel()
     val form by vm.form.collectAsStateWithLifecycle()
     val formMessage by vm.formMessage.collectAsStateWithLifecycle()
     val currency by vm.currency.collectAsStateWithLifecycle()
-    vm.chosenId.collectAsStateWithLifecycle().value // recompose when the chosen holding changes
+    val chosenId by vm.chosenId.collectAsStateWithLifecycle()
     val toast by vm.toast.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val whole = { n: Double -> formatWhole(n, currency) }
@@ -117,7 +117,7 @@ fun InvestScreen(onAllHistory: () -> Unit, vm: InvestViewModel = hiltViewModel()
                         Panel {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Text("Put money in", style = MaterialTheme.typography.titleMedium)
-                                PutMoneyIn(p, form, vm, currency.symbol)
+                                PutMoneyIn(p, form, vm, currency.symbol, chosenId)
                                 FormMessageText(formMessage)
                             }
                         }
@@ -196,9 +196,10 @@ private fun Hero(p: InvestPage.Ready, debts: List<Debt>, whole: (Double) -> Stri
 @Composable
 private fun Muted(text: String) = Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
+// [chosenId] is passed in, not read from the ViewModel here: as an input it redraws the chips when it changes
 @Composable
-private fun PutMoneyIn(p: InvestPage.Ready, form: InvestForm, vm: InvestViewModel, symbol: String) {
-    val chosen = vm.chosen(p)
+private fun PutMoneyIn(p: InvestPage.Ready, form: InvestForm, vm: InvestViewModel, symbol: String, chosenId: String?) {
+    val chosen = vm.chosen(p, chosenId)
     val sip = p.portfolio.rows.firstOrNull { it.holding.id == chosen?.id }?.sip
     val repeat = form.repeat ?: (sip != null)
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
