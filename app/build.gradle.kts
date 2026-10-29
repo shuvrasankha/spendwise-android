@@ -42,9 +42,9 @@ android {
         release {
             // Without keystore.properties the release build is unsigned and can't be uploaded or installed
             signingConfig = signingConfigs.findByName("release")
+            // R8 over the whole app; Firestore is read as maps, so no model class needs keeping
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
     }
