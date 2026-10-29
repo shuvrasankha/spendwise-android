@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import com.spendwise.app.ui.components.categoryIcon
+import com.spendwise.app.ui.components.paymentIcon
+import com.spendwise.app.ui.components.IconBadge
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -198,9 +202,10 @@ private fun ChangeLine(c: Change) =
     Text(c.text, style = MaterialTheme.typography.bodyMedium, color = if (c.up) MaterialTheme.colorScheme.error else SpendWiseTheme.moneyColors.moneyIn)
 
 @Composable
-private fun Row2(title: String, sub: String?, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurface) =
+private fun Row2(title: String, sub: String?, value: String, valueColor: Color = MaterialTheme.colorScheme.onSurface, @DrawableRes icon: Int? = null) =
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+        icon?.let { IconBadge(it) }
+        Column(Modifier.weight(1f).padding(start = if (icon != null) 12.dp else 0.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
@@ -327,7 +332,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
         val cats = rep.catRows(money)
         if (cats.isNotEmpty()) {
             Text("Category limits", style = MaterialTheme.typography.titleSmall)
-            cats.forEach { Row2(it.category, it.sub, it.value, if (it.over) colors.error else SpendWiseTheme.moneyColors.moneyIn) }
+            cats.forEach { Row2(it.category, it.sub, it.value, if (it.over) colors.error else SpendWiseTheme.moneyColors.moneyIn, categoryIcon(it.category)) }
         }
         Muted("Measured against the budget you have now.")
         TextButton(onClick = onBudget, contentPadding = PaddingValues(0.dp)) { Text("Change budget") }
@@ -409,7 +414,7 @@ private fun PieSection(slices: List<PieSlice>, spent: Double, money: (Double) ->
 private fun ChangedSection(s: InsightSummary, money: (Double) -> String) = Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
     Title("What changed", "by category")
     s.movers.forEach { m ->
-        Row2(m.category, m.sub(money), m.value(money), if (m.diff > 0) MaterialTheme.colorScheme.error else SpendWiseTheme.moneyColors.moneyIn)
+        Row2(m.category, m.sub(money), m.value(money), if (m.diff > 0) MaterialTheme.colorScheme.error else SpendWiseTheme.moneyColors.moneyIn, categoryIcon(m.category))
     }
 }
 
@@ -449,8 +454,9 @@ private fun PaymentSection(rows: List<Pair<com.spendwise.app.domain.PaymentShare
     Title("How you pay")
     rows.forEach { (p, text) ->
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row {
-                Text(p.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(paymentIcon(p.name))
+                Text(p.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
                 Text(text, style = MaterialTheme.typography.bodyMedium)
             }
             StackBar(listOf(maxOf(p.share, 2.0) / 100 to MaterialTheme.colorScheme.primary), "${p.name}: $text", height = 6)

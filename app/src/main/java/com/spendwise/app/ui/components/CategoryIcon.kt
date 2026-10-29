@@ -32,6 +32,16 @@ fun categoryIcon(category: String): Int = when (category) {
     else -> R.drawable.ic_cat_other
 }
 
+/** The icon for a payment method (PAYMENT_METHODS); Other and anything unknown get the three dots. */
+@DrawableRes
+fun paymentIcon(method: String): Int = when (method) {
+    "UPI" -> R.drawable.ic_pay_upi
+    "Cash" -> R.drawable.ic_pay_cash
+    "Credit Card", "Debit Card" -> R.drawable.ic_pay_card
+    "Net Banking" -> R.drawable.ic_pay_bank
+    else -> R.drawable.ic_tab_more
+}
+
 /** A row's leading badge: [icon] in a flat circle. Decorative, since the row's text names the category too. */
 @Composable
 fun IconBadge(@DrawableRes icon: Int, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) = Box(
