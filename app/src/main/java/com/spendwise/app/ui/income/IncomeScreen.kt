@@ -6,6 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
+import com.spendwise.app.ui.components.IconBadge
+import com.spendwise.app.R
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -63,10 +69,7 @@ fun IncomeScreen(onEdit: (String) -> Unit, onAllIncome: () -> Unit, income: Inco
             }
         }
         item {
-            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Recent", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                TextButton(onClick = onAllIncome) { Text("All income") }
-            }
+            Text("Recent", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         }
         when (val p = page) {
             IncomePage.Loading -> item {
@@ -80,9 +83,15 @@ fun IncomeScreen(onEdit: (String) -> Unit, onAllIncome: () -> Unit, income: Inco
             }
             is IncomePage.Ready -> {
                 if (p.recent.isEmpty()) item {
-                    Text("No income yet. Add your first one above.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(painterResource(R.drawable.ic_cat_income), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
+                        Text("No income yet. Add your first one above.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 items(p.recent, key = { it.id }) { IncomeRow(it, currency) { onEdit(it.id) } }
+                if (p.all.size > p.recent.size) item {
+                    OutlinedButton(onClick = onAllIncome, modifier = Modifier.fillMaxWidth()) { Text("Show more") }
+                }
             }
         }
     }
@@ -110,18 +119,18 @@ private fun Hero(page: IncomePage, currency: Currency) {
 
 @Composable
 private fun IncomeRow(i: Income, currency: Currency, onEdit: () -> Unit) {
-    // An entry waiting to sync has no server record yet, so it can't be edited
-    Panel(onClick = onEdit.takeUnless { i.pending }, onClickLabel = "Edit") {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(i.source.ifEmpty { "Income" }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(recentMeta(i, LocalDate.now()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (i.notes.isNotEmpty()) {
-                    Text(i.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
+    // An entry waiting to sync has no server record yet, so it can't be edited. Laid out like a History row.
+    val modifier = if (i.pending) Modifier else Modifier.clickable(onClickLabel = "Edit", onClick = onEdit)
+    Row(modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(R.drawable.ic_cat_income, SpendWiseTheme.moneyColors.moneyIn)
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(i.source.ifEmpty { "Income" }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(recentMeta(i, LocalDate.now()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (i.notes.isNotEmpty()) {
+                Text(i.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            // "+" says it's money in, as well as the colour
-            Text("+" + formatMoney(i.amount, currency), color = SpendWiseTheme.moneyColors.moneyIn)
         }
+        // "+" says it's money in, as well as the colour
+        Text("+" + formatMoney(i.amount, currency), color = SpendWiseTheme.moneyColors.moneyIn)
     }
 }

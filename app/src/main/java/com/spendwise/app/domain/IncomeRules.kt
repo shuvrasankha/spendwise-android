@@ -53,7 +53,8 @@ fun checkIncome(
 
 // ── The Income page (income.js › updateIncomeSummaryCards, spec §6.11) ──
 
-const val RECENT_COUNT = 8
+/** 5 here; the web shows 8. The rest are one tap away under Show more. */
+const val RECENT_COUNT = 5
 
 data class IncomeSummary(val monthTotal: Double, val monthCount: Int, val yearTotal: Double)
 
