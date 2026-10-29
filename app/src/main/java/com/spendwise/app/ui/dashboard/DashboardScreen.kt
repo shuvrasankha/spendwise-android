@@ -289,7 +289,10 @@ private fun Tile(label: String, icon: Int, value: String, sub: String?, color: C
 private fun Score(h: HomeFigures) {
     var open by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionTitle("Money score")
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(painterResource(R.drawable.ic_score), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            SectionTitle("Money score")
+        }
         val s = h.score
         if (s == null) {
             Text("—", style = MaterialTheme.typography.headlineMedium)
