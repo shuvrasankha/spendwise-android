@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.DebtRepository
 import com.spendwise.app.data.HoldingRepository
+import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.SettingsRepository
 import com.spendwise.app.data.expenses.ExpenseRepository
@@ -77,7 +78,10 @@ class DashboardViewModel @Inject constructor(
     settingsRepo: SettingsRepository,
     holdingRepo: HoldingRepository,
     prefs: DevicePrefs,
+    auth: AuthRepository,
 ) : ViewModel() {
+
+    val name: String = auth.currentUser?.displayName.orEmpty()
 
     private val reload = MutableStateFlow(0)
     private val view = MutableStateFlow(TimeView())

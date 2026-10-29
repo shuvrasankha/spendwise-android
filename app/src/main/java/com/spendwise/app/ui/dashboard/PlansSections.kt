@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import com.spendwise.app.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +68,10 @@ internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewMo
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Savings goals", style = MaterialTheme.typography.titleMedium)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(painterResource(R.drawable.ic_goal), contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
+                    Text("Savings goals", style = MaterialTheme.typography.titleMedium)
+                }
                 goalsNeed(h.goals, h.saved, money)?.let {
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = if (it.endsWith("covered")) SpendWiseTheme.moneyColors.moneyIn else colors.onSurfaceVariant)
                 }

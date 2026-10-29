@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.domain.dateRange
+import com.spendwise.app.domain.greeting
+import java.time.LocalTime
 import com.spendwise.app.domain.BudgetLevel
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.Expense
@@ -119,7 +121,7 @@ fun DashboardScreen(
             }
             is DashboardState.Ready -> {
                 val money = { n: Double -> formatWhole(n, currency) }
-                item { Panel { Hero(s.home, money, plans::openBudget) } }
+                item { Panel { Hero(s.home, dashboard.name, money, plans::openBudget) } }
                 item { Panel { Today(s.home, s.firstTime, currency, money, onAddExpense) } }
                 item { Tiles(s.home, money, onOpenIncome, onOpenDebts) }
                 if (s.home.due.isNotEmpty()) item { Panel { DueThisMonth(s.home.due, money, plans) } }
@@ -156,8 +158,9 @@ private fun Bar(fill: Double, color: Color, label: String, modifier: Modifier = 
 }
 
 @Composable
-private fun Hero(h: HomeFigures, money: (Double) -> String, onBudget: () -> Unit) {
+private fun Hero(h: HomeFigures, name: String, money: (Double) -> String, onBudget: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle(greeting(LocalTime.now().hour, name))
         Muted("${h.monthName} so far")
         Text(money(h.spent), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
         val colors = MaterialTheme.colorScheme
@@ -329,8 +332,9 @@ private fun WhereItWent(h: HomeFigures, firstTime: Boolean, money: (Double) -> S
                 else "${money(c.amount)} of ${money(c.limit)} limit · ${money(cap.left)} left"
             } else "${toFixed0(c.share)}% of this month's spending"
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row {
-                    Text(c.category, Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(categoryIcon(c.category)), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                    Text(c.category, Modifier.weight(1f).padding(start = 8.dp))
                     Text(money(c.amount))
                 }
                 val warn = cap != null && cap.level != BudgetLevel.OK
@@ -393,7 +397,7 @@ private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: Dashboar
     if (o.rows.size > LATEST_ROWS) item {
         val range = o.view.period.dateRange()
         OutlinedButton(onClick = { onOpenHistory(range?.first, range?.second) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Show more in History (${o.rows.size - LATEST_ROWS} more)")
+            Text("Show more")
         }
     }
 }
