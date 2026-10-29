@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.spendwise.app.R
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.domain.PASSWORD_RULES
@@ -60,6 +63,8 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
             .padding(horizontal = 24.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        // Decorative, as the web's alt="": the name beside it says it
+        Image(painterResource(R.drawable.logo_coin), contentDescription = null, modifier = Modifier.size(72.dp))
         Text("SpendWise", style = MaterialTheme.typography.headlineMedium)
 
         SecondaryTabRow(selectedTabIndex = state.tab.ordinal) {
