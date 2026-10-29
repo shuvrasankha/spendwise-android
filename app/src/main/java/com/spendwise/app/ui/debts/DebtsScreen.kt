@@ -425,14 +425,24 @@ private fun ConfirmDialogs(vm: DebtsViewModel, fmt: (Double) -> String, today: L
     }
 }
 
-/** The picked contact's name and first email, or null if it has no name. */
-private fun readContact(resolver: ContentResolver, contact: Uri): KnownPerson? {
-    val (id, name) = resolver.query(contact, arrayOf(Contacts._ID, Contacts.DISPLAY_NAME), null, null, null)?.use {
-        if (it.moveToFirst()) it.getString(0) to it.getString(1) else null
-    } ?: return null
-    if (name.isNullOrBlank()) return null
-    val email = resolver.query(Email.CONTENT_URI, arrayOf(Email.ADDRESS), "${Email.CONTACT_ID} = ?", arrayOf(id), null)?.use {
+/** The picked contact's name and first email, or null if it has no name or can't be read. */
+private fun readContact(resolver: ContentResolver, contact: Uri): KnownPerson? = try {
+    val name = resolver.query(contact, arrayOf(Contacts.DISPLAY_NAME), null, null, null)?.use {
         if (it.moveToFirst()) it.getString(0) else null
     }
-    return KnownPerson(name, email.orEmpty())
+    if (name.isNullOrBlank()) null else {
+        // Through the picked contact's own data: the picker's grant covers it, not the whole Email table
+        val data = Uri.withAppendedPath(contact, Contacts.Data.CONTENT_DIRECTORY)
+        // A name alone is still worth filling if the email can't be read
+        val email = try {
+            resolver.query(data, arrayOf(Email.ADDRESS), "${Contacts.Data.MIMETYPE} = ?", arrayOf(Email.CONTENT_ITEM_TYPE), null)?.use {
+                if (it.moveToFirst()) it.getString(0) else null
+            }
+        } catch (e: SecurityException) {
+            null
+        }
+        KnownPerson(name, email.orEmpty())
+    }
+} catch (e: SecurityException) {
+    null
 }
