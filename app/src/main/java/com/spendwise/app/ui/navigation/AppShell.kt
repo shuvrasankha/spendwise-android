@@ -19,6 +19,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -85,8 +87,11 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val destination = nav.currentBackStackEntryAsState().value?.destination
     var showMore by rememberSaveable { mutableStateOf(false) }
     val inMore = moreItems.any { (route, _) -> destination?.hasRoute(route::class) == true }
+    val snackbar = remember { SnackbarHostState() }
+    PlayUpdates(snackbar)
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = { Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
         bottomBar = {
             NavigationBar {
