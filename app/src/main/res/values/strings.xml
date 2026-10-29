@@ -4,4 +4,7 @@
     <string name="shortcut_add">Add expense</string>
     <string name="shortcut_add_short">Add</string>
     <string name="shortcut_history">History</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_add">Add expense</string>
+    <string name="widget_description">What you\'ve spent today</string>
 </resources>

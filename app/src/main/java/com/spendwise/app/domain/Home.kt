@@ -89,7 +89,7 @@ fun homeFigures(
     }
 
     val todays = expenses.filter { it.date == todayS }
-    val todaySpent = todays.filter { isSpending(it.category) }.sumOf { it.amount }
+    val todaySpent = daySpend(expenses, todayS).total
     val average = if (day > 1) (spent - todaySpent) / (day - 1) else 0.0
     val todayCompare = if (todays.isNotEmpty() && average > 0) {
         // room past the larger, so the average tick never sits on the end
@@ -140,4 +140,19 @@ fun homeFigures(
         due = dueRecurring(expenses, todayS, skipped),
         goals = goals,
     )
+}
+
+/** A day's spending, as the Today card counts it: savings and investments aren't spending. */
+data class DaySpend(val total: Double, val entries: Int)
+
+fun daySpend(expenses: List<Expense>, day: String): DaySpend {
+    val spent = expenses.filter { it.date == day && isSpending(it.category) }
+    return DaySpend(spent.sumOf { it.amount }, spent.size)
+}
+
+/** The widget's line under the amount. */
+fun daySpendDetail(entries: Int): String = when (entries) {
+    0 -> "Nothing added yet"
+    1 -> "1 expense"
+    else -> "$entries expenses"
 }

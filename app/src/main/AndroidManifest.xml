@@ -59,6 +59,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- Home-screen widget: today's spending -->
+        <receiver
+            android:name=".widget.TodayWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_info" />
+        </receiver>
         <!-- Pushes from the Worker: the daily reminder, bills, month summaries, shared debts (slice 26) -->
         <service
             android:name=".reminder.PushService"
