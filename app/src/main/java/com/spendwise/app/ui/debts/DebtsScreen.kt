@@ -35,6 +35,17 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.ContentResolver
+import android.net.Uri
+import android.provider.ContactsContract.CommonDataKinds.Email
+import android.provider.ContactsContract.Contacts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -213,6 +224,12 @@ private fun Tile(label: String, amount: Double?, count: Int?, color: Color, fmt:
 @Composable
 private fun AddForm(form: DebtForm, vm: DebtsViewModel, known: List<KnownPerson>, currency: Currency) {
     val types = listOf(THEY_OWE to "They owe me", I_OWE to "I owe them")
+    val resolver = LocalContext.current.contentResolver
+    val scope = rememberCoroutineScope()
+    // The system picker hands over just the chosen contact, so no contacts permission is asked for
+    val pickContact = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { uri ->
+        if (uri != null) scope.launch { withContext(Dispatchers.IO) { readContact(resolver, uri) }?.let(vm::pickPerson) }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             types.forEachIndexed { i, (type, label) ->
@@ -222,6 +239,7 @@ private fun AddForm(form: DebtForm, vm: DebtsViewModel, known: List<KnownPerson>
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(form.person, vm::setPerson, label = { Text("Person") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             PersonSuggestions(form.person, form.email, known, vm::pickPerson)
+            TextButton(onClick = { pickContact.launch(null) }, contentPadding = PaddingValues(0.dp)) { Text("Choose from contacts") }
         }
         if (vm.canShare) {
             OutlinedTextField(
@@ -405,4 +423,16 @@ private fun ConfirmDialogs(vm: DebtsViewModel, fmt: (Double) -> String, today: L
             dismissButton = { TextButton(onClick = vm::cancelReopen) { Text("Cancel") } },
         )
     }
+}
+
+/** The picked contact's name and first email, or null if it has no name. */
+private fun readContact(resolver: ContentResolver, contact: Uri): KnownPerson? {
+    val (id, name) = resolver.query(contact, arrayOf(Contacts._ID, Contacts.DISPLAY_NAME), null, null, null)?.use {
+        if (it.moveToFirst()) it.getString(0) to it.getString(1) else null
+    } ?: return null
+    if (name.isNullOrBlank()) return null
+    val email = resolver.query(Email.CONTENT_URI, arrayOf(Email.ADDRESS), "${Email.CONTACT_ID} = ?", arrayOf(id), null)?.use {
+        if (it.moveToFirst()) it.getString(0) else null
+    }
+    return KnownPerson(name, email.orEmpty())
 }
