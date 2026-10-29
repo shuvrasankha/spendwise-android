@@ -67,3 +67,30 @@ The web app is live and shares the same Firestore data, so collection names, fie
 formats (local `YYYY-MM-DD`) and amount types must match it exactly. Update documents with
 field-path updates, never a whole-document `set`. See `CLAUDE.md` and spec §3 before you touch
 anything in `data/`.
+
+## Release
+
+The release build is signed with an upload key that never goes into git.
+
+1. Create the key once and keep it backed up (losing it means asking Play to reset it):
+
+   ```sh
+   keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Next to `settings.gradle.kts`, create `keystore.properties`:
+
+   ```properties
+   storeFile=upload.jks
+   storePassword=…
+   keyAlias=upload
+   keyPassword=…
+   ```
+
+3. Raise `versionCode` in `app/build.gradle.kts` above the last build on Play, then build the bundle:
+
+   ```sh
+   ./gradlew bundleRelease          # app/build/outputs/bundle/release/app-release.aab
+   ```
+
+Turn on Play App Signing when you upload the first bundle, so Google holds the app signing key.
