@@ -11,7 +11,7 @@ data class BudgetAlert(val level: BudgetLevel, val title: String, val text: Stri
  */
 fun budgetAlert(expenses: List<Expense>, budget: Double?, today: String, lastSent: String?, money: (Double) -> String): BudgetAlert? {
     val month = today.take(7)
-    val spent = expenses.filter { it.date >= "$month-01" && it.date <= today && isSpending(it.category) }.sumOf { it.amount }
+    val spent = monthSpending(expenses, today)
     val state = budgetState(spent, budget) ?: return null
     if (state.level == BudgetLevel.OK) return null
     val sent = lastSent?.takeIf { it.startsWith("$month:") }?.substringAfter(':')

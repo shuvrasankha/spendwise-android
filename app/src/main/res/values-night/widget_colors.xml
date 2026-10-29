@@ -5,4 +5,5 @@
     <color name="widget_text_muted">#FFB0B0B0</color>
     <color name="widget_accent">#FFF2C14E</color>
     <color name="widget_on_accent">#FF0E0E0E</color>
+    <color name="widget_track">#FF333333</color>
 </resources>

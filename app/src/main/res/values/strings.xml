@@ -7,4 +7,6 @@
     <string name="widget_today">Today</string>
     <string name="widget_add">Add expense</string>
     <string name="widget_description">What you\'ve spent today</string>
+    <string name="widget_month">This month</string>
+    <string name="widget_month_description">This month against your budget</string>
 </resources>

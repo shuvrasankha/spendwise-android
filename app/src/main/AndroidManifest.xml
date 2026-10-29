@@ -83,6 +83,17 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_today_info" />
         </receiver>
+        <!-- Home-screen widget: this month against the budget -->
+        <receiver
+            android:name=".widget.MonthWidget"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_month_info" />
+        </receiver>
         <!-- Pushes from the Worker: the daily reminder, bills, month summaries, shared debts (slice 26) -->
         <service
             android:name=".reminder.PushService"

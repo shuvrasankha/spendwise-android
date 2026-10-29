@@ -150,6 +150,17 @@ fun daySpend(expenses: List<Expense>, day: String): DaySpend {
     return DaySpend(spent.sumOf { it.amount }, spent.size)
 }
 
+/** Spending (not savings) from the 1st of [today]'s month to [today], as the Dashboard counts it. */
+fun monthSpending(expenses: List<Expense>, today: String): Double =
+    expenses.filter { it.date >= today.take(8) + "01" && it.date <= today && isSpending(it.category) }.sumOf { it.amount }
+
+/** The month widget's line under the amount: against the budget, in words as well as the bar. */
+fun monthSpendDetail(spent: Double, budget: Double?, money: (Double) -> String): String {
+    val state = budgetState(spent, budget) ?: return "No monthly budget set"
+    return if (state.level == BudgetLevel.OVER) "${money(-state.left)} over the ${money(budget!!)} budget"
+    else "${money(state.left)} left of ${money(budget!!)}"
+}
+
 /** The widget's line under the amount. */
 fun daySpendDetail(entries: Int): String = when (entries) {
     0 -> "Nothing added yet"

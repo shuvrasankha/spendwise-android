@@ -15,9 +15,12 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
 import com.spendwise.app.MainActivity
 import com.spendwise.app.R
+import com.spendwise.app.data.SettingsRepository
+import com.spendwise.app.data.settingsFrom
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.auth.AuthState
 import com.spendwise.app.data.expenses.ExpenseRepository
@@ -25,6 +28,11 @@ import com.spendwise.app.data.expenses.expenseFrom
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DaySpend
+import com.spendwise.app.domain.Expense
+import com.spendwise.app.domain.UserSettings
+import com.spendwise.app.domain.budgetState
+import com.spendwise.app.domain.monthSpendDetail
+import com.spendwise.app.domain.monthSpending
 import com.spendwise.app.domain.daySpend
 import com.spendwise.app.domain.daySpendDetail
 import com.spendwise.app.domain.todayStr
@@ -60,18 +68,64 @@ class TodayWidget : AppWidgetProvider() {
     }
 }
 
-/** What the widget shows: null spend means signed out. */
-private data class TodayView(val spend: DaySpend?, val currency: Currency, val day: LocalDate)
+/** The 4x2 widget: this month against the budget, with today underneath. Filled by the same worker and sync. */
+class MonthWidget : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        TodayWidgetWorker.enqueue(context)
+    }
+}
+
+/** What the widgets show: null spend means signed out. */
+private data class TodayView(val spend: DaySpend?, val currency: Currency, val day: LocalDate, val monthSpent: Double = 0.0, val budget: Double? = null)
+
+private fun todayView(expenses: List<Expense>, budget: Double?, currency: Currency, day: LocalDate): TodayView {
+    val today = todayStr(day)
+    return TodayView(daySpend(expenses, today), currency, day, monthSpending(expenses, today), budget)
+}
 
 private object TodayWidgetView {
     private val dayLabel = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+    private val monthLabel = DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH)
 
-    fun installed(context: Context) = ids(context).isNotEmpty()
+    fun installed(context: Context) = ids(context, TodayWidget::class.java).isNotEmpty() || ids(context, MonthWidget::class.java).isNotEmpty()
 
-    private fun ids(context: Context) =
-        AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TodayWidget::class.java))
+    private fun ids(context: Context, provider: Class<*>) =
+        AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, provider))
 
     fun show(context: Context, view: TodayView) {
+        showToday(context, view)
+        showMonth(context, view)
+    }
+
+    private fun showMonth(context: Context, view: TodayView) {
+        val rv = RemoteViews(context.packageName, R.layout.widget_month)
+        val spend = view.spend
+        if (spend == null) {
+            rv.setTextViewText(R.id.month_label, "SpendWise")
+            rv.setViewVisibility(R.id.month_amount, View.GONE)
+            rv.setTextViewText(R.id.month_detail, "Sign in to see this month's spending")
+            rv.setViewVisibility(R.id.month_add, View.GONE)
+            rv.setViewVisibility(R.id.month_bar, View.GONE)
+            rv.setViewVisibility(R.id.month_today, View.GONE)
+        } else {
+            val money = { n: Double -> formatMoney(n, view.currency) }
+            val state = budgetState(view.monthSpent, view.budget)
+            rv.setTextViewText(R.id.month_label, view.day.format(monthLabel))
+            rv.setViewVisibility(R.id.month_amount, View.VISIBLE)
+            rv.setTextViewText(R.id.month_amount, money(view.monthSpent))
+            rv.setTextViewText(R.id.month_detail, monthSpendDetail(view.monthSpent, view.budget, money))
+            rv.setViewVisibility(R.id.month_bar, if (state == null) View.GONE else View.VISIBLE)
+            rv.setProgressBar(R.id.month_bar, 100, ((state?.ratio ?: 0.0) * 100).toInt().coerceIn(0, 100), false)
+            rv.setViewVisibility(R.id.month_today, View.VISIBLE)
+            rv.setTextViewText(R.id.month_today, "Today ${money(spend.total)} · ${daySpendDetail(spend.entries)}")
+            rv.setViewVisibility(R.id.month_add, View.VISIBLE)
+            rv.setOnClickPendingIntent(R.id.month_add, open(context, "add"))
+        }
+        rv.setOnClickPendingIntent(android.R.id.background, open(context, "dashboard"))
+        AppWidgetManager.getInstance(context).updateAppWidget(ComponentName(context, MonthWidget::class.java), rv)
+    }
+
+    private fun showToday(context: Context, view: TodayView) {
         val rv = RemoteViews(context.packageName, R.layout.widget_today)
         val spend = view.spend
         if (spend == null) {
@@ -106,7 +160,7 @@ interface TodayWidgetEntryPoint {
     fun prefs(): DevicePrefs
 }
 
-/** Reads today's expenses when the app isn't running: the 30-minute refresh, and a widget just placed. Free once the cache has data. */
+/** Reads the expenses when the app isn't running: the 30-minute refresh, and a widget just placed. Free once the cache has data. */
 class TodayWidgetWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val deps = EntryPointAccessors.fromApplication(applicationContext, TodayWidgetEntryPoint::class.java)
@@ -115,15 +169,20 @@ class TodayWidgetWorker(context: Context, params: WorkerParameters) : CoroutineW
         val uid = deps.auth().currentUser?.uid
             ?: return Result.success().also { TodayWidgetView.show(applicationContext, TodayView(null, currency, day)) }
         return try {
-            // One day's documents: the same uid + date query as the reminder
-            val mine = FirebaseFirestore.getInstance().collection("expenses").whereEqualTo("uid", uid)
+            val db = FirebaseFirestore.getInstance()
+            val mine = db.collection("expenses").whereEqualTo("uid", uid)
             // The cache is kept current by the app's listeners, so a refresh needn't cost a server read every 30
-            // minutes; only a cache the app never filled (just installed, data cleared) goes to the server.
-            // An entry made on the web shows once the app next opens (it then updates the widget live).
-            val cached = !mine.limit(1).get(Source.CACHE).await().isEmpty
-            val docs = mine.whereEqualTo("date", todayStr(day)).get(if (cached) Source.CACHE else Source.DEFAULT).await()
-            val expenses = docs.documents.map { expenseFrom(it.id, it.data.orEmpty()) }
-            TodayWidgetView.show(applicationContext, TodayView(daySpend(expenses, todayStr(day)), currency, day))
+            // minutes; only a cache the app never filled (just installed, data cleared) goes to the server, once,
+            // which fills it. An entry made on the web shows once the app next opens (it then updates live).
+            val source = if (mine.limit(1).get(Source.CACHE).await().isEmpty) Source.DEFAULT else Source.CACHE
+            // The month needs more than today, and a uid + date range would need an index (spec §0.6): all of them, filtered here
+            val expenses = mine.get(source).await().documents.map { expenseFrom(it.id, it.data.orEmpty()) }
+            val budget = try {
+                settingsFrom(db.collection("settings").document(uid).get(source).await().data).budget.total
+            } catch (e: FirebaseFirestoreException) {
+                null // not in the cache yet: the month shows without its budget until the app opens
+            }
+            TodayWidgetView.show(applicationContext, todayView(expenses, budget, currency, day))
             Result.success()
         } catch (e: Exception) {
             Result.retry()
@@ -142,6 +201,7 @@ class TodayWidgetSync @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val auth: AuthRepository,
     private val expenses: ExpenseRepository,
+    private val settings: SettingsRepository,
     private val prefs: DevicePrefs,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -154,9 +214,14 @@ class TodayWidgetSync @Inject constructor(
     }
 
     private fun follow() {
-        combine(auth.authState.filter { it !is AuthState.Loading }, expenses.expenses().catch { emit(emptyList()) }, prefs.currency) { state, list, currency ->
+        combine(
+            auth.authState.filter { it !is AuthState.Loading },
+            expenses.expenses().catch { emit(emptyList()) },
+            settings.settings().catch { emit(UserSettings()) },
+            prefs.currency,
+        ) { state, list, s, currency ->
             val day = LocalDate.now()
-            TodayView(if (state is AuthState.SignedIn) daySpend(list, todayStr(day)) else null, currency, day)
+            if (state is AuthState.SignedIn) todayView(list, s.budget.total, currency, day) else TodayView(null, currency, day)
         }
             .distinctUntilChanged()
             .onEach { TodayWidgetView.show(context, it) }
