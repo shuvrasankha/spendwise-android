@@ -186,7 +186,7 @@ private fun Hero(p: InvestPage.Ready, debts: List<Debt>, whole: (Double) -> Stri
         if (a.shown()) {
             Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("After debts")
-                Text(a.totalText(whole), style = MaterialTheme.typography.titleMedium)
+                Text(a.totalText(whole), style = MaterialTheme.typography.titleLarge)
             }
             Muted(a.note(whole))
         }
