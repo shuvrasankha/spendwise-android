@@ -58,21 +58,24 @@ import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Home-screen widget: today's spending, with + for Add expense. Android only; nothing new is stored. */
 class TodayWidget : AppWidgetProvider() {
-    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        TodayWidgetWorker.enqueue(context)
-    }
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = refresh(context)
 }
 
 /** The 4x2 widget: this month against the budget, with today underneath. Filled by the same worker and sync. */
 class MonthWidget : AppWidgetProvider() {
-    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        TodayWidgetWorker.enqueue(context)
-    }
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = refresh(context)
+}
+
+/** A widget placed, or due its 30-minute refresh: the worker fills it now, and if the app is running it goes live. */
+private fun refresh(context: Context) {
+    TodayWidgetWorker.enqueue(context)
+    EntryPointAccessors.fromApplication(context, TodayWidgetEntryPoint::class.java).sync().start()
 }
 
 /** What the widgets show: null spend means signed out. */
@@ -158,6 +161,7 @@ private object TodayWidgetView {
 interface TodayWidgetEntryPoint {
     fun auth(): AuthRepository
     fun prefs(): DevicePrefs
+    fun sync(): TodayWidgetSync
 }
 
 /** Reads the expenses when the app isn't running: the 30-minute refresh, and a widget just placed. Free once the cache has data. */
@@ -206,11 +210,12 @@ class TodayWidgetSync @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // shortcut: starts only if a widget is already placed at launch; one placed later is filled by the worker
-    // and goes live from the next launch. Upgrade with onEnabled starting the sync if that gap shows.
+    private val following = AtomicBoolean(false)
+
+    /** At app start, and whenever a widget updates; only the first call with a widget placed starts following. */
     fun start() {
         // The widget lookup is a call into the system: kept off the main thread so it never slows app start
-        scope.launch { if (TodayWidgetView.installed(context)) follow() }
+        scope.launch { if (TodayWidgetView.installed(context) && following.compareAndSet(false, true)) follow() }
     }
 
     private fun follow() {
