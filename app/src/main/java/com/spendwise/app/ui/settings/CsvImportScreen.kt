@@ -19,6 +19,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import com.spendwise.app.ui.components.Panel
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -64,13 +65,20 @@ fun CsvImportScreen(onDone: () -> Unit, vm: CsvImportViewModel = hiltViewModel()
         val body = Modifier.fillMaxSize().padding(padding).padding(16.dp)
         when (val p = phase) {
             is CsvPhase.Upload -> Column(body, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("A CSV file: AI sorts it into expenses and income, and you check it before saving. Up to 200 rows and 512 KB.")
-                OutlinedButton(onClick = { pick.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "application/vnd.ms-excel")) }) {
-                    Text("Choose a CSV file")
+                Text("AI sorts a bank statement into expenses and income, and you check every row before saving.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Panel {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Your file", style = MaterialTheme.typography.titleMedium)
+                        OutlinedButton(
+                            onClick = { pick.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "application/vnd.ms-excel")) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { ButtonLabel(R.drawable.ic_upload, "Choose a CSV file") }
+                        Text(p.fileName ?: "No file selected", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Up to 200 rows and 512 KB.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-                Text(p.fileName ?: "No file selected", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 p.note?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Button(onClick = vm::parse, enabled = p.fileName != null) { Text("Read with AI") }
+                Button(onClick = vm::parse, enabled = p.fileName != null, modifier = Modifier.fillMaxWidth()) { ButtonLabel(R.drawable.ic_ai, "Read with AI") }
             }
             is CsvPhase.Processing -> Busy(body, p.step)
             CsvPhase.Saving -> Busy(body, "Saving…")
@@ -116,8 +124,20 @@ private fun Preview(p: CsvPhase.Preview, currency: Currency, vm: CsvImportViewMo
     val income = p.rows.filter { it.type == "income" }
     LazyColumn(modifier, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text("${expenses.size} expense${if (expenses.size != 1) "s" else ""} (${formatMoney(expenses.sumOf { it.amount }, currency)})")
-            Text("${income.size} income (${formatMoney(income.sumOf { it.amount }, currency)})", color = SpendWiseTheme.moneyColors.moneyIn)
+            Panel {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Expenses", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatMoney(expenses.sumOf { it.amount }, currency), style = MaterialTheme.typography.titleLarge)
+                        Text("${expenses.size} found", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("Income", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatMoney(income.sumOf { it.amount }, currency), style = MaterialTheme.typography.titleLarge, color = SpendWiseTheme.moneyColors.moneyIn)
+                        Text("${income.size} found", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
         }
         item {
             val all = p.selected.size == p.rows.size
