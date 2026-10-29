@@ -15,6 +15,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import com.spendwise.app.MainActivity
 import com.spendwise.app.R
 import com.spendwise.app.data.auth.AuthRepository
@@ -105,7 +106,7 @@ interface TodayWidgetEntryPoint {
     fun prefs(): DevicePrefs
 }
 
-/** Reads today's expenses when the app isn't running: the 30-minute refresh, and a widget just placed. */
+/** Reads today's expenses when the app isn't running: the 30-minute refresh, and a widget just placed. Free once the cache has data. */
 class TodayWidgetWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val deps = EntryPointAccessors.fromApplication(applicationContext, TodayWidgetEntryPoint::class.java)
@@ -114,9 +115,13 @@ class TodayWidgetWorker(context: Context, params: WorkerParameters) : CoroutineW
         val uid = deps.auth().currentUser?.uid
             ?: return Result.success().also { TodayWidgetView.show(applicationContext, TodayView(null, currency, day)) }
         return try {
-            // One day's documents: the same uid + date query as the reminder; offline it answers from the cache
-            val docs = FirebaseFirestore.getInstance().collection("expenses")
-                .whereEqualTo("uid", uid).whereEqualTo("date", todayStr(day)).get().await()
+            // One day's documents: the same uid + date query as the reminder
+            val mine = FirebaseFirestore.getInstance().collection("expenses").whereEqualTo("uid", uid)
+            // The cache is kept current by the app's listeners, so a refresh needn't cost a server read every 30
+            // minutes; only a cache the app never filled (just installed, data cleared) goes to the server.
+            // An entry made on the web shows once the app next opens (it then updates the widget live).
+            val cached = !mine.limit(1).get(Source.CACHE).await().isEmpty
+            val docs = mine.whereEqualTo("date", todayStr(day)).get(if (cached) Source.CACHE else Source.DEFAULT).await()
             val expenses = docs.documents.map { expenseFrom(it.id, it.data.orEmpty()) }
             TodayWidgetView.show(applicationContext, TodayView(daySpend(expenses, todayStr(day)), currency, day))
             Result.success()
