@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -143,7 +144,11 @@ class TodayWidgetSync @Inject constructor(
     // shortcut: starts only if a widget is already placed at launch; one placed later is filled by the worker
     // and goes live from the next launch. Upgrade with onEnabled starting the sync if that gap shows.
     fun start() {
-        if (!TodayWidgetView.installed(context)) return
+        // The widget lookup is a call into the system: kept off the main thread so it never slows app start
+        scope.launch { if (TodayWidgetView.installed(context)) follow() }
+    }
+
+    private fun follow() {
         combine(auth.authState.filter { it !is AuthState.Loading }, expenses.expenses().catch { emit(emptyList()) }, prefs.currency) { state, list, currency ->
             val day = LocalDate.now()
             TodayView(if (state is AuthState.SignedIn) daySpend(list, todayStr(day)) else null, currency, day)

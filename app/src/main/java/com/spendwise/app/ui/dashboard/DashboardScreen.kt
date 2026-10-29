@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.spendwise.app.domain.dateRange
 import com.spendwise.app.domain.BudgetLevel
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.Expense
@@ -82,7 +83,8 @@ fun DashboardScreen(
     onOpenIncome: () -> Unit,
     onOpenDebts: () -> Unit,
     onOpenInvest: () -> Unit,
-    onOpenHistory: () -> Unit,
+    /** The period shown, as dates; null for both when History should show everything. */
+    onOpenHistory: (from: String?, to: String?) -> Unit,
     dashboard: DashboardViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
 ) {
@@ -333,7 +335,7 @@ private fun WhereItWent(h: HomeFigures, firstTime: Boolean, money: (Double) -> S
 
 private val MONTH_NAMES = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
 
-private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: DashboardViewModel, onOpenHistory: () -> Unit) {
+private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: DashboardViewModel, onOpenHistory: (String?, String?) -> Unit) {
     item {
         Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle("Spending over time")
@@ -381,7 +383,8 @@ private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: Dashboar
     }
     // The rest are in History, which can search and filter them
     if (o.rows.size > LATEST_ROWS) item {
-        OutlinedButton(onClick = onOpenHistory, modifier = Modifier.fillMaxWidth()) {
+        val range = o.view.period.dateRange()
+        OutlinedButton(onClick = { onOpenHistory(range?.first, range?.second) }, modifier = Modifier.fillMaxWidth()) {
             Text("Show more in History (${o.rows.size - LATEST_ROWS} more)")
         }
     }

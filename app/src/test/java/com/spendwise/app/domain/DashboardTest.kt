@@ -193,4 +193,11 @@ class DashboardTest {
         assertEquals(listOf("2027", "2026", "2025"), yearOptions(all, LocalDate.of(2027, 1, 1)))
         assertTrue(yearOptions(emptyList(), wed) == listOf("2026"))
     }
+
+    @Test fun `period as History dates`() {
+        assertEquals("2024-02-01" to "2024-02-29", Period("02", "2024").dateRange())
+        assertEquals("2026-01-01" to "2026-12-31", Period(null, "2026").dateRange())
+        assertNull(Period("10", null).dateRange())
+        assertNull(Period(null, null).dateRange())
+    }
 }

@@ -17,6 +17,14 @@ data class Period(val month: String?, val year: String?) {
     }
 }
 
+/** The period as History's from–to dates; null when it isn't one range (all years, or a month in every year). */
+fun Period.dateRange(): Pair<String, String>? {
+    val y = year?.toIntOrNull() ?: return null
+    val m = month?.toIntOrNull() ?: return "$y-01-01" to "$y-12-31"
+    val start = LocalDate.of(y, m, 1)
+    return start.toString() to start.with(TemporalAdjusters.lastDayOfMonth()).toString()
+}
+
 private val MONTHS = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 private val DAYS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
