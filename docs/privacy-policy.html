@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SpendWise Privacy Policy</title>
+<style>
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 42rem; margin: 0 auto; padding: 24px 16px 64px; color: #111; background: #fff; }
+  h1 { font-size: 1.6rem; } h2 { font-size: 1.15rem; margin-top: 2rem; }
+  a { color: #7a5a00; }
+  @media (prefers-color-scheme: dark) { body { color: #f2f2f2; background: #0e0e0e; } a { color: #f2c14e; } }
+</style>
+</head>
+<body>
+<h1>SpendWise Privacy Policy</h1>
+<p>Effective 29 October 2026. This policy covers the SpendWise Android app and the SpendWise web app, which share one account and one set of data.</p>
+
+<h2>What we collect</h2>
+<ul>
+  <li><strong>Account:</strong> your email address, your name and profile photo if you sign in with Google, and a sign-in credential held by Firebase Authentication. We never see or store your password.</li>
+  <li><strong>Money data you enter:</strong> expenses, income, debts (including the names and, optionally, the email addresses of people you owe or are owed by), budgets, goals, investments, tags, notes, and your settings.</li>
+  <li><strong>Receipt photos, voice and bank statements:</strong> only when you use those features (see "AI features" below).</li>
+  <li><strong>Crash reports:</strong> if the app crashes, Firebase Crashlytics receives technical details such as the device model, Android version and the error. These contain no money data.</li>
+  <li><strong>Notification token:</strong> if you turn on reminders or alerts, a Firebase Cloud Messaging token identifies your device so we can send them.</li>
+</ul>
+
+<h2>Where it is stored</h2>
+<p>Your data is stored in Google Firebase (Cloud Firestore and Authentication), tied to your account and protected by security rules so that only you, and people you choose to share a debt with, can read it. It is encrypted in transit. Preferences such as theme, currency, and widget transparency stay on your device only.</p>
+
+<h2>AI features</h2>
+<p>The AI coach, "Ask", budget suggestions, voice and receipt entry, and bank-statement import send content to an AI service through a Cloudflare Worker that we run:</p>
+<ul>
+  <li>The coach, Ask and budget suggestions send summary figures and your question, not entry descriptions, notes or names.</li>
+  <li>Voice entry sends the text of what you said. Receipt entry sends the photo you take. Bank-statement import sends the rows of the CSV file you choose, which may contain descriptions.</li>
+</ul>
+<p>The app asks for your consent before the first use. Receipt photos are deleted from the device once read. We do not use your data to train AI models or to show advertising.</p>
+
+<h2>Contacts</h2>
+<p>"Choose from contacts" opens the system contact picker. The app receives only the one contact you choose, and uses its name and email to fill the form. It does not read your address book.</p>
+
+<h2>Sharing</h2>
+<p>We do not sell your data. It is processed only by the services above (Google Firebase and Cloudflare, and the AI service you consent to). If you enter another person's email on a debt, that debt appears in their SpendWise account if they have one.</p>
+
+<h2>Your choices</h2>
+<ul>
+  <li>Delete your account and all of its data in the app: Settings, then Delete account.</li>
+  <li>To ask for deletion without the app, see <a href="delete-account.html">how to delete your account</a>.</li>
+  <li>Download a copy of your data: Settings, then Backup &amp; restore.</li>
+  <li>Turn off notifications in Settings or in Android.</li>
+</ul>
+
+<h2>Children</h2>
+<p>SpendWise is not directed at children under 13, and we do not knowingly collect their data.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, we will update the date above.</p>
+
+<h2>Contact</h2>
+<p>Questions or deletion requests: <a href="mailto:contact.spend.wise.app@gmail.com">contact.spend.wise.app@gmail.com</a></p>
+</body>
+</html>

@@ -4,6 +4,7 @@ import com.spendwise.app.ui.components.Avatar
 import com.spendwise.app.ui.components.Panel
 import com.spendwise.app.R
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItemDefaults
@@ -69,6 +70,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.data.prefs.ThemeMode
+import com.spendwise.app.data.prefs.WIDGET_TRANSPARENCY_LEVELS
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.ui.dashboard.PlanDialogs
 import com.spendwise.app.ui.lock.canLock
@@ -85,6 +87,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
     var pickingCurrency by rememberSaveable { mutableStateOf(false) }
     var pickingTime by rememberSaveable { mutableStateOf(false) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
@@ -118,6 +121,20 @@ fun SettingsScreen(
                         onClick = { viewModel.setThemeMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
                     ) { Text(mode.label) }
+                }
+            }
+        }
+        Panel {
+            val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
+            Text("Widget transparency", style = MaterialTheme.typography.bodyLarge)
+            Text("How see-through the home-screen widgets are", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                WIDGET_TRANSPARENCY_LEVELS.forEachIndexed { i, percent ->
+                    SegmentedButton(
+                        selected = transparency == percent,
+                        onClick = { viewModel.setWidgetTransparency(percent) },
+                        shape = SegmentedButtonDefaults.itemShape(i, WIDGET_TRANSPARENCY_LEVELS.size),
+                    ) { Text("$percent%") }
                 }
             }
         }
@@ -181,6 +198,8 @@ fun SettingsScreen(
             SettingRow("Import from a bank statement", "A CSV file: AI sorts it into expenses and income, and you check it before saving", onClick = onImport)
             RowDivider()
             SettingRow("Backup & restore", "Download everything as a file, or restore from one", onClick = backup::open)
+            RowDivider()
+            SettingRow("Privacy policy", "What SpendWise stores and who processes it", onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
         }
 
         OutlinedButton(onClick = viewModel::logOut, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Log out") }
@@ -195,6 +214,9 @@ fun SettingsScreen(
     DeletionDialog(deletion, viewModel)
     BackupDialog(backup)
 }
+
+/** The page in docs/, served by GitHub Pages. */
+private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise-android/privacy-policy.html"
 
 @Composable
 private fun Group(title: String) = Text(
