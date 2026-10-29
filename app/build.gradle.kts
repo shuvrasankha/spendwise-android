@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.google.services)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 // The upload key stays off git: keystore.properties and *.jks are gitignored (see README › Release)
@@ -27,6 +28,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Crash reports come from release builds only, so testing doesn't fill the Crashlytics console
+        manifestPlaceholders["crashlytics"] = false
     }
 
     signingConfigs {
@@ -42,6 +45,7 @@ android {
         release {
             // Without keystore.properties the release build is unsigned and can't be uploaded or installed
             signingConfig = signingConfigs.findByName("release")
+            manifestPlaceholders["crashlytics"] = true
             // R8 over the whole app; Firestore is read as maps, so no model class needs keeping
             optimization {
                 enable = true
@@ -79,6 +83,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.messaging)
+    implementation(libs.firebase.crashlytics)
     implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.hilt.android)
