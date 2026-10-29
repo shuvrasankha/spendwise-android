@@ -79,11 +79,11 @@ private fun refresh(context: Context) {
 }
 
 /** What the widgets show: null spend means signed out. */
-private data class TodayView(val spend: DaySpend?, val currency: Currency, val day: LocalDate, val monthSpent: Double = 0.0, val budget: Double? = null)
+private data class TodayView(val spend: DaySpend?, val currency: Currency, val day: LocalDate, val monthSpent: Double = 0.0, val budget: Double? = null, val transparency: Int = 0)
 
-private fun todayView(expenses: List<Expense>, budget: Double?, currency: Currency, day: LocalDate): TodayView {
+private fun todayView(expenses: List<Expense>, budget: Double?, currency: Currency, day: LocalDate, transparency: Int): TodayView {
     val today = todayStr(day)
-    return TodayView(daySpend(expenses, today), currency, day, monthSpending(expenses, today), budget)
+    return TodayView(daySpend(expenses, today), currency, day, monthSpending(expenses, today), budget, transparency)
 }
 
 private object TodayWidgetView {
@@ -124,6 +124,7 @@ private object TodayWidgetView {
             rv.setViewVisibility(R.id.month_add, View.VISIBLE)
             rv.setOnClickPendingIntent(R.id.month_add, open(context, "add"))
         }
+        rv.setInt(android.R.id.background, "setBackgroundResource", background(view.transparency))
         rv.setOnClickPendingIntent(android.R.id.background, open(context, "dashboard"))
         AppWidgetManager.getInstance(context).updateAppWidget(ComponentName(context, MonthWidget::class.java), rv)
     }
@@ -144,8 +145,17 @@ private object TodayWidgetView {
             rv.setViewVisibility(R.id.widget_add, View.VISIBLE)
             rv.setOnClickPendingIntent(R.id.widget_add, open(context, "add"))
         }
+        rv.setInt(android.R.id.background, "setBackgroundResource", background(view.transparency))
         rv.setOnClickPendingIntent(android.R.id.background, open(context, "dashboard"))
         AppWidgetManager.getInstance(context).updateAppWidget(ComponentName(context, TodayWidget::class.java), rv)
+    }
+
+    /** The rounded surface at the chosen see-through level; the 100% one is the original drawable. */
+    private fun background(transparency: Int) = when (transparency) {
+        25 -> R.drawable.widget_background_75
+        50 -> R.drawable.widget_background_50
+        75 -> R.drawable.widget_background_25
+        else -> R.drawable.widget_background
     }
 
     private fun open(context: Context, page: String) = PendingIntent.getActivity(
@@ -169,9 +179,10 @@ class TodayWidgetWorker(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun doWork(): Result {
         val deps = EntryPointAccessors.fromApplication(applicationContext, TodayWidgetEntryPoint::class.java)
         val currency = deps.prefs().currency.first()
+        val transparency = deps.prefs().widgetTransparency.first()
         val day = LocalDate.now()
         val uid = deps.auth().currentUser?.uid
-            ?: return Result.success().also { TodayWidgetView.show(applicationContext, TodayView(null, currency, day)) }
+            ?: return Result.success().also { TodayWidgetView.show(applicationContext, TodayView(null, currency, day, transparency = transparency)) }
         return try {
             val db = FirebaseFirestore.getInstance()
             val mine = db.collection("expenses").whereEqualTo("uid", uid)
@@ -186,7 +197,7 @@ class TodayWidgetWorker(context: Context, params: WorkerParameters) : CoroutineW
             } catch (e: FirebaseFirestoreException) {
                 null // not in the cache yet: the month shows without its budget until the app opens
             }
-            TodayWidgetView.show(applicationContext, todayView(expenses, budget, currency, day))
+            TodayWidgetView.show(applicationContext, todayView(expenses, budget, currency, day, transparency))
             Result.success()
         } catch (e: Exception) {
             Result.retry()
@@ -224,9 +235,10 @@ class TodayWidgetSync @Inject constructor(
             expenses.expenses().catch { emit(emptyList()) },
             settings.settings().catch { emit(UserSettings()) },
             prefs.currency,
-        ) { state, list, s, currency ->
+            prefs.widgetTransparency,
+        ) { state, list, s, currency, transparency ->
             val day = LocalDate.now()
-            if (state is AuthState.SignedIn) todayView(list, s.budget.total, currency, day) else TodayView(null, currency, day)
+            if (state is AuthState.SignedIn) todayView(list, s.budget.total, currency, day, transparency) else TodayView(null, currency, day, transparency = transparency)
         }
             .distinctUntilChanged()
             .onEach { TodayWidgetView.show(context, it) }

@@ -3,6 +3,7 @@ package com.spendwise.app.data.prefs
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+val WIDGET_TRANSPARENCY_LEVELS = listOf(0, 25, 50, 75)
+
 /** System is the default; the web cycles system → light → dark (spec §2.11). */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
@@ -30,6 +33,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
             "dark" -> ThemeMode.DARK
             else -> ThemeMode.SYSTEM
         }
+    }
+
+    /** How see-through the home-screen widgets are, as a percent: one of [WIDGET_TRANSPARENCY_LEVELS]. */
+    val widgetTransparency: Flow<Int> = store.data.map { prefs -> prefs[WIDGET_TRANSPARENCY]?.takeIf { it in WIDGET_TRANSPARENCY_LEVELS } ?: 0 }
+
+    suspend fun setWidgetTransparency(percent: Int) {
+        store.edit { it[WIDGET_TRANSPARENCY] = percent }
     }
 
     val currency: Flow<Currency> = store.data.map { currencyOf(it[CURRENCY]) }
@@ -181,5 +191,6 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
+        val WIDGET_TRANSPARENCY = intPreferencesKey("widget_transparency")
     }
 }

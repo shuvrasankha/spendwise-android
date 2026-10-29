@@ -2,6 +2,9 @@
 <!-- The app's palette (ui/theme/Color.kt) for the home-screen widget, which follows the system theme -->
 <resources>
     <color name="widget_surface">#FFF3F3F3</color>
+    <color name="widget_surface_75">#BFF3F3F3</color>
+    <color name="widget_surface_50">#80F3F3F3</color>
+    <color name="widget_surface_25">#40F3F3F3</color>
     <color name="widget_text">#FF111111</color>
     <color name="widget_text_muted">#FF555555</color>
     <color name="widget_accent">#FF7A5A00</color>

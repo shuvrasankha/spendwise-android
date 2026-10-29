@@ -92,6 +92,12 @@ class SettingsViewModel @Inject constructor(
         SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty(), lockOn)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
+    val widgetTransparency: StateFlow<Int> = prefs.widgetTransparency.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    fun setWidgetTransparency(percent: Int) {
+        viewModelScope.launch { prefs.setWidgetTransparency(percent) }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }
     }
