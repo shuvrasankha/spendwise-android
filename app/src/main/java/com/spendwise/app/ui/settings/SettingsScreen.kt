@@ -9,6 +9,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -198,7 +200,10 @@ fun SettingsScreen(
             SettingRow("Import from a bank statement", "A CSV file: AI sorts it into expenses and income, and you check it before saving", onClick = onImport)
             RowDivider()
             SettingRow("Backup & restore", "Download everything as a file, or restore from one", onClick = backup::open)
-            RowDivider()
+        }
+
+        Group("About")
+        Panel(padding = 0.dp) {
             SettingRow("Privacy policy", "What SpendWise stores and who processes it", onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
         }
 
@@ -250,26 +255,45 @@ private fun Note(text: String) = Text(
 )
 
 @Composable
-private fun CurrencyDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) = AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text("Currency") },
-    text = {
-        LazyColumn {
-            items(CURRENCIES, key = { it.code }) { currency ->
-                val selected = currency.code == current
-                ListItem(
-                    leadingContent = { RadioButton(selected = selected, onClick = null) },
-                    headlineContent = { Text("${currency.symbol} ${currency.code} — ${currency.name}") },
-                    modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) {
-                        onPick(currency.code)
-                        onDismiss()
-                    },
+private fun CurrencyDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    var query by rememberSaveable { mutableStateOf("") }
+    val shown = remember(query) {
+        val q = query.trim()
+        if (q.isEmpty()) CURRENCIES else CURRENCIES.filter { it.code.contains(q, true) || it.name.contains(q, true) || it.symbol.contains(q, true) }
+    }
+    // Opens with the current currency in view
+    val list = rememberLazyListState(initialFirstVisibleItemIndex = CURRENCIES.indexOfFirst { it.code == current }.coerceAtLeast(0))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Currency") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    query, { query = it }, placeholder = { Text("Search currency") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
+                if (shown.isEmpty()) Text("No currency matches.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                LazyColumn(state = list) {
+                    items(shown, key = { it.code }) { currency ->
+                        val selected = currency.code == current
+                        ListItem(
+                            leadingContent = { Text(currency.symbol, style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(40.dp)) },
+                            headlineContent = { Text(currency.name) },
+                            supportingContent = { Text(currency.code) },
+                            trailingContent = if (selected) ({ Icon(painterResource(R.drawable.ic_check), contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }) else null,
+                            colors = ListItemDefaults.colors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent),
+                            modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) {
+                                onPick(currency.code)
+                                onDismiss()
+                            },
+                        )
+                    }
+                }
             }
-        }
-    },
-    confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-)
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
