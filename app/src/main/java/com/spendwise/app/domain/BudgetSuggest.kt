@@ -3,6 +3,9 @@ package com.spendwise.app.domain
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -141,6 +144,16 @@ fun suggestionText(s: BudgetSuggestion, f: BudgetFacts, fromAi: Boolean, money: 
     val tip = if (fromAi && s.tip.isNotEmpty()) " ${s.tip}" else ""
     val how = if (fromAi) "" else " Worked out on your device."
     return keeps to "$tip$how Change anything, then save.".trim()
+}
+
+/** One AI budget per account per month (Android only): [lastMonth] is the "YYYY-MM" it was last made, or null. */
+fun aiBudgetUsed(lastMonth: String?, today: String): Boolean = lastMonth == today.take(7)
+
+/** "…from 1 Nov.": the first of next month, when the next one can be made. */
+fun aiBudgetLimitText(today: LocalDate): String {
+    val next = today.withDayOfMonth(1).plusMonths(1)
+    val month = next.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+    return "You've already made this month's budget suggestion. You can make a new one from 1 $month."
 }
 
 const val SUGGEST_NO_RECORDS = "Couldn't read your entries. Check your connection and try again."

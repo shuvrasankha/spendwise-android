@@ -123,6 +123,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (on) it[APP_LOCK] = true else it.remove(APP_LOCK) }
     }
 
+    /** The "YYYY-MM" this account last got an AI budget suggestion on this device (one a month). */
+    fun aiBudgetMonth(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("ai_budget_month:$uid")] }
+
+    suspend fun setAiBudgetMonth(uid: String, month: String) {
+        store.edit { it[stringPreferencesKey("ai_budget_month:$uid")] = month }
+    }
+
     /** Account deletion: nothing of the account stays on the device (spec §8.2). */
     suspend fun clear() {
         store.edit { it.clear() }

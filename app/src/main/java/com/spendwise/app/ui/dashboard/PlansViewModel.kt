@@ -21,6 +21,10 @@ import com.spendwise.app.domain.readReply
 import com.spendwise.app.domain.suggestFromFacts
 import com.spendwise.app.domain.suggestionText
 import com.spendwise.app.domain.todayStr
+import com.spendwise.app.domain.aiBudgetLimitText
+import com.spendwise.app.domain.aiBudgetUsed
+import com.spendwise.app.data.auth.AuthRepository
+import java.time.LocalDate
 import com.spendwise.app.ui.format.formatWhole
 import kotlinx.coroutines.flow.first
 import com.spendwise.app.data.expenses.ExpenseRepository
@@ -67,6 +71,7 @@ class PlansViewModel @Inject constructor(
     private val prefs: DevicePrefs,
     private val income: IncomeRepository,
     private val worker: WorkerClient,
+    private val auth: AuthRepository,
 ) : ViewModel() {
 
     private val settings: StateFlow<UserSettings> = settingsRepo.settings().catch { emit(UserSettings()) }
@@ -124,6 +129,11 @@ class PlansViewModel @Inject constructor(
         if (_suggest.value?.working == true) return
         _suggest.update { SuggestState(working = true) }
         viewModelScope.launch {
+            val uid = auth.currentUid
+            val today = LocalDate.now()
+            if (uid != null && aiBudgetUsed(prefs.aiBudgetMonth(uid).first(), todayStr(today))) {
+                return@launch _suggest.update { SuggestState(text = aiBudgetLimitText(today), error = true) }
+            }
             val facts = try {
                 budgetFacts(expenses.expenses().first(), income.income().first(), settings.value.goals, todayStr())
             } catch (e: CancellationException) {
@@ -134,6 +144,8 @@ class PlansViewModel @Inject constructor(
             if (facts == null) return@launch _suggest.update { SuggestState(text = SUGGEST_NO_INCOME, error = true) }
             val currency = prefs.currency.first()
             val ai = askAi(facts, currency)
+            // Only an AI answer uses the month's go; the device's own plan, when the AI can't help, is free
+            if (ai != null && uid != null) prefs.setAiBudgetMonth(uid, todayStr(today).take(7))
             val s = ai ?: suggestFromFacts(facts) ?: return@launch _suggest.update { SuggestState(text = SUGGEST_NOTHING, error = true) }
             val (keeps, rest) = suggestionText(s, facts, ai != null) { formatWhole(it, currency) }
             _suggest.update { SuggestState(keeps = keeps, text = rest, fill = s) }

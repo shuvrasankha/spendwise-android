@@ -77,4 +77,16 @@ class BudgetSuggestTest {
         assertEquals("Keeps ₹ 12000 a month (20%) of your ₹ 60000 average income.", keeps)
         assertEquals("Worked out on your device. Change anything, then save.", rest)
     }
+
+    @Test fun `one AI budget a month`() {
+        assertFalse(aiBudgetUsed(null, "2026-10-29"))
+        assertTrue(aiBudgetUsed("2026-10", "2026-10-29"))
+        assertFalse(aiBudgetUsed("2026-09", "2026-10-01"))
+        assertFalse(aiBudgetUsed("2025-10", "2026-10-15"))
+    }
+
+    @Test fun `limit says when the next one opens`() {
+        assertTrue(aiBudgetLimitText(java.time.LocalDate.of(2026, 10, 29)).endsWith("from 1 Nov."))
+        assertTrue(aiBudgetLimitText(java.time.LocalDate.of(2026, 12, 5)).endsWith("from 1 Jan."))
+    }
 }
