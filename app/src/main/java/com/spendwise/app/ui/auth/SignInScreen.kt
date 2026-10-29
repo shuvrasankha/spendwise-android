@@ -64,7 +64,7 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Decorative, as the web's alt="": the name beside it says it
-        Image(painterResource(R.drawable.logo_coin), contentDescription = null, modifier = Modifier.size(72.dp))
+        Image(painterResource(R.drawable.logo_icon), contentDescription = null, modifier = Modifier.size(72.dp))
         Text("SpendWise", style = MaterialTheme.typography.headlineMedium)
 
         SecondaryTabRow(selectedTabIndex = state.tab.ordinal) {

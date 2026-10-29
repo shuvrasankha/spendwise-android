@@ -1,3 +1,5 @@
+<img src="docs/brand/spendwise-lockup.svg" alt="SpendWise" width="480">
+
 # SpendWise for Android
 
 A native Android app for [SpendWise](https://github.com/shuvrasankha/spendwise), the personal-finance
