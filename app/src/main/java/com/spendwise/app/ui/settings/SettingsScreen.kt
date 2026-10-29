@@ -204,6 +204,8 @@ fun SettingsScreen(
 
         Group("About")
         Panel(padding = 0.dp) {
+            SettingRow("App tour", "A quick look at what SpendWise can do", onClick = viewModel::replayTour)
+            RowDivider()
             SettingRow("Privacy policy", "What SpendWise stores and who processes it", onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
         }
 

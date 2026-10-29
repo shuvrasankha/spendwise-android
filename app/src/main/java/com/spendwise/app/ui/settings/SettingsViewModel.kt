@@ -98,6 +98,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setWidgetTransparency(percent) }
     }
 
+    /** The tour shows again at once: the app is gated on this flag. */
+    fun replayTour() {
+        viewModelScope.launch { prefs.setTourSeen(false) }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }
     }

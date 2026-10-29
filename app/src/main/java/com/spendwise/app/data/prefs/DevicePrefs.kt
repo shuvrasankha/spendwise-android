@@ -35,6 +35,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         }
     }
 
+    /** The first-run tour has been seen or skipped on this device. */
+    val tourSeen: Flow<Boolean> = store.data.map { it[TOUR_SEEN] == true }
+
+    suspend fun setTourSeen(seen: Boolean) {
+        store.edit { it[TOUR_SEEN] = seen }
+    }
+
     /** How see-through the home-screen widgets are, as a percent: one of [WIDGET_TRANSPARENCY_LEVELS]. */
     val widgetTransparency: Flow<Int> = store.data.map { prefs -> prefs[WIDGET_TRANSPARENCY]?.takeIf { it in WIDGET_TRANSPARENCY_LEVELS } ?: 0 }
 
@@ -191,6 +198,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
+        val TOUR_SEEN = booleanPreferencesKey("tour_seen")
         val WIDGET_TRANSPARENCY = intPreferencesKey("widget_transparency")
     }
 }

@@ -26,6 +26,7 @@ import com.spendwise.app.ui.auth.SignInScreen
 import com.spendwise.app.ui.lock.AppLock
 import com.spendwise.app.ui.lock.LockScreen
 import com.spendwise.app.ui.navigation.AppShell
+import com.spendwise.app.ui.tour.TourScreen
 import com.spendwise.app.ui.navigation.ShareInbox
 import com.spendwise.app.ui.navigation.sharedText
 import com.spendwise.app.ui.navigation.linkRoute
@@ -66,6 +67,7 @@ class MainActivity : FragmentActivity() {
             }
             val authState by auth.authState.collectAsStateWithLifecycle(AuthState.Loading)
             val locked by lock.locked.collectAsStateWithLifecycle(null)
+            val tourSeen by prefs.tourSeen.collectAsStateWithLifecycle(null)
             val scope = rememberCoroutineScope()
             SpendWiseTheme(themeMode) {
                 // Auth gate: the app shell only exists for a signed-in, verified user (spec §1.0)
@@ -74,6 +76,8 @@ class MainActivity : FragmentActivity() {
                         authState == AuthState.Loading || locked == null -> AuthLoading()
                         authState == AuthState.SignedOut -> SignInScreen()
                         locked == true -> LockScreen(lock::markUnlocked, onSignOut = { scope.launch { lock.signOutInstead() } })
+                        tourSeen == null -> AuthLoading()
+                        tourSeen == false -> TourScreen(onDone = { scope.launch { prefs.setTourSeen(true) } })
                         else -> AppShell(link, onLinkOpened = { link = null })
                     }
                 }
