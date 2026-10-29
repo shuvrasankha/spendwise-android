@@ -20,6 +20,7 @@ object Notifications {
     const val REMINDER_CHANNEL = "daily-reminder"
     const val DEBTS_CHANNEL = "shared-debts"
     const val BILLS_CHANNEL = "bills"
+    const val BUDGET_CHANNEL = "budget-alerts"
     private const val REMINDER_ID = 1001
 
     /** Opens Add Expense, as the web's reminder opens expense.html. One id: a newer reminder replaces an unread one. */
@@ -67,6 +68,7 @@ object Notifications {
                 NotificationChannel(REMINDER_CHANNEL, "Daily reminder", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(DEBTS_CHANNEL, "Shared debts", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(BILLS_CHANNEL, "Bills and monthly summary", NotificationManager.IMPORTANCE_DEFAULT),
+                NotificationChannel(BUDGET_CHANNEL, "Budget alerts", NotificationManager.IMPORTANCE_DEFAULT),
             ),
         )
     }

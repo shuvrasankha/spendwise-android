@@ -131,6 +131,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[stringPreferencesKey("ai_budget_month:$uid")] = month }
     }
 
+    /** The budget alert last sent to this account on this device, "YYYY-MM:NEAR|OVER" (domain/BudgetAlert.kt). */
+    fun budgetAlertSent(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("budget_alert:$uid")] }
+
+    suspend fun setBudgetAlertSent(uid: String, sent: String) {
+        store.edit { it[stringPreferencesKey("budget_alert:$uid")] = sent }
+    }
+
     /** Today's AI use of one feature by this account, as "YYYY-MM-DD:n" (AiAllowance). */
     fun aiDay(feature: String, uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("ai_day:$feature:$uid")] }
 
