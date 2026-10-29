@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -68,7 +69,7 @@ private data class Tab(val route: Any, val label: String, @param:DrawableRes val
 private val tabs = listOf(
     Tab(Dashboard, "Dashboard", R.drawable.ic_tab_dashboard),
     Tab(History(), "History", R.drawable.ic_tab_history),
-    Tab(AddExpense, "Add", R.drawable.ic_tab_add),
+    Tab(AddExpense, "Expense", R.drawable.ic_tab_wallet),
     Tab(Insights, "Insights", R.drawable.ic_tab_insights),
 )
 
@@ -94,6 +95,11 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val inMore = moreItems.any { destination?.hasRoute(it.route::class) == true }
     val snackbar = remember { SnackbarHostState() }
     PlayUpdates(snackbar)
+    GithubUpdates(snackbar)
+    // Back from a tab goes to the Dashboard, even when the stack has no Dashboard under it (it would exit the app)
+    val onTab = inMore || tabs.any { destination?.hasRoute(it.route::class) == true }
+    val underDashboard = nav.previousBackStackEntry?.destination?.hasRoute(Dashboard::class) == true
+    BackHandler(enabled = onTab && destination?.hasRoute(Dashboard::class) != true && !underDashboard) { nav.switchTo(Dashboard) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },

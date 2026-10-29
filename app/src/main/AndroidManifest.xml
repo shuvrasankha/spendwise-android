@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The header's offline status -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Installing an update downloaded from GitHub Releases (installs outside Play) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".SpendWiseApp"
