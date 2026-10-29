@@ -2,7 +2,9 @@ package com.spendwise.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -11,6 +13,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.spendwise.app.data.prefs.ThemeMode
 
 /** Meanings Material 3 has no slot for. Owed/over uses `colorScheme.error`; money and selected use `primary`. */
@@ -54,6 +57,9 @@ private fun scheme(dark: Boolean): ColorScheme {
     )
 }
 
+// Text fields (and menus, snackbars) take extraSmall: rounded to sit inside the 16dp panels
+private val AppShapes = Shapes(extraSmall = RoundedCornerShape(12.dp))
+
 /** No dynamic colour (CLAUDE.md). [mode] comes from DevicePrefs. */
 @Composable
 fun SpendWiseTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
@@ -63,7 +69,7 @@ fun SpendWiseTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -
         ThemeMode.DARK -> true
     }
     CompositionLocalProvider(LocalMoneyColors provides MoneyColors(if (dark) DarkMoneyIn else LightMoneyIn)) {
-        MaterialTheme(colorScheme = scheme(dark), typography = Typography, content = content)
+        MaterialTheme(colorScheme = scheme(dark), typography = Typography, shapes = AppShapes, content = content)
     }
 }
 
