@@ -78,15 +78,12 @@ fun AddExpenseScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Expense", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = onVoice) { Text("Speak or type") }
-                }
-            }
+            item { Text("Expense", style = MaterialTheme.typography.headlineSmall) }
+            (list as? ExpenseList.Ready)?.let { ready -> item { Panel { ExpenseSummary(ready.figures, currency) } } }
             item {
                 Panel {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedButton(onClick = onVoice, modifier = Modifier.fillMaxWidth()) { Text("Speak or Scan") }
                         ExpenseFormFields(state.form, state.tiles, currency, editor)
                         // The web's collapsed "More details", whose summary is the payment method
                         Collapsible("More details", state.form.payment) {
@@ -104,7 +101,6 @@ fun AddExpenseScreen(
             item { Text("Today", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
             expenseItems(list, currency, onEdit, expenses, empty = "Nothing added today yet.") { it.today }
             (list as? ExpenseList.Ready)?.let { ready ->
-                item { Panel { ExpenseSummary(ready.figures, currency) } }
                 ready.emis.takeIf { it.isNotEmpty() }?.let { plans -> item { Panel { EmiCard(plans, currency) } } }
             }
         }

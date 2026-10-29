@@ -29,6 +29,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -142,20 +146,20 @@ fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
                                 noMic = true
                             }
                         },
-                    ) { Text("Speak") }
-                    Button(onClick = vm::submit, enabled = !state.reading, modifier = Modifier.weight(1f)) { Text("Read it") }
+                    ) { ButtonLabel(R.drawable.ic_mic, "Speak") }
+                    OutlinedButton(onClick = { vm.newPhotoUri().also { photo = it; camera.launch(it) } }, enabled = !state.reading, modifier = Modifier.weight(1f)) {
+                        ButtonLabel(R.drawable.ic_camera, "Take a photo")
+                    }
                 }
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { vm.newPhotoUri().also { photo = it; camera.launch(it) } }, enabled = !state.reading, modifier = Modifier.weight(1f)) {
-                        Text("Take a photo")
-                    }
                     OutlinedButton(
                         onClick = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         enabled = !state.reading,
                         modifier = Modifier.weight(1f),
-                    ) { Text("From gallery") }
+                    ) { ButtonLabel(R.drawable.ic_image, "From gallery") }
+                    Button(onClick = vm::submit, enabled = !state.reading, modifier = Modifier.weight(1f)) { Text("Read it") }
                 }
             }
             if (noMic) item { Text("Speech input isn't available on this device. Type it instead.", color = MaterialTheme.colorScheme.error) }
@@ -255,4 +259,12 @@ private fun Chips(title: String, options: List<String>, selected: String, label:
             options.forEach { o -> FilterChip(selected = selected == o, onClick = { onPick(o) }, label = { Text(label(o)) }) }
         }
     }
+}
+
+/** A button's icon and text; the icon is decorative, the text names the button. */
+@Composable
+private fun RowScope.ButtonLabel(icon: Int, text: String) {
+    Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(18.dp))
+    Spacer(Modifier.width(8.dp))
+    Text(text)
 }
