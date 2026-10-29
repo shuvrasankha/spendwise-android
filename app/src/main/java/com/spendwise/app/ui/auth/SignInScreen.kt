@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -148,7 +150,12 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
             onClick = { viewModel.signInWithGoogle(context) },
             enabled = !state.busy,
             modifier = Modifier.fillMaxWidth().height(48.dp),
-        ) { Text("Continue with Google") }
+        ) {
+            // Google's own colours, which stay as they are in both themes
+            Icon(painterResource(R.drawable.ic_google), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Continue with Google")
+        }
         Spacer(Modifier.height(8.dp))
     }
 
