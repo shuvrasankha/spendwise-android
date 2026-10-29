@@ -116,6 +116,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (json == null) it.remove(COACH_CHAT) else it[COACH_CHAT] = json }
     }
 
+    /** App lock is on for this device (app-lock.js › spendwise_lock); never synced (spec §7.7). */
+    val appLock: Flow<Boolean> = store.data.map { it[APP_LOCK] == true }
+
+    suspend fun setAppLock(on: Boolean) {
+        store.edit { if (on) it[APP_LOCK] = true else it.remove(APP_LOCK) }
+    }
+
     /** Account deletion: nothing of the account stays on the device (spec §8.2). */
     suspend fun clear() {
         store.edit { it.clear() }
@@ -150,5 +157,6 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_ENDPOINT = stringPreferencesKey("push_endpoint")
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
+        val APP_LOCK = booleanPreferencesKey("app_lock")
     }
 }

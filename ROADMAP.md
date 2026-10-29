@@ -22,7 +22,7 @@ Web logic is ported exactly, quirks included, with `// web quirk: §9.N` comment
 | # | Decision | Needed by | Options |
 |---|---|---|---|
 | D1 | **HTTP client.** The Worker (AI and `/push/*`) needs HTTP, and CLAUDE.md says "No HTTP client in v1". | Phase C | **Decided: (a).** (a) `java.net.HttpURLConnection` plus the kotlinx-serialization already installed, so no new library (recommended). (b) Add OkHttp. |
-| D2 | **Biometric library.** App lock needs `androidx.biometric`, which isn't in the stack. | Slice 18 | **Decided: not now (slice 18 parked).** Approve `androidx.biometric:biometric`, or drop app lock. |
+| D2 | **Biometric library.** App lock needs `androidx.biometric`, which isn't in the stack. | Slice 18 | **Decided: approved (2026-10-29).** `androidx.biometric:biometric` 1.1.0. |
 | D3 | **Profile photo.** Showing the Google photo needs image loading. | Slice 14 | (a) Keep the initial only (recommended for now). (b) Add Coil. (c) Decode the photo URL by hand with HttpURLConnection, once D1 is decided. |
 | D4 | **Native push.** The Worker's `validEndpoint` only accepts browser Web Push hosts, so a native FCM token can't register (spec §7.1). This needs a Worker change **in the web repo**, which this project must not modify. | Phase D | Change the Worker in the web repo first, then add `firebase-messaging`. Or keep the local WorkManager reminder only. The Worker change is specified in `docs/WORKER_FCM_SPEC.md`. |
 | D5 | **AI privacy consent on Android.** The web shows a consent dialog once (`ensureConsent`). | Phase C | **Decided: as recommended.** Show the same text once per device, stored in DataStore (recommended). |
@@ -140,12 +140,13 @@ Spec: §7.6, §3.5 `notif`.
 - **Tests**: id format, sort order, the 200 cap, and merging with ids the web already wrote.
 - **Verify**: clear an item on Android and check it's gone on the web, and the reverse.
 
-### Slice 18: App lock (blocked on D2)
+### Slice 18: App lock (done)
 Spec: §7.7.
 
-- `BiometricPrompt` with `BIOMETRIC_STRONG or DEVICE_CREDENTIAL`.
-- Lock on start and after 5 minutes in the background, using `ProcessLifecycleOwner` (already
-  available through lifecycle).
+- `BiometricPrompt` with `BIOMETRIC_WEAK or DEVICE_CREDENTIAL` (strong with the screen lock isn't
+  offered before Android 11; weak includes strong).
+- Lock on start and after 5 minutes in the background, timed from `MainActivity` onStop/onStart
+  (the only activity, so `ProcessLifecycleOwner` isn't needed).
 - The setting is device-only (DataStore); nothing goes to Firestore.
 - Settings › Security switch. Hide it when `BiometricManager.canAuthenticate` is false.
 - **Tests**: the pure "should lock" timing function.

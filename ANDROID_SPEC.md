@@ -1354,8 +1354,8 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
 - A WebAuthn platform credential, stored locally.
 - The app locks on start, and again after 5 min in the background.
 - Nothing about it is in Firestore.
-- Android equivalent: BiometricPrompt. That needs `androidx.biometric`, a library not in the stack
-  (Q2/Q4).
+- Android equivalent: BiometricPrompt (`androidx.biometric`, approved as D2). The switch is a
+  DataStore pref; the unlocked state lasts for the process, like sessionStorage.
 
 ### 7.8 Backup and restore (`backup.js`)
 

@@ -43,6 +43,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -57,11 +58,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.data.prefs.ThemeMode
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.ui.dashboard.PlanDialogs
+import com.spendwise.app.ui.lock.canLock
+import com.spendwise.app.ui.lock.confirmIdentity
 import com.spendwise.app.ui.dashboard.PlansViewModel
 
 /** Settings (spec §1.9), in the web's order: Account, Display, Money, Notifications, Your data, then Log out; plus Delete account (§8.2). */
@@ -138,6 +142,22 @@ fun SettingsScreen(
             modifier = Modifier.clickable { pickingTime = true },
         )
         state.reminderNote?.let { Muted(it) }
+
+        val activity = LocalContext.current as FragmentActivity
+        if (remember { canLock(activity) }) {
+            Group("Security")
+            ListItem(
+                headlineContent = { Text("App lock") },
+                supportingContent = { Text("Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.") },
+                trailingContent = {
+                    Switch(
+                        checked = state.lockOn,
+                        onCheckedChange = { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } },
+                        modifier = Modifier.semantics { stateDescription = if (state.lockOn) "On" else "Off" },
+                    )
+                },
+            )
+        }
 
         Group("Your data")
         ListItem(

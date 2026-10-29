@@ -22,6 +22,7 @@ import com.spendwise.app.domain.currencyOf
 import com.spendwise.app.domain.friendlyErr
 import com.spendwise.app.domain.reminderOnNote
 import com.spendwise.app.reminder.ReminderScheduler
+import com.spendwise.app.ui.lock.AppLock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -47,6 +48,7 @@ data class SettingsUiState(
     val reminderAt: String = DEFAULT_REMIND_AT,
     val reminderNote: String? = null,
     val photoUrl: String = "",
+    val lockOn: Boolean = false,
 )
 
 /** Delete account (spec §8.2): confirm → sign in again → delete, with progress and a way to finish after a failure. */
@@ -67,6 +69,7 @@ class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val scheduler: ReminderScheduler,
     private val deleter: AccountDeleter,
+    private val lock: AppLock,
 ) : ViewModel() {
 
     /** A note from the last tap (blocked, failed), shown instead of the usual one until the next change. */
@@ -77,7 +80,8 @@ class SettingsViewModel @Inject constructor(
         settings.settings().catch { emit(UserSettings()) },
         prefs.reminderAt,
         tapNote,
-    ) { (mode, currency, authState), s, deviceAt, note ->
+        prefs.appLock,
+    ) { (mode, currency, authState), s, deviceAt, note, lockOn ->
         val user = (authState as? AuthState.SignedIn)?.user
         val at = accountRemindAt(s.remindAt) ?: deviceAt ?: DEFAULT_REMIND_AT
         val usual = when {
@@ -85,7 +89,7 @@ class SettingsViewModel @Inject constructor(
             s.remindOn == true -> REMINDER_ASK
             else -> null
         }
-        SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty())
+        SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty(), lockOn)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setThemeMode(mode: ThemeMode) {
@@ -99,6 +103,11 @@ class SettingsViewModel @Inject constructor(
     /** The auth gate shows the sign-in screen once this lands. */
     fun logOut() {
         viewModelScope.launch { auth.signOut() }
+    }
+
+    /** Called once the phone's check passed: turning it off needs the same check as opening the app. */
+    fun setLock(on: Boolean) {
+        viewModelScope.launch { lock.setOn(on) }
     }
 
     // ── Daily reminder (reminders.js › enable, disable, onTimeChange) ──
