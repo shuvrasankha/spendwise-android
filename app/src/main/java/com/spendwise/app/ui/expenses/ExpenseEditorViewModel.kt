@@ -126,7 +126,7 @@ class ExpenseEditorViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             if (editingId == null) {
-                val payment = prefs.lastPayment.first()
+                val payment = prefs.defaultPayment.first()
                 updateForm { it.copy(payment = payment) }
                 // Once, from the first non-empty load: the web orders tiles once per visit, after expenses arrive
                 val expenses = repo.expenses().catch { }.firstOrNull { it.isNotEmpty() }
@@ -242,7 +242,7 @@ class ExpenseEditorViewModel @Inject constructor(
     fun removeSplitPerson(i: Int) = updateForm { it.copy(split = it.split.filterIndexed { j, _ -> j != i }) }
 
     fun clear() = viewModelScope.launch {
-        val payment = prefs.lastPayment.first()
+        val payment = prefs.defaultPayment.first()
         _state.update { it.copy(form = ExpenseForm(payment = payment), message = null) }
     }
 
@@ -288,7 +288,6 @@ class ExpenseEditorViewModel @Inject constructor(
         val (write, debtIds) = if (debts.isEmpty()) repo.add(input) to emptyList() else repo.addSplit(input, debts)
         watch(write, failure = "Couldn't save the expense. Check your connection and try again.")
         lastAdded = key to now
-        viewModelScope.launch { prefs.setLastPayment(input.payment) }
         val done = if (debts.isEmpty()) "Expense added successfully!" else splitSaved(debts.size, formatMoney(debts[0].amount, currency.value))
         _state.update {
             it.copy(

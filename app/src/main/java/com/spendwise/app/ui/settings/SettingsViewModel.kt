@@ -13,6 +13,7 @@ import com.spendwise.app.data.auth.webAuthCode
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.data.prefs.ThemeMode
 import com.spendwise.app.domain.Currency
+import com.spendwise.app.domain.DEFAULT_PAYMENT
 import com.spendwise.app.domain.DEFAULT_REMIND_AT
 import com.spendwise.app.domain.REMINDER_ASK
 import com.spendwise.app.domain.REMINDER_BLOCKED
@@ -93,6 +94,12 @@ class SettingsViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     val widgetTransparency: StateFlow<Int> = prefs.widgetTransparency.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val defaultPayment: StateFlow<String> = prefs.defaultPayment.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_PAYMENT)
+
+    fun setDefaultPayment(method: String) {
+        viewModelScope.launch { prefs.setDefaultPayment(method) }
+    }
 
     fun setWidgetTransparency(percent: Int) {
         viewModelScope.launch { prefs.setWidgetTransparency(percent) }

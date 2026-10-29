@@ -74,6 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.data.prefs.ThemeMode
 import com.spendwise.app.data.prefs.WIDGET_TRANSPARENCY_LEVELS
 import com.spendwise.app.domain.CURRENCIES
+import com.spendwise.app.domain.PAYMENT_METHODS
 import com.spendwise.app.ui.dashboard.PlanDialogs
 import com.spendwise.app.ui.lock.canLock
 import com.spendwise.app.ui.lock.confirmIdentity
@@ -91,6 +92,8 @@ fun SettingsScreen(
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     var pickingCurrency by rememberSaveable { mutableStateOf(false) }
+    val defaultPayment by viewModel.defaultPayment.collectAsStateWithLifecycle()
+    var pickingPayment by rememberSaveable { mutableStateOf(false) }
     var pickingTime by rememberSaveable { mutableStateOf(false) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
 
@@ -146,6 +149,7 @@ fun SettingsScreen(
                 "${state.currency.symbol} ${state.currency.code} — ${state.currency.name} · used for every amount in the app",
                 onClick = { pickingCurrency = true },
             )
+            SettingRow("Default payment method", "$defaultPayment · new expenses start on this", onClick = { pickingPayment = true })
         }
 
         Group("Money")
@@ -216,6 +220,7 @@ fun SettingsScreen(
     }
 
     if (pickingCurrency) CurrencyDialog(state.currency.code, viewModel::setCurrency) { pickingCurrency = false }
+    if (pickingPayment) PaymentDialog(defaultPayment, viewModel::setDefaultPayment) { pickingPayment = false }
     if (pickingTime) TimeDialog(state.reminderAt, viewModel::setReminderTime) { pickingTime = false }
     PlanDialogs(plans, state.currency)
     DeletionDialog(deletion, viewModel)
@@ -290,6 +295,30 @@ private fun CurrencyDialog(current: String, onPick: (String) -> Unit, onDismiss:
                             },
                         )
                     }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun PaymentDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Default payment method") },
+        text = {
+            Column {
+                PAYMENT_METHODS.forEach { method ->
+                    ListItem(
+                        headlineContent = { Text(method) },
+                        trailingContent = if (method == current) ({ Icon(painterResource(R.drawable.ic_check), contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }) else null,
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.selectable(selected = method == current, role = Role.RadioButton) {
+                            onPick(method)
+                            onDismiss()
+                        },
+                    )
                 }
             }
         },

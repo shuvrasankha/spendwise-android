@@ -51,12 +51,12 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
 
     val currency: Flow<Currency> = store.data.map { currencyOf(it[CURRENCY]) }
 
-    /** The Add form starts on the last payment method used (dashboard.js › lastPayment). */
-    val lastPayment: Flow<String> = store.data.map { prefs ->
+    /** The payment method a new expense starts on: chosen in Settings, UPI until then. */
+    val defaultPayment: Flow<String> = store.data.map { prefs ->
         prefs[LAST_PAYMENT]?.takeIf { it in PAYMENT_METHODS } ?: DEFAULT_PAYMENT
     }
 
-    suspend fun setLastPayment(payment: String) {
+    suspend fun setDefaultPayment(payment: String) {
         store.edit { it[LAST_PAYMENT] = payment }
     }
 
