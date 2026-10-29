@@ -1,5 +1,8 @@
 package com.spendwise.app.ui.insights
 
+import com.spendwise.app.data.worker.AiAllowance
+import com.spendwise.app.domain.AiFeature
+import com.spendwise.app.domain.aiLimitText
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.auth.AuthRepository
@@ -51,6 +54,7 @@ class CoachViewModel @Inject constructor(
     private val prefs: DevicePrefs,
     private val consent: AiConsent,
     private val auth: AuthRepository,
+    private val allowance: AiAllowance,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CoachState())
@@ -96,6 +100,7 @@ class CoachViewModel @Inject constructor(
 
     private suspend fun answer() {
         val chat = _state.value.chat ?: return
+        if (!allowance.left(AiFeature.COACH)) return _state.update { it.copy(error = aiLimitText(AiFeature.COACH)) }
         _state.update { it.copy(busy = true, error = null) }
         val failure = try {
             val currency = prefs.currency.first()
@@ -107,6 +112,7 @@ class CoachViewModel @Inject constructor(
                 res.status == 429 -> AiFailure.RATE_LIMITED
                 content == null -> AiFailure.OTHER
                 else -> {
+                    allowance.used(AiFeature.COACH)
                     val done = chat.copy(history = chat.history + ChatTurn("assistant", content))
                     _state.value = CoachState(done)
                     save(done)

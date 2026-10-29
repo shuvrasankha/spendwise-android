@@ -1255,6 +1255,10 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
     - `@cf/meta/llama-3.3-70b-instruct-fp8-fast`: coach, Ask and budget.
     - `@cf/meta/llama-4-scout-17b-16e-instruct`: receipts.
   - Limit: 100 requests per user per UTC day; over the limit gets **429**.
+  - **Android only, on top of that** (decided 2026-10-29): per account, counted on the device and reset
+    at local midnight: coach 5 answers, Ask 10 questions, voice and receipt 20 readings, CSV 3 imports a
+    day; the budget suggestion one a month. Only answers the AI gave count. Over a cap, the feature says
+    so, except Ask, which reads the question on the phone as it does offline (`domain/AiLimits.kt`).
   - Response: `{choices:[{message:{content}}]}`.
   - **Privacy rule**: no descriptions, notes or names go to the AI. Only number facts or the
     question go (web `CLAUDE.md`).

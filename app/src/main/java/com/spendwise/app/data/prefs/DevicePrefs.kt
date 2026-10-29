@@ -10,6 +10,7 @@ import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DEFAULT_PAYMENT
 import com.spendwise.app.domain.PAYMENT_METHODS
+import com.spendwise.app.domain.aiUsedToday
 import com.spendwise.app.domain.currencyOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -128,6 +129,14 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
 
     suspend fun setAiBudgetMonth(uid: String, month: String) {
         store.edit { it[stringPreferencesKey("ai_budget_month:$uid")] = month }
+    }
+
+    /** Today's AI use of one feature by this account, as "YYYY-MM-DD:n" (AiAllowance). */
+    fun aiDay(feature: String, uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("ai_day:$feature:$uid")] }
+
+    suspend fun countAiDay(feature: String, uid: String, today: String) {
+        val key = stringPreferencesKey("ai_day:$feature:$uid")
+        store.edit { it[key] = "$today:${aiUsedToday(it[key], today) + 1}" }
     }
 
     /** Account deletion: nothing of the account stays on the device (spec §8.2). */

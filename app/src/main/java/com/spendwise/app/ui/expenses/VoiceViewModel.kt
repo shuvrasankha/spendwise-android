@@ -1,5 +1,8 @@
 package com.spendwise.app.ui.expenses
 
+import com.spendwise.app.data.worker.AiAllowance
+import com.spendwise.app.domain.AiFeature
+import com.spendwise.app.domain.aiLimitText
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.EntryBatch
@@ -78,6 +81,7 @@ class VoiceViewModel @Inject constructor(
     private val worker: WorkerClient,
     private val batch: EntryBatch,
     private val auth: AuthRepository,
+    private val allowance: AiAllowance,
     private val photos: ReceiptPhotos,
     sync: SyncStatus,
     prefs: DevicePrefs,
@@ -132,6 +136,7 @@ class VoiceViewModel @Inject constructor(
 
     /** parseWithAI: sends the messages and opens the review cards with what comes back; nothing is saved yet. */
     private suspend fun read(model: String, messages: List<Pair<String, JsonElement>>, busy: String, none: String, fix: (List<VoiceEntry>) -> List<VoiceEntry>) {
+        if (!allowance.left(AiFeature.VOICE)) return _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
         _state.update { it.copy(reading = true, message = FormMessage(busy, success = true)) }
         val failure = try {
             val res = worker.post("/", aiRequestOf(model, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
@@ -140,6 +145,7 @@ class VoiceViewModel @Inject constructor(
                 res.status == 503 -> VOICE_MODEL_LOADING
                 else -> {
                     val content = (if (res.ok) aiContent(res.body) else null) ?: throw IOException("AI ${res.status}")
+                    allowance.used(AiFeature.VOICE)
                     val entries = fix(readEntries(content).mapNotNull { cleanEntry(it, todayStr()) })
                     if (entries.isEmpty()) none else return show(entries, foundText(entries.size))
                 }

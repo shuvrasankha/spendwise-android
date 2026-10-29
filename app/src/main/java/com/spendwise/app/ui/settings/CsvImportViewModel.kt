@@ -1,5 +1,8 @@
 package com.spendwise.app.ui.settings
 
+import com.spendwise.app.data.worker.AiAllowance
+import com.spendwise.app.domain.AiFeature
+import com.spendwise.app.domain.aiLimitText
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -57,6 +60,7 @@ class CsvImportViewModel @Inject constructor(
     private val worker: WorkerClient,
     private val importer: CsvImporter,
     private val prefs: DevicePrefs,
+    private val allowance: AiAllowance,
     sync: SyncStatus,
 ) : ViewModel() {
     private val _phase = MutableStateFlow<CsvPhase>(CsvPhase.Upload())
@@ -86,6 +90,7 @@ class CsvImportViewModel @Inject constructor(
 
     private suspend fun process() {
         val uri = file ?: return
+        if (!allowance.left(AiFeature.CSV)) return _phase.update { CsvPhase.Failed(aiLimitText(AiFeature.CSV)) }
         _phase.value = CsvPhase.Processing("Reading your CSV file…")
         _phase.value = try {
             val text = files.read(uri)
@@ -94,6 +99,7 @@ class CsvImportViewModel @Inject constructor(
             _phase.value = CsvPhase.Processing("AI is analyzing your data…")
             // In parallel, in file order; one failed piece fails the whole file, as one call would
             val rows = coroutineScope { csvChunks(text).map { async { extract(it) } }.awaitAll().flatten() }
+            allowance.used(AiFeature.CSV)
             if (rows.isEmpty()) throw CsvImportError("NO_DATA_EXTRACTED")
             CsvPhase.Preview(rows, rows.map { importer.newId() }, rows.indices.toSet())
         } catch (e: CancellationException) {

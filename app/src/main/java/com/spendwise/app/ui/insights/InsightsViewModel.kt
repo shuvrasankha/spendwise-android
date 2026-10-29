@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.insights
 
+import com.spendwise.app.data.worker.AiAllowance
+import com.spendwise.app.domain.AiFeature
 import com.spendwise.app.data.worker.AiConsent
 import com.spendwise.app.data.worker.WorkerClient
 import com.spendwise.app.data.worker.aiContent
@@ -93,6 +95,7 @@ class InsightsViewModel @Inject constructor(
     prefs: DevicePrefs,
     private val worker: WorkerClient,
     private val consent: AiConsent,
+    private val allowance: AiAllowance,
 ) : ViewModel() {
 
     private val reload = MutableStateFlow(0)
@@ -148,9 +151,11 @@ class InsightsViewModel @Inject constructor(
 
     /** specFor: the AI reads the question (it gets the question and today's date only); declined, offline or failed, guessSpec does. */
     private suspend fun specFor(question: String, today: String): AskSpec {
-        if (consent.ensure()) {
+        // Over today's cap, the question is read on the phone, as when offline
+        if (consent.ensure() && allowance.left(AiFeature.ASK)) {
             try {
                 val res = worker.post("/", aiRequest(ASK_AI_MODEL, listOf("system" to askPrompt(today), "user" to question), maxTokens = 200, temperature = 0.0))
+                if (res.ok) allowance.used(AiFeature.ASK)
                 if (res.ok) readSpec(aiContent(res.body).orEmpty())?.let { return it }
             } catch (e: CancellationException) {
                 throw e
