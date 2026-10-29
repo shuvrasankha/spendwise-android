@@ -353,7 +353,7 @@ private fun BudgetBar(spent: Double, projected: Double, limit: Double, current: 
 }
 
 // Pie colours, from the web's tokens.css (--pie-1…5, --pie-other), light then dark
-private val PIE_LIGHT = listOf(0xFF2A78D6, 0xFFEB6834, 0xFF1BAF7A, 0xFFEDA100, 0xFFE87BA4).map(::Color) to Color(0xFF8A8478)
+private val PIE_LIGHT = listOf(0xFF2A78D6, 0xFFC9501A, 0xFF16805C, 0xFFA06A00, 0xFFC2407A).map(::Color) to Color(0xFF6E695E)
 private val PIE_DARK = listOf(0xFF3987E5, 0xFFD95926, 0xFF199E70, 0xFFC98500, 0xFFD55181).map(::Color) to Color(0xFF77716A)
 private const val PIE_GAP = 0.6 // of 100: a little surface between slices
 

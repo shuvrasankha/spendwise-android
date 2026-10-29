@@ -39,6 +39,11 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import com.spendwise.app.R
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -248,28 +253,31 @@ private fun Tiles(h: HomeFigures, money: (Double) -> String, onOpenIncome: () ->
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(pair, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Tile(
-                "Income", if (h.income > 0) money(h.income) else "—",
+                "Income", R.drawable.ic_cat_income, if (h.income > 0) money(h.income) else "—",
                 if (h.incomeCount > 0) "${plural(h.incomeCount, "entry", "entries")} this month" else "None this month",
                 moneyIn, Modifier.weight(1f), onOpenIncome,
             )
             Tile(
-                "Saved", h.saved?.let { if (it < 0) "−${money(-it)}" else money(it) } ?: "—", savedSub,
+                "Saved", R.drawable.ic_cat_savings, h.saved?.let { if (it < 0) "−${money(-it)}" else money(it) } ?: "—", savedSub,
                 if ((h.saved ?: 0.0) < 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f),
             )
         }
         Row(pair, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Tile("You owe", money(h.owe), null, if (h.owe > 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
-            Tile("Owed to you", money(h.owed), null, if (h.owed > 0) moneyIn else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
+            Tile("You owe", R.drawable.ic_debt, money(h.owe), null, if (h.owe > 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
+            Tile("Owed to you", R.drawable.ic_debt, money(h.owed), null, if (h.owed > 0) moneyIn else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
         }
     }
 }
 
 @Composable
-private fun Tile(label: String, value: String, sub: String?, color: Color, modifier: Modifier, onClick: (() -> Unit)? = null) {
+private fun Tile(label: String, icon: Int, value: String, sub: String?, color: Color, modifier: Modifier, onClick: (() -> Unit)? = null) {
     Panel(modifier.fillMaxHeight(), onClick = onClick, onClickLabel = onClick?.let { "Open $label" }) {
-        Muted(label)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            Muted(label)
+        }
         Spacer(Modifier.height(2.dp))
-        Text(value, style = MaterialTheme.typography.titleLarge, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, style = MaterialTheme.typography.titleLarge, color = color)
         sub?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
@@ -405,7 +413,10 @@ private fun Stat(label: String, value: String, modifier: Modifier) {
 internal fun <T> Picker(current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { open = true }) { Text(current) }
+        OutlinedButton(onClick = { open = true }) {
+            Text(current)
+            Icon(painterResource(R.drawable.ic_back), contentDescription = null, modifier = Modifier.padding(start = 8.dp).size(18.dp).rotate(if (open) 90f else -90f))
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { (value, label) ->
                 DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onPick(value) })

@@ -72,7 +72,12 @@ private val tabs = listOf(
     Tab(Insights, "Insights", R.drawable.ic_tab_insights),
 )
 
-private val moreItems = listOf(Income to "Income", Investments to "Investments", Debts to "Debts", Settings to "Settings")
+private data class More(val route: Any, val label: String, @param:DrawableRes val icon: Int)
+
+private val moreItems = listOf(
+    More(Income, "Income", R.drawable.ic_cat_income), More(Investments, "Investments", R.drawable.ic_tab_insights),
+    More(Debts, "Debts", R.drawable.ic_debt), More(Settings, "Settings", R.drawable.ic_settings),
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,7 +91,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     }
     val destination = nav.currentBackStackEntryAsState().value?.destination
     var showMore by rememberSaveable { mutableStateOf(false) }
-    val inMore = moreItems.any { (route, _) -> destination?.hasRoute(route::class) == true }
+    val inMore = moreItems.any { destination?.hasRoute(it.route::class) == true }
     val snackbar = remember { SnackbarHostState() }
     PlayUpdates(snackbar)
 
@@ -154,9 +159,10 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     if (showMore) {
         ModalBottomSheet(onDismissRequest = { showMore = false }, tonalElevation = 0.dp) {
             Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
-                moreItems.forEach { (route, label) ->
+                moreItems.forEach { (route, label, icon) ->
                     ListItem(
                         headlineContent = { Text(label) },
+                        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
                         modifier = Modifier.clickable {
                             showMore = false
                             nav.switchTo(route)
