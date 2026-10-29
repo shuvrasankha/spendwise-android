@@ -24,6 +24,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -57,6 +62,7 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val login = state.tab == AuthTab.LOGIN
+    var showPassword by rememberSaveable { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -103,7 +109,12 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
             label = { Text("Password") },
             leadingIcon = { Icon(painterResource(R.drawable.ic_lock), contentDescription = null) },
             singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = { showPassword = !showPassword }) {
+                    Icon(painterResource(if (showPassword) R.drawable.ic_visibility_off else R.drawable.ic_visibility), contentDescription = if (showPassword) "Hide password" else "Show password")
+                }
+            },
             supportingText = if (login) null else ({ Text(PASSWORD_RULES) }),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { if (login) viewModel.login() else viewModel.signUp() }),
