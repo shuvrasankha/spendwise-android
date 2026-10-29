@@ -15,6 +15,9 @@ const val CSV_MAX_BYTES = 512 * 1024
 const val CSV_MAX_LINES = 200
 const val CSV_BATCH = 500
 
+/** Rows per AI call: ~45 reply tokens a row keeps each reply under the Worker's 4096-token cap. */
+const val CSV_CHUNK_ROWS = 50
+
 data class CsvTx(
     val amount: Double,
     val category: String,
@@ -48,6 +51,25 @@ fun checkCsvLines(text: String) {
     val lines = text.split('\n').count { it.isNotBlank() }
     if (lines < 2) throw CsvImportError("CSV_TOO_SHORT")
     if (lines > CSV_MAX_LINES) throw CsvImportError("CSV_TOO_MANY_ROWS")
+}
+
+/**
+ * The CSV as pieces of at most [rows] records, each led by the header, so every AI reply fits (Android only;
+ * the web sends the whole file and a long one comes back cut off). A quoted field may span lines.
+ */
+fun csvChunks(text: String, rows: Int = CSV_CHUNK_ROWS): List<String> {
+    val records = mutableListOf<String>()
+    var open: String? = null
+    for (line in text.split('\n')) {
+        val record = open?.let { it + "\n" + line } ?: line
+        // An odd number of quotes so far: the record goes on to the next line
+        open = if (record.count { it == '"' } % 2 == 1) record else null
+        if (open == null && record.isNotBlank()) records += record
+    }
+    open?.takeIf { it.isNotBlank() }?.let { records += it }
+    if (records.size < 2) return listOf(text)
+    val header = records.first()
+    return records.drop(1).chunked(rows) { (listOf(header) + it).joinToString("\n") }
 }
 
 private fun jsonList(v: List<String>) = v.joinToString(",", "[", "]") { "\"" + it.replace("\"", "\\\"") + "\"" }
@@ -107,6 +129,7 @@ fun readCsvReply(content: String?, today: String): List<CsvTx> {
     Regex("""```(?:json)?\s*([\s\S]*?)```""").find(json)?.let { json = it.groupValues[1].trim() }
     Regex("""\[[\s\S]*\]""").find(json)?.let { json = it.value }
     val parsed = Json.parseToJsonElement(json) as? JsonArray ?: throw CsvImportError("INVALID_FORMAT")
+    val isoDate = Regex("""^\d{4}-\d{2}-\d{2}$""")
     return parsed.map { e ->
         val o = e as? JsonObject ?: JsonObject(emptyMap())
         val amount = kotlin.math.abs(jsParseFloat(o["amount"]?.let(::jsText) ?: "")).let { if (it.isNaN()) 0.0 else it }
@@ -118,7 +141,7 @@ fun readCsvReply(content: String?, today: String): List<CsvTx> {
             category = if (category in EXPENSE_CATEGORIES) category else "Other",
             description = (if (truthy(o["description"])) jsText(o["description"]!!) else "-").take(200),
             payment = payment?.takeIf { it in PAYMENT_METHODS } ?: "UPI",
-            date = date?.takeIf { Regex("""^\d{4}-\d{2}-\d{2}$""").matches(it) } ?: today,
+            date = date?.takeIf { isoDate.matches(it) } ?: today,
             notes = (if (truthy(o["notes"])) jsText(o["notes"]!!) else "").take(500),
             type = if ((o["type"] as? JsonPrimitive)?.let { it.isString && it.content == "income" } == true) "income" else "expense",
         )

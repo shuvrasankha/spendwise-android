@@ -18,6 +18,7 @@ import com.spendwise.app.domain.CsvImportError
 import com.spendwise.app.domain.CsvTx
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.checkCsvLines
+import com.spendwise.app.domain.csvChunks
 import com.spendwise.app.domain.csvDoneText
 import com.spendwise.app.domain.csvErrorText
 import com.spendwise.app.domain.csvPrompt
@@ -26,6 +27,9 @@ import com.spendwise.app.domain.readCsvReply
 import com.spendwise.app.domain.todayStr
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -88,12 +92,8 @@ class CsvImportViewModel @Inject constructor(
             if (text.toByteArray().size > CSV_MAX_BYTES) throw CsvImportError(CSV_TOO_BIG)
             checkCsvLines(text)
             _phase.value = CsvPhase.Processing("AI is analyzing your data…")
-            val (system, user) = csvPrompt(text)
-            val res = worker.post("/", aiRequest(CSV_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 4096, temperature = 0.1, topP = 0.9))
-            if (res.status == 429) throw CsvImportError("RATE_LIMITED")
-            if (res.status == 503) throw CsvImportError("MODEL_LOADING")
-            if (!res.ok) throw CsvImportError("API_ERROR")
-            val rows = readCsvReply(aiContent(res.body), todayStr())
+            // In parallel, in file order; one failed piece fails the whole file, as one call would
+            val rows = coroutineScope { csvChunks(text).map { async { extract(it) } }.awaitAll().flatten() }
             if (rows.isEmpty()) throw CsvImportError("NO_DATA_EXTRACTED")
             CsvPhase.Preview(rows, rows.map { importer.newId() }, rows.indices.toSet())
         } catch (e: CancellationException) {
@@ -105,6 +105,16 @@ class CsvImportViewModel @Inject constructor(
         } catch (e: Exception) {
             CsvPhase.Failed(csvErrorText(e.message ?: "API_ERROR"))
         }
+    }
+
+    /** callAIModel for one piece of the file. */
+    private suspend fun extract(csv: String): List<CsvTx> {
+        val (system, user) = csvPrompt(csv)
+        val res = worker.post("/", aiRequest(CSV_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 4096, temperature = 0.1, topP = 0.9))
+        if (res.status == 429) throw CsvImportError("RATE_LIMITED")
+        if (res.status == 503) throw CsvImportError("MODEL_LOADING")
+        if (!res.ok) throw CsvImportError("API_ERROR")
+        return readCsvReply(aiContent(res.body), todayStr())
     }
 
     fun toggle(i: Int) = _phase.update { p ->

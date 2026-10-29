@@ -45,4 +45,17 @@ class CsvImportTest {
         assertTrue(csvPrompt("a,b").first.contains(""""payment": one of ["UPI","Cash","Credit Card","Debit Card","Net Banking","Other"]"""))
         assertTrue(csvPrompt("a,b").second.endsWith("format:\n\na,b"))
     }
+
+    @Test fun `chunks - each piece has the header, blank lines dropped, order kept`() {
+        val text = "date,amount\n" + (1..120).joinToString("\n") { "d$it,$it" } + "\n\n"
+        val pieces = csvChunks(text)
+        assertEquals(listOf(51, 51, 21), pieces.map { it.lines().size })
+        assertTrue(pieces.all { it.startsWith("date,amount\n") })
+        assertEquals("d120,120", pieces.last().lines().last())
+    }
+
+    @Test fun `chunks - a quoted field over two lines stays one record`() {
+        val pieces = csvChunks("a,b\n\"x\ny\",1\nz,2", rows = 1)
+        assertEquals(listOf("a,b\n\"x\ny\",1", "a,b\nz,2"), pieces)
+    }
 }
