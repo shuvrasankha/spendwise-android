@@ -217,6 +217,7 @@ class ExpenseEditorViewModel @Inject constructor(
     }
     fun commitTagDraft() = updateForm { it.copy(tags = addTags(it.tags, it.tagDraft), tagDraft = "") }
     fun removeTag(tag: String) = updateForm { it.copy(tags = it.tags - tag) }
+    fun clearTags() = updateForm { it.copy(tags = emptyList()) }
 
     fun setRepeat(v: Boolean) = updateForm { it.copy(repeat = v) }
     fun setEmiTotal(v: String) = updateForm { it.copy(emiTotal = v) }

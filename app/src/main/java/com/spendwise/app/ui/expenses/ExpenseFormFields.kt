@@ -166,6 +166,7 @@ fun ExpenseDetailFields(form: ExpenseForm, viewModel: ExpenseEditorViewModel, re
                         )
                     }
                 }
+                if (form.tags.size > 1) TextButton(onClick = viewModel::clearTags) { Text("Clear all tags") }
             }
         }
     }
