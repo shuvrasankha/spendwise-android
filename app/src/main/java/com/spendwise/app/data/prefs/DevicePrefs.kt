@@ -91,6 +91,17 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (value == null) it.remove(key) else it[key] = value }
     }
 
+    /**
+     * The bell's "seen" or "cleared" ids on this device, newest last (notifications.js › SEEN_KEY/CLEARED_KEY + uid).
+     * The bell trusts this copy, so a clear holds even when the account copy (settings.notif) can't be written.
+     */
+    fun notifIds(kind: String, uid: String): Flow<List<String>> =
+        store.data.map { prefs -> prefs[stringPreferencesKey("notif_$kind:$uid")]?.split('\n')?.filter { it.isNotEmpty() }.orEmpty() }
+
+    suspend fun setNotifIds(kind: String, uid: String, ids: List<String>) {
+        store.edit { it[stringPreferencesKey("notif_$kind:$uid")] = ids.joinToString("\n") }
+    }
+
     /** "I Understand & Continue" in the CSV upload dialog (csv-upload.js › csvUploadConsent); per device. */
     val csvConsent: Flow<Boolean> = store.data.map { it[CSV_CONSENT] == true }
 
