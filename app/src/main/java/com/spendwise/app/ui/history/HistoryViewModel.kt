@@ -131,6 +131,9 @@ data class ExportSummary(
 
 data class SharedFile(val uri: Uri, val name: String)
 
+/** A built CSV waiting for the user to choose where on the device to save it. */
+data class PendingSave(val name: String, val csv: String)
+
 private data class Data(val expenses: List<Expense>, val income: List<Income>)
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -180,6 +183,9 @@ class HistoryViewModel @Inject constructor(
     private val _share = MutableStateFlow<SharedFile?>(null)
     val share: StateFlow<SharedFile?> = _share.asStateFlow()
 
+    private val _save = MutableStateFlow<PendingSave?>(null)
+    val save: StateFlow<PendingSave?> = _save.asStateFlow()
+
     private val _message = MutableStateFlow<Toast?>(null)
     val message: StateFlow<Toast?> = _message.asStateFlow()
 
@@ -195,8 +201,8 @@ class HistoryViewModel @Inject constructor(
         filters.update { it.copy(shown = HISTORY_STEP) }
     }
     fun selectRange(range: HistoryRange) = refilter { it.copy(range = range) }
-    fun setCustomFrom(date: String) = refilter { it.copy(customFrom = date) }
-    fun setCustomTo(date: String) = refilter { it.copy(customTo = date) }
+    fun setCustomFrom(date: String) = refilter { it.copy(range = HistoryRange.CUSTOM, customFrom = date) }
+    fun setCustomTo(date: String) = refilter { it.copy(range = HistoryRange.CUSTOM, customTo = date) }
     fun selectSort(sort: HistorySort) = refilter { it.copy(sort = sort) }
     fun toggleKind(kind: String) = refilter { it.copy(kinds = if (kind in it.kinds) it.kinds - kind else it.kinds + kind) }
     /** A tag chip searches "#tag"; tapping the pressed one clears the search. */
@@ -217,7 +223,37 @@ class HistoryViewModel @Inject constructor(
     fun closeExport() = _export.update { null }
     fun setExport(change: (ExportDialog) -> ExportDialog) = _export.update { it?.let(change) }
 
-    fun runExport() {
+    fun runExport() = build { name, csv ->
+        try {
+            _share.value = SharedFile(files.write(name, csv), name)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _message.value = Toast("Couldn't create the export file. Try again.", error = true)
+        }
+    }
+
+    /** Hands the screen the CSV so it can ask where to save it. */
+    fun saveToDevice() = build { name, csv -> _save.value = PendingSave(name, csv) }
+
+    /** [uri]: where the user chose to save it (CreateDocument); null when they cancelled. */
+    fun saved(uri: Uri?) {
+        val pending = _save.value ?: return
+        _save.value = null
+        uri ?: return
+        viewModelScope.launch {
+            try {
+                files.save(uri, pending.csv)
+                _message.value = Toast("Saved ${pending.name}")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = Toast("Couldn't save the file. Try again.", error = true)
+            }
+        }
+    }
+
+    private fun build(deliver: suspend (name: String, csv: String) -> Unit) {
         val summary = export.value ?: return
         val d = data.value?.getOrNull() ?: return
         val dialog = summary.dialog
@@ -236,15 +272,7 @@ class HistoryViewModel @Inject constructor(
         )
         val csv = buildCsv(entries, currency.value.code, dialog.total)
         _export.value = null
-        viewModelScope.launch {
-            try {
-                _share.value = SharedFile(files.write(name, csv), name)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _message.value = Toast("Couldn't create the export file. Try again.", error = true)
-            }
-        }
+        viewModelScope.launch { deliver(name, csv) }
     }
 
     fun shareShown() = _share.update { null }

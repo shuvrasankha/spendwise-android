@@ -4,6 +4,9 @@ import com.spendwise.app.ui.components.show
 import com.spendwise.app.ui.components.IconBadge
 import com.spendwise.app.ui.components.categoryIcon
 import com.spendwise.app.R
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
 import android.content.ClipData
 import android.content.Intent
 import androidx.compose.foundation.clickable
@@ -48,6 +51,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,6 +94,7 @@ fun HistoryScreen(
     val currency by history.currency.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     ShareWhenReady(history)
+    SaveWhenReady(history)
     val message by history.message.collectAsStateWithLifecycle()
     LaunchedEffect(message) {
         val text = message ?: return@LaunchedEffect
@@ -126,6 +132,7 @@ fun HistoryScreen(
                         v.allCount == 0 -> item {
                             val income = v.filters.tab == HistoryTab.INCOME
                             Column(Modifier.padding(vertical = 24.dp)) {
+                                Icon(painterResource(R.drawable.ic_tab_history), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
                                 Text(if (income) "No income recorded yet." else "No expenses yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 TextButton(onClick = if (income) onAddIncome else onAddExpense, contentPadding = PaddingValues(0.dp)) {
                                     Text(if (income) "Add income" else "Add an expense")
@@ -195,7 +202,7 @@ private fun Filters(v: HistoryView, query: String, vm: HistoryViewModel) {
             Picker(f.range.label, HistoryRange.entries.map { it to it.label }, vm::selectRange)
             Picker(f.sort.label, HistorySort.entries.map { it to it.label }, vm::selectSort)
         }
-        if (f.range == HistoryRange.CUSTOM) {
+        if (f.range == HistoryRange.CUSTOM || f.range == HistoryRange.ALL) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssistChip(onClick = { picking = "from" }, label = { Text("From ${if (f.customFrom.isEmpty()) "start" else formatDate(f.customFrom)}") })
                 AssistChip(onClick = { picking = "to" }, label = { Text("To ${if (f.customTo.isEmpty()) "today" else formatDate(f.customTo)}") })
@@ -323,7 +330,12 @@ private fun ExportDialogHost(vm: HistoryViewModel, currency: Currency) {
                 Text("A CSV file, for Excel, Numbers or Google Sheets.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        confirmButton = { TextButton(onClick = vm::runExport, enabled = !empty) { Text("Share CSV") } },
+        confirmButton = {
+            Row {
+                TextButton(onClick = vm::saveToDevice, enabled = !empty) { Text("Save to device") }
+                TextButton(onClick = vm::runExport, enabled = !empty) { Text("Share CSV") }
+            }
+        },
         dismissButton = { TextButton(onClick = vm::closeExport) { Text("Cancel") } },
     )
     when (picking) {
@@ -345,6 +357,14 @@ private fun ExportOption(title: String, sub: String, selected: Boolean, enabled:
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/** Asks where to save the CSV (the system file picker, so no storage permission) once an export is built. */
+@Composable
+private fun SaveWhenReady(vm: HistoryViewModel) {
+    val pending by vm.save.collectAsStateWithLifecycle()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv"), vm::saved)
+    LaunchedEffect(pending) { pending?.let { picker.launch(it.name) } }
 }
 
 /** Opens the share sheet for a finished export. No storage permission: the file is granted to the target app only. */
