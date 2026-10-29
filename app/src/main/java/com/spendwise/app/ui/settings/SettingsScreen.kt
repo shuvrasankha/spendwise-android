@@ -1,6 +1,13 @@
 package com.spendwise.app.ui.settings
 
 import com.spendwise.app.ui.components.Avatar
+import com.spendwise.app.ui.components.Panel
+import com.spendwise.app.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.Icon
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,47 +89,56 @@ fun SettingsScreen(
     var pickingTime by rememberSaveable { mutableStateOf(false) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
 
-    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(vertical = 16.dp)) {
-        Text("Settings", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 16.dp))
+    Column(
+        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Settings", style = MaterialTheme.typography.headlineSmall)
 
-        Group("Account")
-        ListItem(
-            leadingContent = { Avatar(state.name.ifEmpty { state.email }, photoUrl = state.photoUrl) },
-            headlineContent = { Text(state.name.ifEmpty { state.email }) },
-            supportingContent = if (state.name.isEmpty()) null else ({ Text(state.email) }),
-        )
-
-        Group("Display")
-        Text("Appearance", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 16.dp))
-        Muted("Light, dark, or follow your device")
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-            ThemeMode.entries.forEachIndexed { i, mode ->
-                SegmentedButton(
-                    selected = state.themeMode == mode,
-                    onClick = { viewModel.setThemeMode(mode) },
-                    shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                ) { Text(mode.label) }
+        Panel {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Avatar(state.name.ifEmpty { state.email }, size = 56.dp, photoUrl = state.photoUrl)
+                Column(Modifier.weight(1f)) {
+                    Text(state.name.ifEmpty { state.email }, style = MaterialTheme.typography.titleLarge)
+                    if (state.name.isNotEmpty()) {
+                        Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
-        ListItem(
-            headlineContent = { Text("Currency") },
-            supportingContent = { Text("${state.currency.symbol} ${state.currency.code} — ${state.currency.name} · used for every amount in the app") },
-            modifier = Modifier.clickable { pickingCurrency = true },
-        )
+
+        Group("Display")
+        Panel {
+            Text("Appearance", style = MaterialTheme.typography.bodyLarge)
+            Text("Light, dark, or follow your device", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                ThemeMode.entries.forEachIndexed { i, mode ->
+                    SegmentedButton(
+                        selected = state.themeMode == mode,
+                        onClick = { viewModel.setThemeMode(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
+                    ) { Text(mode.label) }
+                }
+            }
+        }
+        Panel(padding = 0.dp) {
+            SettingRow(
+                "Currency",
+                "${state.currency.symbol} ${state.currency.code} — ${state.currency.name} · used for every amount in the app",
+                onClick = { pickingCurrency = true },
+            )
+        }
 
         Group("Money")
-        ListItem(
-            headlineContent = { Text("Monthly budget") },
-            supportingContent = { Text("An overall limit, and limits per category") },
-            modifier = Modifier.clickable(onClick = plans::openBudget),
-        )
-        val budgetNotice by plans.notice.collectAsStateWithLifecycle()
-        budgetNotice?.let { Muted(it.text) }
+        Panel(padding = 0.dp) {
+            SettingRow("Monthly budget", "An overall limit, and limits per category", onClick = plans::openBudget)
+            val budgetNotice by plans.notice.collectAsStateWithLifecycle()
+            budgetNotice?.let { Note(it.text) }
+        }
 
         Group("Notifications")
-        ListItem(
-            headlineContent = { Text("Daily reminder") },
-            trailingContent = {
+        Panel(padding = 0.dp) {
+            SettingRow("Daily reminder", trailing = {
                 Switch(
                     checked = state.reminderOn,
                     onCheckedChange = { on ->
@@ -134,46 +150,41 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.semantics { stateDescription = if (state.reminderOn) "On" else "Off" },
                 )
-            },
-        )
-        ListItem(
-            headlineContent = { Text("Reminder time") },
-            trailingContent = { Text(state.reminderAt, style = MaterialTheme.typography.titleMedium) },
-            modifier = Modifier.clickable { pickingTime = true },
-        )
-        state.reminderNote?.let { Muted(it) }
+            })
+            RowDivider()
+            SettingRow("Reminder time", onClick = { pickingTime = true }, trailing = {
+                Text(state.reminderAt, style = MaterialTheme.typography.titleMedium)
+            })
+            state.reminderNote?.let { Note(it) }
+        }
 
         val activity = LocalContext.current as FragmentActivity
         if (remember { canLock(activity) }) {
             Group("Security")
-            ListItem(
-                headlineContent = { Text("App lock") },
-                supportingContent = { Text("Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.") },
-                trailingContent = {
-                    Switch(
-                        checked = state.lockOn,
-                        onCheckedChange = { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } },
-                        modifier = Modifier.semantics { stateDescription = if (state.lockOn) "On" else "Off" },
-                    )
-                },
-            )
+            Panel(padding = 0.dp) {
+                SettingRow(
+                    "App lock",
+                    "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
+                    trailing = {
+                        Switch(
+                            checked = state.lockOn,
+                            onCheckedChange = { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } },
+                            modifier = Modifier.semantics { stateDescription = if (state.lockOn) "On" else "Off" },
+                        )
+                    },
+                )
+            }
         }
 
         Group("Your data")
-        ListItem(
-            headlineContent = { Text("Import from a bank statement") },
-            supportingContent = { Text("A CSV file: AI sorts it into expenses and income, and you check it before saving") },
-            modifier = Modifier.clickable(onClick = onImport),
-        )
-        ListItem(
-            headlineContent = { Text("Backup & restore") },
-            supportingContent = { Text("Download everything as a file, or restore from one") },
-            modifier = Modifier.clickable(onClick = backup::open),
-        )
+        Panel(padding = 0.dp) {
+            SettingRow("Import from a bank statement", "A CSV file: AI sorts it into expenses and income, and you check it before saving", onClick = onImport)
+            RowDivider()
+            SettingRow("Backup & restore", "Download everything as a file, or restore from one", onClick = backup::open)
+        }
 
-        Group("App")
-        OutlinedButton(onClick = viewModel::logOut, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text("Log out") }
-        TextButton(onClick = viewModel::askDelete, modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp)) {
+        OutlinedButton(onClick = viewModel::logOut, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Log out") }
+        TextButton(onClick = viewModel::askDelete, modifier = Modifier.align(Alignment.CenterHorizontally)) {
             Text("Delete account", color = MaterialTheme.colorScheme.error)
         }
     }
@@ -189,16 +200,31 @@ fun SettingsScreen(
 private fun Group(title: String) = Text(
     title,
     style = MaterialTheme.typography.titleSmall,
-    color = MaterialTheme.colorScheme.primary,
-    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 4.dp),
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier = Modifier.padding(start = 4.dp, top = 16.dp),
+)
+
+/** One setting inside a Panel; with [onClick] and nothing trailing, a chevron says it opens something. */
+@Composable
+private fun SettingRow(title: String, supporting: String? = null, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null) = ListItem(
+    headlineContent = { Text(title) },
+    supportingContent = supporting?.let { { Text(it) } },
+    trailingContent = trailing ?: onClick?.let {
+        { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+    },
+    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    modifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick),
 )
 
 @Composable
-private fun Muted(text: String) = Text(
+private fun RowDivider() = HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+@Composable
+private fun Note(text: String) = Text(
     text,
     style = MaterialTheme.typography.bodyMedium,
     color = MaterialTheme.colorScheme.onSurfaceVariant,
-    modifier = Modifier.padding(horizontal = 16.dp),
+    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
 )
 
 @Composable

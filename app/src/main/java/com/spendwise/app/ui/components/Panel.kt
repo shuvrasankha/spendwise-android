@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
@@ -23,11 +24,13 @@ fun Panel(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     onClickLabel: String? = null,
+    /** 0 for rows that bring their own padding, like ListItem. */
+    padding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tap = if (onClick == null) Modifier else Modifier.clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
     Column(
-        modifier.fillMaxWidth().clip(PanelShape).background(MaterialTheme.colorScheme.surfaceContainerLow).then(tap).padding(16.dp),
+        modifier.fillMaxWidth().clip(PanelShape).background(MaterialTheme.colorScheme.surfaceContainerLow).then(tap).padding(padding),
         content = content,
     )
 }
