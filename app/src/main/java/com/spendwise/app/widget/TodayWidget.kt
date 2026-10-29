@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.net.toUri
@@ -65,11 +67,13 @@ import javax.inject.Singleton
 /** Home-screen widget: today's spending, with + for Add expense. Android only; nothing new is stored. */
 class TodayWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = refresh(context)
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) = refresh(context)
 }
 
 /** The 4x2 widget: this month against the budget, with today underneath. Filled by the same worker and sync. */
 class MonthWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = refresh(context)
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) = refresh(context)
 }
 
 /** A widget placed, or due its 30-minute refresh: the worker fills it now, and if the app is running it goes live. */
@@ -100,8 +104,29 @@ private object TodayWidgetView {
         showMonth(context, view)
     }
 
+    /** Text grows and shrinks with the size the widget is dragged to, from its default size [baseW]x[baseH] dp. */
+    private fun scale(manager: AppWidgetManager, id: Int, baseW: Float, baseH: Float): Float {
+        val o = manager.getAppWidgetOptions(id)
+        val w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+        return if (w == 0 || h == 0) 1f else minOf(w / baseW, h / baseH).coerceIn(0.8f, 1.8f)
+    }
+
+    private fun RemoteViews.size(id: Int, sp: Float, k: Float) = setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_SP, sp * k)
+
     private fun showMonth(context: Context, view: TodayView) {
-        val rv = RemoteViews(context.packageName, R.layout.widget_month)
+        val manager = AppWidgetManager.getInstance(context)
+        for (id in ids(context, MonthWidget::class.java)) {
+            val rv = RemoteViews(context.packageName, R.layout.widget_month)
+            val k = scale(manager, id, 250f, 110f)
+            rv.size(R.id.month_label, 11f, k); rv.size(R.id.month_amount, 26f, k)
+            rv.size(R.id.month_detail, 13f, k); rv.size(R.id.month_today, 13f, k)
+            fillMonth(context, rv, view)
+            manager.updateAppWidget(id, rv)
+        }
+    }
+
+    private fun fillMonth(context: Context, rv: RemoteViews, view: TodayView) {
         val spend = view.spend
         if (spend == null) {
             rv.setTextViewText(R.id.month_label, "SpendWise")
@@ -126,11 +151,20 @@ private object TodayWidgetView {
         }
         rv.setInt(android.R.id.background, "setBackgroundResource", background(view.transparency))
         rv.setOnClickPendingIntent(android.R.id.background, open(context, "dashboard"))
-        AppWidgetManager.getInstance(context).updateAppWidget(ComponentName(context, MonthWidget::class.java), rv)
     }
 
     private fun showToday(context: Context, view: TodayView) {
-        val rv = RemoteViews(context.packageName, R.layout.widget_today)
+        val manager = AppWidgetManager.getInstance(context)
+        for (id in ids(context, TodayWidget::class.java)) {
+            val rv = RemoteViews(context.packageName, R.layout.widget_today)
+            val k = scale(manager, id, 180f, 80f)
+            rv.size(R.id.widget_label, 11f, k); rv.size(R.id.widget_amount, 26f, k); rv.size(R.id.widget_detail, 13f, k)
+            fillToday(context, rv, view)
+            manager.updateAppWidget(id, rv)
+        }
+    }
+
+    private fun fillToday(context: Context, rv: RemoteViews, view: TodayView) {
         val spend = view.spend
         if (spend == null) {
             rv.setTextViewText(R.id.widget_label, "SpendWise")
@@ -147,7 +181,6 @@ private object TodayWidgetView {
         }
         rv.setInt(android.R.id.background, "setBackgroundResource", background(view.transparency))
         rv.setOnClickPendingIntent(android.R.id.background, open(context, "dashboard"))
-        AppWidgetManager.getInstance(context).updateAppWidget(ComponentName(context, TodayWidget::class.java), rv)
     }
 
     /** The rounded surface at the chosen see-through level; the 100% one is the original drawable. */
