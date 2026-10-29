@@ -120,6 +120,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     onOpenIncome = { nav.switchTo(Income) },
                     onOpenDebts = { nav.switchTo(Debts) },
                     onOpenInvest = { nav.navigate(Investments) },
+                    onOpenHistory = { nav.switchTo(History()) },
                 )
             }
             composable<History> {

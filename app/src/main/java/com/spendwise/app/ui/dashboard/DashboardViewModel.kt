@@ -41,10 +41,9 @@ import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 import javax.inject.Inject
 
-/** "Spending over time" controls. The web starts on Weekly with this month and year, 10 rows shown. */
-data class TimeView(val tab: TimeTab = TimeTab.WEEKLY, val period: Period = Period.current(LocalDate.now()), val shown: Int = PAGE)
+/** "Spending over time" controls. The web starts on Weekly with this month and year. */
+data class TimeView(val tab: TimeTab = TimeTab.WEEKLY, val period: Period = Period.current(LocalDate.now()))
 
-const val PAGE = 10
 
 data class OverTime(
     val view: TimeView,
@@ -105,10 +104,9 @@ class DashboardViewModel @Inject constructor(
     fun retry() = reload.update { it + 1 }
 
     // Any change to the tab or period starts the table over at 10 rows, as on the web
-    fun selectTab(tab: TimeTab) = view.update { it.copy(tab = tab, shown = PAGE) }
-    fun selectMonth(month: String?) = view.update { it.copy(period = it.period.copy(month = month), shown = PAGE) }
-    fun selectYear(year: String?) = view.update { it.copy(period = it.period.copy(year = year), shown = PAGE) }
-    fun showMore() = view.update { it.copy(shown = it.shown + PAGE) }
+    fun selectTab(tab: TimeTab) = view.update { it.copy(tab = tab) }
+    fun selectMonth(month: String?) = view.update { it.copy(period = it.period.copy(month = month)) }
+    fun selectYear(year: String?) = view.update { it.copy(period = it.period.copy(year = year)) }
 
     private fun ready(s: Sources, v: TimeView, skipped: Set<String>): DashboardState {
         val today = LocalDate.now()

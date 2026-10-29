@@ -80,7 +80,7 @@ fun AddExpenseScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Add expense", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Text("Expense", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                     OutlinedButton(onClick = onVoice) { Text("Speak or type") }
                 }
             }

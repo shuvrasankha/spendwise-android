@@ -82,6 +82,7 @@ fun DashboardScreen(
     onOpenIncome: () -> Unit,
     onOpenDebts: () -> Unit,
     onOpenInvest: () -> Unit,
+    onOpenHistory: () -> Unit,
     dashboard: DashboardViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
 ) {
@@ -118,7 +119,7 @@ fun DashboardScreen(
                 item { Panel { Score(s.home) } }
                 item { Panel { Goals(s.home, money, plans, onOpenInvest) } }
                 item { Panel { WhereItWent(s.home, s.firstTime, money) } }
-                overTime(s.overTime, currency, dashboard)
+                overTime(s.overTime, currency, dashboard, onOpenHistory)
             }
         }
     }
@@ -173,7 +174,7 @@ private fun Hero(h: HomeFigures, money: (Double) -> String, onBudget: () -> Unit
         if (h.perDay != null && h.forecastTotal != null) {
             Muted("${money(h.perDay)} a day · on track for ${money(h.forecastTotal)} by the end of ${h.monthName}")
         }
-        TextButton(onClick = onBudget, contentPadding = PaddingValues(0.dp)) { Text(if (h.budget.total != null) "Change budget" else "Set a monthly budget") }
+        TextButton(onClick = onBudget, contentPadding = PaddingValues(0.dp)) { Text(if (h.budget.total != null) "Update budget" else "Set a monthly budget") }
     }
 }
 
@@ -332,7 +333,7 @@ private fun WhereItWent(h: HomeFigures, firstTime: Boolean, money: (Double) -> S
 
 private val MONTH_NAMES = listOf("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
 
-private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: DashboardViewModel) {
+private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: DashboardViewModel, onOpenHistory: () -> Unit) {
     item {
         Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionTitle("Spending over time")
@@ -366,7 +367,7 @@ private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: Dashboar
         }
     }
     if (o.rows.isEmpty()) item { Muted("No expenses in this period.") }
-    items(o.rows.take(o.view.shown), key = { "row-" + it.id }) { e ->
+    items(o.rows.take(LATEST_ROWS), key = { "row-" + it.id }) { e ->
         Column {
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -378,12 +379,15 @@ private fun LazyListScope.overTime(o: OverTime, currency: Currency, vm: Dashboar
             HorizontalDivider()
         }
     }
-    if (o.rows.size > o.view.shown) item {
-        OutlinedButton(onClick = vm::showMore, modifier = Modifier.fillMaxWidth()) {
-            Text("Show more (${o.rows.size - o.view.shown} left)")
+    // The rest are in History, which can search and filter them
+    if (o.rows.size > LATEST_ROWS) item {
+        OutlinedButton(onClick = onOpenHistory, modifier = Modifier.fillMaxWidth()) {
+            Text("Show more in History (${o.rows.size - LATEST_ROWS} more)")
         }
     }
 }
+
+private const val LATEST_ROWS = 5
 
 @Composable
 private fun Stat(label: String, value: String, modifier: Modifier) {
