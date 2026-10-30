@@ -2,10 +2,10 @@
 
 ## Blockers (Play won't accept or approve without these)
 
-- [ ] **Privacy policy**: written in `docs/privacy-policy.html`. Turn on GitHub Pages from `/docs`, check the URL in Settings matches, and enter it in the Play Console. It must cover: account and money data
+- [x] **Privacy policy**: live at https://shuvrasankha.github.io/spendwise-android/privacy-policy.html (Pages on, matches the URL in Settings). Still to do: enter it in the Play Console. It must cover: account and money data
       stored in Firebase; numbers and questions (never names or notes) sent to the AI on Cloudflare; crash logs
       (Crashlytics).
-- [ ] **Account-deletion web page**: written in `docs/delete-account.html` (needs GitHub Pages on, then enter its URL in the Play Console's Data safety form).
+- [x] **Account-deletion web page**: live at https://shuvrasankha.github.io/spendwise-android/delete-account.html. Still to do: enter its URL in the Play Console's Data safety form.
 - [ ] **Release key**: create `upload.jks` and `keystore.properties` (README › Release), back the key up, then
       run `./gradlew bundleRelease`. Turn on Play App Signing when you upload.
 - [ ] **versionCode**: check Play Console. If `com.spendwise.app` was ever uploaded, raise `versionCode` in
