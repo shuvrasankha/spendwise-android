@@ -106,7 +106,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     var showMore by rememberSaveable { mutableStateOf(false) }
     val inMore = moreItems.any { destination?.hasRoute(it.route::class) == true }
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
-    val ownsTopBar = onDashboard || destination?.hasRoute(History::class) == true
+    val ownsTopBar = onDashboard || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true
     val snackbar = remember { SnackbarHostState() }
     val editor by expenseVm.state.collectAsStateWithLifecycle()
     LaunchedEffect(editor.undo) {

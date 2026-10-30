@@ -56,6 +56,7 @@ import com.spendwise.app.domain.HistorySort
 import com.spendwise.app.domain.meta
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DayHeader
+import com.spendwise.app.ui.components.DateField
 import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.IconAction
 import com.spendwise.app.ui.components.ListRow
@@ -266,23 +267,6 @@ private fun FiltersSheet(v: HistoryView, vm: HistoryViewModel, onDismiss: () -> 
     when (picking) {
         "from" -> PickDateDialog(f.customFrom, vm::setCustomFrom, onDismiss = { picking = null })
         "to" -> PickDateDialog(f.customTo, vm::setCustomTo, onDismiss = { picking = null })
-    }
-}
-
-/** A tappable date box that looks like a [SwField]. */
-@Composable
-private fun DateField(label: String, value: String, modifier: Modifier, onClick: () -> Unit) {
-    val c = SpendWiseTheme.colors
-    Row(
-        modifier.heightIn(min = 56.dp).clip(Radius.control).border(1.dp, c.line, Radius.control)
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Icon(SwIcons.Calendar, null, Modifier.size(18.dp), tint = c.textMuted)
-        Column {
-            Text(label, style = SwType.caption, color = c.textMuted)
-            Text(value, style = SwType.body, color = c.text)
-        }
     }
 }
 

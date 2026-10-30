@@ -1,26 +1,17 @@
 package com.spendwise.app.ui.insights
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import com.spendwise.app.R
-import androidx.compose.ui.res.painterResource
-import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -50,89 +40,84 @@ import com.spendwise.app.domain.ITALIC_OFF
 import com.spendwise.app.domain.ITALIC_ON
 import com.spendwise.app.domain.MdBlock
 import com.spendwise.app.domain.markdownBlocks
+import com.spendwise.app.ui.components.ButtonStyle
+import com.spendwise.app.ui.components.SectionHeader
+import com.spendwise.app.ui.components.SwButton
+import com.spendwise.app.ui.components.SwChip
+import com.spendwise.app.ui.components.SwField
+import com.spendwise.app.ui.theme.Radius
+import com.spendwise.app.ui.theme.Spacing
+import com.spendwise.app.ui.theme.SpendWiseTheme
+import com.spendwise.app.ui.theme.SwType
 
 /** The AI coach: topic chips for the period on screen, or the open conversation. [glance] null: nothing to ask about. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun CoachSection(state: CoachState, glance: Glance?, coach: CoachViewModel) {
+    val c = SpendWiseTheme.colors
     val chat = state.chat
     val ready = glance != null && glance.summary.hasData
+    val gutter = Modifier.padding(horizontal = Spacing.gutter)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(painterResource(R.drawable.ic_ai), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Text("AI coach", style = MaterialTheme.typography.titleMedium)
-            }
-            if (chat != null) TextButton(onClick = coach::close, enabled = !state.busy) { Text("New chat") }
-        }
+        SectionHeader("AI coach", action = if (chat != null) "New chat" else null, onAction = { if (!state.busy) coach.close() })
         val note = when {
             chat != null -> "${chat.topic.title} · ${chat.label}. Answers are written by AI and can be wrong."
             glance == null || ready -> COACH_NOTE
             else -> COACH_NO_DATA
         }
-        Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(note, style = SwType.label, color = c.textMuted, modifier = gutter)
         if (chat == null) {
-            if (ready) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CoachTopic.entries.forEach { t ->
-                    AssistChip(onClick = { coach.start(t, glance!!.summary, glance.range) }, enabled = !state.busy, label = { Text(t.chip) })
-                }
+            if (ready) Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CoachTopic.entries.forEach { t -> SwChip(t.chip, false, { if (!state.busy) coach.start(t, glance!!.summary, glance.range) }) }
             }
             return@Column
         }
-        Column(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(gutter.semantics { liveRegion = LiveRegionMode.Polite }, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             chat.history.forEach { m -> if (m.role == "user") UserMessage(m.content) else Answer(m.content) }
-            if (state.busy) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text("The AI coach is typing", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            if (state.busy) Text("The AI coach is typing…", style = SwType.label, color = c.textMuted)
             state.error?.let { e ->
                 Column {
-                    Text(e, color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = coach::retry) { Text("Try again") }
+                    Text(e, style = SwType.body, color = c.negative)
+                    SwButton("Try again", coach::retry, style = ButtonStyle.Text, compact = true)
                 }
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            chat.topic.suggestions.forEach { q -> AssistChip(onClick = { coach.send(q) }, enabled = !state.busy, label = { Text(q) }) }
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            chat.topic.suggestions.forEach { q -> SwChip(q, false, { if (!state.busy) coach.send(q) }) }
         }
         var text by rememberSaveable { mutableStateOf("") }
         val send = { coach.send(text); if (!state.busy) text = "" }
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            placeholder = { Text("Ask about your numbers") },
-            singleLine = true,
-            enabled = !state.busy,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = { send() }),
-            trailingIcon = { TextButton(onClick = send, enabled = !state.busy) { Text("Send") } },
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Ask the AI coach" },
-        )
+        Box(gutter) {
+            SwField(
+                text, { text = it }, "Ask about your numbers",
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { send() }),
+                trailing = { SwButton("Send", send, style = ButtonStyle.Text, compact = true, enabled = !state.busy) },
+            )
+        }
     }
 }
 
 @Composable
 private fun UserMessage(text: String) = Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
     Text(
-        text,
-        modifier = Modifier.padding(start = 48.dp)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        text, style = SwType.body, color = SpendWiseTheme.colors.text,
+        modifier = Modifier.padding(start = 48.dp).background(SpendWiseTheme.colors.surface, Radius.control).padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
 /** renderMarkdown, drawn: headings, lists and paragraphs; the text is shown as text, never markup. */
 @Composable
 private fun Answer(text: String) = Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val c = SpendWiseTheme.colors
     markdownBlocks(text).forEach { b ->
         when (b) {
-            is MdBlock.Heading -> Text(styled(b.text), style = MaterialTheme.typography.titleSmall)
-            is MdBlock.Paragraph -> Text(styled(b.lines.joinToString("\n")))
+            is MdBlock.Heading -> Text(styled(b.text), style = SwType.bodyStrong, color = c.text)
+            is MdBlock.Paragraph -> Text(styled(b.lines.joinToString("\n")), style = SwType.body, color = c.text)
             is MdBlock.Items -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 b.items.forEachIndexed { i, item ->
                     Row {
-                        Text(if (b.ordered) "${i + 1}." else "•", modifier = Modifier.padding(end = 8.dp))
-                        Text(styled(item))
+                        Text(if (b.ordered) "${i + 1}." else "•", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(end = 8.dp))
+                        Text(styled(item), style = SwType.body, color = c.text)
                     }
                 }
             }
@@ -161,7 +146,7 @@ internal fun ConsentDialog(onAnswer: (Boolean) -> Unit) = AlertDialog(
             Text("Your numbers are worked out on your device. To understand a question, SpendWise sends the AI only the question; for the coach's advice, only totals by category and dates.")
             Text(
                 "Your entries, descriptions, notes and people's names are never sent. Without the AI, common questions are still answered on your device.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = SpendWiseTheme.colors.textMuted,
             )
         }
     },

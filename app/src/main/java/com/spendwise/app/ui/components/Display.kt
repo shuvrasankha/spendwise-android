@@ -160,6 +160,20 @@ fun DayHeader(date: String, total: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** A legend line for a stacked bar: a colour swatch, a title and a note under it. */
+@Composable
+fun LegendRow(color: Color, title: String, sub: String?, modifier: Modifier = Modifier, trailing: String? = null) {
+    val c = SpendWiseTheme.colors
+    Row(modifier.fillMaxWidth().padding(horizontal = Spacing.gutter, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.padding(top = 5.dp).size(10.dp).clip(Radius.pill).background(color))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = SwType.body, color = c.text)
+            if (sub != null) Text(sub, style = SwType.caption, color = c.textMuted)
+        }
+        if (trailing != null) Text(trailing, style = SwType.bodyStrong, color = c.text)
+    }
+}
+
 /** Overline label above a group of fields or chips. */
 @Composable
 fun FieldLabel(text: String, modifier: Modifier = Modifier, inset: Dp = Spacing.gutter) =

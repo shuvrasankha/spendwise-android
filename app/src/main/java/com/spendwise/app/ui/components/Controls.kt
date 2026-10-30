@@ -162,6 +162,23 @@ fun SwSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
     )
 }
 
+/** A tappable date box that looks like a [SwField]. */
+@Composable
+fun DateField(label: String, value: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = SpendWiseTheme.colors
+    Row(
+        modifier.heightIn(min = 56.dp).clip(Radius.control).border(1.dp, c.line, Radius.control)
+            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(SwIcons.Calendar, null, Modifier.size(18.dp), tint = c.textMuted)
+        Column {
+            Text(label, style = SwType.caption, color = c.textMuted)
+            Text(value, style = SwType.body, color = c.text)
+        }
+    }
+}
+
 @DarkLight
 @Composable
 private fun ControlsPreview() = PreviewSurface {
