@@ -54,7 +54,7 @@ fun Metric(label: String, symbol: String, amount: String, modifier: Modifier = M
     }
 }
 
-data class Stat(val label: String, val value: String, val icon: ImageVector? = null, val valueColor: Color = Color.Unspecified, val sub: String? = null)
+data class Stat(val label: String, val value: String, val icon: ImageVector? = null, val valueColor: Color = Color.Unspecified, val sub: String? = null, val onClick: (() -> Unit)? = null)
 
 /** 2×2 grid inside one bordered block, split by 1dp lines. [stats] is up to four items, row by row. */
 @Composable
@@ -66,7 +66,10 @@ fun StatGrid(stats: List<Stat>, modifier: Modifier = Modifier) {
             Row(Modifier.height(IntrinsicSize.Min)) {
                 pair.forEachIndexed { i, s ->
                     if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.line))
-                    Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(
+                        Modifier.weight(1f).then(if (s.onClick != null) Modifier.clickable(role = Role.Button, onClick = s.onClick) else Modifier).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (s.icon != null) Icon(s.icon, null, Modifier.size(16.dp), tint = c.textMuted)
                             Text(s.label, style = SwType.label, color = c.textMuted)
@@ -204,15 +207,25 @@ fun SettingsGroup(label: String?, modifier: Modifier = Modifier, content: @Compo
     }
 }
 
-/** Progress is accent; over the limit it turns negative. [pace] (0..1) marks how far through the period we are. */
+/** Progress is accent; [over] (past the limit by default) turns it negative. [pace] (0..1) marks how far through the period we are. */
 @Composable
-fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null) {
+fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null, over: Boolean = progress > 1f) {
     val c = SpendWiseTheme.colors
     BoxWithConstraints(modifier.fillMaxWidth().height(12.dp), contentAlignment = Alignment.CenterStart) {
         Box(Modifier.fillMaxWidth().height(6.dp).clip(Radius.pill).background(c.line))
-        Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(6.dp).clip(Radius.pill).background(if (progress > 1f) c.negative else c.accent))
+        Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(6.dp).clip(Radius.pill).background(if (over) c.negative else c.accent))
         if (pace != null) Box(Modifier.offset(x = maxWidth * pace.coerceIn(0f, 1f) - 1.dp).width(2.dp).height(12.dp).background(c.text))
     }
+}
+
+/** A small outlined status label, e.g. "On track". */
+@Composable
+fun StatusPill(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified) {
+    val c = SpendWiseTheme.colors
+    Text(
+        text, style = SwType.labelStrong, color = color.takeOrElse { c.text },
+        modifier = modifier.border(1.dp, c.line, Radius.pill).padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }
 
 data class BarSegment(val weight: Float, val color: Color)

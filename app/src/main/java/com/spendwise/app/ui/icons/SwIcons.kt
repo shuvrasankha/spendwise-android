@@ -70,4 +70,51 @@ object SwIcons {
         "M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4",
     )
     val LogOut = lucide("logOut", "m16 17 5-5-5-5", "M21 12H9", "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4")
+
+    val Utensils = lucide("utensils", "M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2", "M7 2v20", "M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7")
+    val Cart = lucide(
+        "cart", "M8 20a1 1 0 1 0 0 2a1 1 0 1 0 0-2", "M19 20a1 1 0 1 0 0 2a1 1 0 1 0 0-2",
+        "M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12",
+    )
+    val Car = lucide(
+        "car", "M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2",
+        "M9 17h6", "M5 17a2 2 0 1 0 4 0a2 2 0 1 0-4 0", "M15 17a2 2 0 1 0 4 0a2 2 0 1 0-4 0",
+    )
+    val Plane = lucide(
+        "plane", "M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z",
+    )
+    val Bag = lucide("bag", "M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z", "M3 6h18", "M16 10a4 4 0 0 1-8 0")
+    val Receipt = lucide(
+        "receipt", "M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z",
+        "M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8", "M12 17.5v-11",
+    )
+    val HeartPulse = lucide(
+        "heartPulse",
+        "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z",
+        "M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27",
+    )
+    val Film = lucide(
+        "film", "M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z", "M7 3v18", "M3 7.5h4", "M3 12h18",
+        "M3 16.5h4", "M17 3v18", "M17 7.5h4", "M17 16.5h4",
+    )
+    val Graduation = lucide(
+        "graduation", "M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z",
+        "M22 10v6", "M6 12.5V16a6 3 0 0 0 12 0v-3.5",
+    )
+
+    /** The icon for an expense category (EXPENSE_CATEGORIES); unknown or old categories get the three dots. */
+    fun forCategory(category: String): ImageVector = when (category) {
+        "Food & Dining" -> Utensils
+        "Groceries" -> Cart
+        "Transport" -> Car
+        "Travel" -> Plane
+        "Shopping" -> Bag
+        "Bills & Utilities" -> Receipt
+        "Home & Rent" -> Home
+        "Health" -> HeartPulse
+        "Entertainment" -> Film
+        "Education" -> Graduation
+        "Savings & Investments" -> TrendingUp
+        else -> More
+    }
 }

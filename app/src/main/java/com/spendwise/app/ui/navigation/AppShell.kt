@@ -58,6 +58,9 @@ import com.spendwise.app.ui.dashboard.DashboardScreen
 import com.spendwise.app.ui.expenses.AddExpenseScreen
 import com.spendwise.app.ui.expenses.VoiceScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
+import com.spendwise.app.domain.greeting
+import com.spendwise.app.ui.components.HomeTopBar
+import java.time.LocalTime
 import com.spendwise.app.ui.history.HistoryScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
 import com.spendwise.app.ui.income.IncomeScreen
@@ -93,6 +96,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val destination = nav.currentBackStackEntryAsState().value?.destination
     var showMore by rememberSaveable { mutableStateOf(false) }
     val inMore = moreItems.any { destination?.hasRoute(it.route::class) == true }
+    val onDashboard = destination?.hasRoute(Dashboard::class) == true
     val snackbar = remember { SnackbarHostState() }
     PlayUpdates(snackbar)
     GithubUpdates(snackbar)
@@ -103,7 +107,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
+        // The Dashboard draws its own top bar as the first row of its list
+        topBar = { if (!onDashboard) Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->
@@ -127,6 +132,12 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
         NavHost(nav, startDestination = Dashboard, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable<Dashboard> {
                 DashboardScreen(
+                    topBar = {
+                        HomeTopBar(
+                            greeting = header.status ?: "SpendWise",
+                            name = greeting(LocalTime.now().hour, header.name),
+                        ) { HeaderActions(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) }
+                    },
                     onAddExpense = { nav.switchTo(AddExpense) },
                     onOpenIncome = { nav.switchTo(Income) },
                     onOpenDebts = { nav.switchTo(Debts) },
@@ -184,7 +195,6 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> Unit, onOpenDebts: () -> Unit) {
-    var menu by remember { mutableStateOf(false) }
     TopAppBar(
         title = {
             Text(
@@ -194,26 +204,31 @@ private fun Header(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> 
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         },
-        actions = {
-            Bell(onOpenDebts)
-            Box {
-                IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Account menu" }) {
-                    Avatar(header.name.ifEmpty { header.email }, size = 32.dp, photoUrl = header.photoUrl)
-                }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        Text(header.name.ifEmpty { "Your account" }, style = MaterialTheme.typography.titleSmall)
-                        if (header.email.isNotEmpty()) {
-                            Text(header.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    HorizontalDivider()
-                    DropdownMenuItem(text = { Text("Settings") }, onClick = { menu = false; onSettings() })
-                    DropdownMenuItem(text = { Text("Log out") }, onClick = { menu = false; onLogOut() })
+        actions = { HeaderActions(header, onSettings, onLogOut, onOpenDebts) },
+    )
+}
+
+/** The bell and the avatar menu with who's signed in, shared by [Header] and the Dashboard's top bar. */
+@Composable
+private fun HeaderActions(header: HeaderState, onSettings: () -> Unit, onLogOut: () -> Unit, onOpenDebts: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    Bell(onOpenDebts)
+    Box {
+        IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Account menu" }) {
+            Avatar(header.name.ifEmpty { header.email }, size = 32.dp, photoUrl = header.photoUrl)
+        }
+        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(header.name.ifEmpty { "Your account" }, style = MaterialTheme.typography.titleSmall)
+                if (header.email.isNotEmpty()) {
+                    Text(header.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        },
-    )
+            HorizontalDivider()
+            DropdownMenuItem(text = { Text("Settings") }, onClick = { menu = false; onSettings() })
+            DropdownMenuItem(text = { Text("Log out") }, onClick = { menu = false; onLogOut() })
+        }
+    }
 }
 
 /**
