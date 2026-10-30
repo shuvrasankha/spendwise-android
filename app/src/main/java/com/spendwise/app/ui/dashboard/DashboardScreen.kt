@@ -256,18 +256,18 @@ private fun Tiles(h: HomeFigures, money: (Double) -> String, onOpenIncome: () ->
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(pair, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Tile(
-                "Income", R.drawable.ic_cat_income, if (h.income > 0) money(h.income) else "—",
+                "Income", R.drawable.ic_tile_income, if (h.income > 0) money(h.income) else "—",
                 if (h.incomeCount > 0) "${plural(h.incomeCount, "entry", "entries")} this month" else "None this month",
                 moneyIn, Modifier.weight(1f), onOpenIncome,
             )
             Tile(
-                "Saved", R.drawable.ic_cat_savings, h.saved?.let { if (it < 0) "−${money(-it)}" else money(it) } ?: "—", savedSub,
+                "Saved", R.drawable.ic_tile_saved, h.saved?.let { if (it < 0) "−${money(-it)}" else money(it) } ?: "—", savedSub,
                 if ((h.saved ?: 0.0) < 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f),
             )
         }
         Row(pair, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Tile("You owe", R.drawable.ic_debt, money(h.owe), null, if (h.owe > 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
-            Tile("Owed to you", R.drawable.ic_debt, money(h.owed), null, if (h.owed > 0) moneyIn else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
+            Tile("You owe", R.drawable.ic_tile_owe, money(h.owe), null, if (h.owe > 0) owedColor else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
+            Tile("Owed to you", R.drawable.ic_tile_owed, money(h.owed), null, if (h.owed > 0) moneyIn else MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), onOpenDebts)
         }
     }
 }
