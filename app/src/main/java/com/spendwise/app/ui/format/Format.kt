@@ -17,6 +17,16 @@ fun formatMoney(amount: Double, currency: Currency): String {
     return currency.symbol + " " + format.format(amount)
 }
 
+/** The redesign's one amount format: "₹6,68,162", with paise ("₹6,68,162.50") only when they aren't zero. */
+fun formatAmount(amount: Double, currency: Currency): String {
+    val paise = Math.round(Math.abs(amount) * 100) % 100 != 0L
+    val format = NumberFormat.getNumberInstance(ULocale.forLanguageTag(currency.locale)).apply {
+        minimumFractionDigits = if (paise) 2 else 0
+        maximumFractionDigits = if (paise) 2 else 0
+    }
+    return currency.symbol + format.format(amount)
+}
+
 private val shortDate = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 
 /** helpers.js › formatDate: "26 Oct 2026". Falls back to the stored text for a malformed date. */
