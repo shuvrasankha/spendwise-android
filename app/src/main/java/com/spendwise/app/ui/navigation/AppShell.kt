@@ -224,9 +224,14 @@ private fun NavHostController.openLink(route: Any) =
     if (route is History) navigate(route) { popUpTo(graph.findStartDestination().id) { saveState = true } } else switchTo(route)
 
 /** Tab-style navigation: one copy of each destination, state kept when switching back. */
-private fun NavHostController.switchTo(route: Any) = navigate(route) {
-    popUpTo(graph.findStartDestination().id) { saveState = true }
-    launchSingleTop = true
-    restoreState = true
+private fun NavHostController.switchTo(route: Any) {
+    // The Dashboard is the base of the stack: pop back to it. Navigating "to" it while popping to it
+    // never lands when History was opened on top of it by Show more.
+    if (route == Dashboard && popBackStack(Dashboard, inclusive = false)) return
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
 }
 
