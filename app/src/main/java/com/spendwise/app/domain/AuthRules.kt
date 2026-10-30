@@ -20,15 +20,31 @@ private const val SPECIAL_CHARACTERS = "!@#\$%^&*()_+-=[]{};':\"\\|,.<>/?"
 fun loginError(email: String, password: String): String? =
     if (email.trim().isEmpty() || password.isEmpty()) FILL_ALL_FIELDS else null
 
-/** The first rule a sign-up breaks, checked in the web's order, or null. */
-fun signupError(name: String, email: String, password: String): String? = when {
-    name.trim().isEmpty() || email.trim().isEmpty() || password.isEmpty() -> FILL_ALL_FIELDS
+/** The first password rule [password] breaks, checked in the web's order, or null. */
+fun passwordRuleError(password: String): String? = when {
     password.length < 8 -> "Password must be at least 8 characters."
     password.none { it in 'a'..'z' } -> "Password must contain at least one lowercase letter."
     password.none { it in 'A'..'Z' } -> "Password must contain at least one uppercase letter."
     password.none { it in '0'..'9' } -> "Password must contain at least one number."
     password.none { it in SPECIAL_CHARACTERS } -> "Password must contain at least one special character."
     else -> null
+}
+
+/** The first rule a sign-up breaks, checked in the web's order, or null. */
+fun signupError(name: String, email: String, password: String): String? =
+    if (name.trim().isEmpty() || email.trim().isEmpty() || password.isEmpty()) FILL_ALL_FIELDS else passwordRuleError(password)
+
+/** Android only: the first problem with a change-password form, or null. The new password follows the sign-up rules. */
+fun changePasswordError(current: String, new: String, confirm: String): String? = when {
+    current.isEmpty() || new.isEmpty() || confirm.isEmpty() -> FILL_ALL_FIELDS
+    else -> passwordRuleError(new)
+        ?: if (new != confirm) "The new passwords don't match." else if (new == current) "Choose a password different from the current one." else null
+}
+
+/** Re-checking the current password fails as a bad credential: here that means the current password is wrong. */
+fun changePasswordErr(code: String?): String = when (code) {
+    "auth/invalid-credential", "auth/wrong-password" -> "Your current password isn't right."
+    else -> friendlyErr(code)
 }
 
 private val resetEmailShape = Regex("^[^@]+@[^@]+[.][^@]+")

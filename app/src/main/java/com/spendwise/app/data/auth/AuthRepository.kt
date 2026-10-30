@@ -115,6 +115,12 @@ class AuthRepository @Inject constructor(
         user.reauthenticate(EmailAuthProvider.getCredential(user.email.orEmpty(), password)).await()
     }
 
+    /** Checks [current], then sets [new]. Throws on a wrong current password, a weak new one, or no connection. */
+    suspend fun changePassword(current: String, new: String) {
+        reauthenticateWithPassword(current)
+        checkNotNull(auth.currentUser) { "Not signed in" }.updatePassword(new).await()
+    }
+
     /** Picking a different Google account fails (FirebaseAuthInvalidUserException), so only this one is confirmed. */
     suspend fun reauthenticateWithGoogle(activityContext: Context) {
         val user = checkNotNull(auth.currentUser) { "Not signed in" }

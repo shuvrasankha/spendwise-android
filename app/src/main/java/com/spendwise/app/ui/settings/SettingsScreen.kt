@@ -19,6 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import com.spendwise.app.ui.components.IconAction
+import com.spendwise.app.domain.PASSWORD_RULES
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -77,6 +85,7 @@ import com.spendwise.app.ui.theme.SwType
 fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
+    val passwordChange by viewModel.password.collectAsStateWithLifecycle()
     val defaultPayment by viewModel.defaultPayment.collectAsStateWithLifecycle()
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
@@ -97,6 +106,12 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 Column(Modifier.weight(1f)) {
                     Text(state.name.ifEmpty { state.email }, style = SwType.heading, color = c.text)
                     if (state.name.isNotEmpty()) Text(state.email, style = SwType.label, color = c.textMuted)
+                }
+            }
+
+            if (viewModel.canChangePassword) {
+                SettingsGroup("Account") {
+                    SettingsRow("Change password", icon = SwIcons.Lock, onClick = viewModel::openPasswordChange)
                 }
             }
 
@@ -157,6 +172,53 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
         "time" -> TimeDialog(state.reminderAt, viewModel::setReminderTime) { picking = null }
     }
     DeletionDialog(deletion, viewModel)
+    passwordChange?.let { ChangePasswordSheet(it, viewModel) }
+}
+
+@Composable
+private fun ChangePasswordSheet(form: PasswordChange, vm: SettingsViewModel) {
+    val c = SpendWiseTheme.colors
+    var show by rememberSaveable { mutableStateOf(false) }
+    val gutter = Modifier.padding(horizontal = Spacing.gutter)
+    val hide = if (show) VisualTransformation.None else PasswordVisualTransformation()
+    val toggle: @Composable () -> Unit = {
+        IconAction(if (show) SwIcons.EyeOff else SwIcons.Eye, if (show) "Hide passwords" else "Show passwords", { show = !show })
+    }
+    SwSheet(
+        if (form.done) "Password changed" else "Change password", vm::closePasswordChange,
+        footer = {
+            form.error?.let { Text(it, style = SwType.label, color = c.negative, modifier = gutter.semantics { liveRegion = LiveRegionMode.Polite }) }
+            Box(gutter) {
+                if (form.done) SwButton("Done", vm::closePasswordChange, Modifier.fillMaxWidth())
+                else SwButton(if (form.busy) "Saving…" else "Change password", vm::changePassword, Modifier.fillMaxWidth(), enabled = !form.busy)
+            }
+        },
+    ) {
+        if (form.done) {
+            Text("Your password was changed. Use the new one the next time you log in.", style = SwType.body, color = c.textMuted, modifier = gutter)
+        } else {
+            Box(gutter) {
+                SwField(
+                    form.current, vm::setCurrentPassword, "Current password", leading = SwIcons.Lock, visualTransformation = hide, trailing = toggle,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                )
+            }
+            Box(gutter) {
+                SwField(
+                    form.new, vm::setNewPassword, "New password", leading = SwIcons.Lock, visualTransformation = hide,
+                    supportingText = PASSWORD_RULES,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                )
+            }
+            Box(gutter) {
+                SwField(
+                    form.confirm, vm::setConfirmPassword, "Confirm new password", leading = SwIcons.Lock, visualTransformation = hide,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { vm.changePassword() }),
+                )
+            }
+        }
+    }
 }
 
 /** The page in docs/, served by GitHub Pages. */

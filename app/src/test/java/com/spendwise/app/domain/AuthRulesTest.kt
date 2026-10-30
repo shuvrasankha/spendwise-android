@@ -101,4 +101,28 @@ class AuthRulesTest {
         assertFalse(needsVerification(true, listOf("firebase", "password")))
         assertFalse(needsVerification(false, listOf("firebase", "google.com")))
     }
+
+    @Test fun changePassword_requiresAllThreeFields() {
+        assertEquals(FILL_ALL_FIELDS, changePasswordError("", good, good))
+        assertEquals(FILL_ALL_FIELDS, changePasswordError("old", "", good))
+        assertEquals(FILL_ALL_FIELDS, changePasswordError("old", good, ""))
+    }
+
+    @Test fun changePassword_newPasswordFollowsTheSignupRules() {
+        assertEquals("Password must be at least 8 characters.", changePasswordError("old", "Ab1!", "Ab1!"))
+        assertEquals("Password must contain at least one special character.", changePasswordError("old", "Abcdefg1", "Abcdefg1"))
+    }
+
+    @Test fun changePassword_mustMatchAndDiffer() {
+        assertEquals("The new passwords don't match.", changePasswordError("old", good, good + "x"))
+        assertEquals("Choose a password different from the current one.", changePasswordError(good, good, good))
+        assertNull(changePasswordError("old", good, good))
+    }
+
+    @Test fun changePassword_aBadCredentialMeansTheCurrentPasswordIsWrong() {
+        assertEquals("Your current password isn't right.", changePasswordErr("auth/invalid-credential"))
+        assertEquals("Your current password isn't right.", changePasswordErr("auth/wrong-password"))
+        assertEquals(friendlyErr("auth/weak-password"), changePasswordErr("auth/weak-password"))
+        assertEquals(friendlyErr("auth/network-request-failed"), changePasswordErr("auth/network-request-failed"))
+    }
 }

@@ -20,6 +20,8 @@ import com.spendwise.app.domain.REMINDER_BLOCKED
 import com.spendwise.app.domain.UserSettings
 import com.spendwise.app.domain.accountRemindAt
 import com.spendwise.app.domain.currencyOf
+import com.spendwise.app.domain.changePasswordError
+import com.spendwise.app.domain.changePasswordErr
 import com.spendwise.app.domain.friendlyErr
 import com.spendwise.app.domain.reminderOnNote
 import com.spendwise.app.reminder.ReminderScheduler
@@ -60,6 +62,12 @@ sealed interface Deletion {
     data class Working(val label: String, val step: Int, val of: Int) : Deletion
     data class Failed(val message: String) : Deletion
 }
+
+/** The change-password sheet: the three fields as typed, then [done] once Firebase has accepted the new password. */
+data class PasswordChange(
+    val current: String = "", val new: String = "", val confirm: String = "",
+    val error: String? = null, val busy: Boolean = false, val done: Boolean = false,
+)
 
 const val DELETE_WORD = "DELETE"
 
@@ -149,6 +157,35 @@ class SettingsViewModel @Inject constructor(
         tapNote.update { null }
         runCatching { settings.saveRemindAt(at) }
         if (state.value.reminderOn) scheduler.schedule(at)
+    }
+
+    // ── Change password (email accounts only: a Google account has no password here) ──
+
+    val canChangePassword: Boolean get() = auth.usesPassword
+
+    private val _password = MutableStateFlow<PasswordChange?>(null)
+    val password: StateFlow<PasswordChange?> = _password.asStateFlow()
+
+    fun openPasswordChange() = _password.update { PasswordChange() }
+    fun closePasswordChange() = _password.update { if (it?.busy == true) it else null }
+    fun setCurrentPassword(v: String) = _password.update { it?.copy(current = v, error = null) }
+    fun setNewPassword(v: String) = _password.update { it?.copy(new = v, error = null) }
+    fun setConfirmPassword(v: String) = _password.update { it?.copy(confirm = v, error = null) }
+
+    fun changePassword() {
+        val form = _password.value?.takeIf { !it.busy } ?: return
+        changePasswordError(form.current, form.new, form.confirm)?.let { e -> return _password.update { form.copy(error = e) } }
+        viewModelScope.launch {
+            _password.update { form.copy(busy = true) }
+            try {
+                auth.changePassword(form.current, form.new)
+                _password.update { PasswordChange(done = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _password.update { form.copy(error = changePasswordErr(webAuthCode(e))) }
+            }
+        }
     }
 
     // ── Delete account ──
