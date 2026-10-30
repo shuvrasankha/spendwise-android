@@ -15,6 +15,7 @@ import com.spendwise.app.data.worker.aiContent
 import com.spendwise.app.data.worker.aiRequest
 import com.spendwise.app.domain.CSV_AI_MODEL
 import com.spendwise.app.domain.CSV_MAX_BYTES
+import com.spendwise.app.domain.CSV_READ_TIMEOUT_MS
 import com.spendwise.app.domain.CSV_SAVE_FAILED
 import com.spendwise.app.domain.CSV_TOO_BIG
 import com.spendwise.app.domain.CsvImportError
@@ -116,7 +117,7 @@ class CsvImportViewModel @Inject constructor(
     /** callAIModel for one piece of the file. */
     private suspend fun extract(csv: String): List<CsvTx> {
         val (system, user) = csvPrompt(csv)
-        val res = worker.post("/", aiRequest(CSV_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 4096, temperature = 0.1, topP = 0.9))
+        val res = worker.post("/", aiRequest(CSV_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 4096, temperature = 0.1, topP = 0.9), CSV_READ_TIMEOUT_MS)
         if (res.status == 429) throw CsvImportError("RATE_LIMITED")
         if (res.status == 503) throw CsvImportError("MODEL_LOADING")
         if (!res.ok) throw CsvImportError("API_ERROR")

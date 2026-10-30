@@ -18,6 +18,9 @@ const val CSV_BATCH = 500
 /** Rows per AI call: ~45 reply tokens a row keeps each reply under the Worker's 4096-token cap. */
 const val CSV_CHUNK_ROWS = 50
 
+/** The AI writes about a row a second, so a 50-row piece takes about a minute: the Worker client's default 30 s cuts it off. */
+const val CSV_READ_TIMEOUT_MS = 120_000
+
 data class CsvTx(
     val amount: Double,
     val category: String,

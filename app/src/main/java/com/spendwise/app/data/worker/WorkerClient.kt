@@ -38,7 +38,8 @@ data class WorkerResponse(val status: Int, val body: String) {
  */
 @Singleton
 class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
-    suspend fun post(path: String, body: JsonObject): WorkerResponse {
+    /** [readTimeoutMs]: how long to wait for the reply; a long AI answer (a CSV chunk) needs more than the default. */
+    suspend fun post(path: String, body: JsonObject, readTimeoutMs: Int = TIMEOUT_MS): WorkerResponse {
         val user = auth.currentUser ?: throw NotSignedIn()
         val token = user.getIdToken(false).await().token ?: throw NotSignedIn()
         return withContext(Dispatchers.IO) {
@@ -46,7 +47,7 @@ class WorkerClient @Inject constructor(private val auth: FirebaseAuth) {
             try {
                 c.requestMethod = "POST"
                 c.connectTimeout = TIMEOUT_MS
-                c.readTimeout = TIMEOUT_MS
+                c.readTimeout = readTimeoutMs
                 c.doOutput = true
                 c.setRequestProperty("Authorization", "Bearer $token")
                 c.setRequestProperty("Content-Type", "application/json")
