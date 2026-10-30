@@ -102,7 +102,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val destination = nav.currentBackStackEntryAsState().value?.destination
     val inMore = moreRoutes.any { destination?.hasRoute(it::class) == true }
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
-    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(Income::class) == true || destination?.hasRoute(Debts::class) == true || destination?.hasRoute(EditIncome::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true
+    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(Income::class) == true || destination?.hasRoute(Debts::class) == true || destination?.hasRoute(Investments::class) == true || destination?.hasRoute(EditIncome::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true
     val snackbar = remember { SnackbarHostState() }
     val editor by expenseVm.state.collectAsStateWithLifecycle()
     LaunchedEffect(editor.undo) {
@@ -208,7 +208,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     income = incomeVm,
                 )
             }
-            composable<Investments> { InvestScreen(onAllHistory = { nav.navigate(History()) }, vm = investVm) }
+            composable<Investments> { InvestScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Invest }, onAllHistory = { nav.navigate(History()) }, vm = investVm) }
             composable<Debts> { DebtsScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Debt }, vm = debtsVm) }
             composable<Settings> { SettingsScreen(onImport = { nav.navigate(CsvImport) }) }
             composable<CsvImport> { CsvImportScreen(onDone = { nav.popBackStack() }) }
