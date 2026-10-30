@@ -24,8 +24,8 @@ android {
         applicationId = "com.spendwise.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 6
+        versionName = "1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Crash reports come from release builds only, so testing doesn't fill the Crashlytics console
