@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -56,7 +58,7 @@ fun SheetHeader(title: String, onClose: () -> Unit, modifier: Modifier = Modifie
 /** A `surface` bottom sheet with a grabber and [SheetHeader]. Used for New entry, Filters and the Settings pickers. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SwSheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun SwSheet(title: String, onDismiss: () -> Unit, footer: (@Composable ColumnScope.() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val c = SpendWiseTheme.colors
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -66,7 +68,9 @@ fun SwSheet(title: String, onDismiss: () -> Unit, content: @Composable ColumnSco
     ) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             SheetHeader(title, onDismiss)
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+            // The footer stays put under the scrolling fields, so the primary button is always in reach
+            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+            if (footer != null) Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = footer)
         }
     }
 }
@@ -75,7 +79,7 @@ enum class EntryType(val label: String) { Expense("Expense"), Income("Income"), 
 
 /** The big centred amount. [value] is the raw text the ViewModel keeps; the symbol sits in front. */
 @Composable
-fun AmountField(value: String, onValueChange: (String) -> Unit, symbol: String, modifier: Modifier = Modifier) {
+fun AmountField(value: String, onValueChange: (String) -> Unit, symbol: String, modifier: Modifier = Modifier, hint: String = "0") {
     val c = SpendWiseTheme.colors
     Row(modifier.fillMaxWidth().padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.Bottom) {
         Text(symbol, style = SwType.title, color = c.textMuted, modifier = Modifier.padding(bottom = 6.dp, end = 4.dp))
@@ -84,14 +88,11 @@ fun AmountField(value: String, onValueChange: (String) -> Unit, symbol: String, 
             textStyle = SwType.display.copy(color = c.text, textAlign = TextAlign.Start),
             cursorBrush = SolidColor(c.text), singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            decorationBox = { inner -> Box { if (value.isEmpty()) Text("0", style = SwType.display, color = c.textFaint); inner() } },
-            modifier = Modifier.width(IntrinsicWidth),
+            decorationBox = { inner -> Box { if (value.isEmpty()) Text(hint, style = SwType.display, color = c.textFaint); inner() } },
+            modifier = Modifier.width(IntrinsicSize.Min).widthIn(min = 24.dp),
         )
     }
 }
-
-// Wide enough for a lakh-crore figure; the field never clips what's typed
-private val IntrinsicWidth = 220.dp
 
 /** Today / Yesterday / Pick a date. [date] is the form's `YYYY-MM-DD`, in the local calendar. */
 @Composable
@@ -145,17 +146,22 @@ fun NewEntrySheet(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
     saveEnabled: Boolean = true,
+    amountHint: String = "0",
+    /** A validation message from the form, shown above the button. */
+    error: String? = null,
     fields: @Composable ColumnScope.() -> Unit,
-) = SwSheet("New entry", onDismiss) {
+) = SwSheet("New entry", onDismiss, footer = {
+        if (error != null) Text(error, style = SwType.label, color = SpendWiseTheme.colors.negative, modifier = Modifier.padding(horizontal = Spacing.gutter))
+        Box(Modifier.padding(horizontal = Spacing.gutter)) { SwButton(primaryLabel, onSave, Modifier.fillMaxWidth(), enabled = saveEnabled) }
+    }) {
     Column(modifier.fillMaxWidth().padding(horizontal = 0.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Box(Modifier.padding(horizontal = Spacing.gutter)) {
             SegmentedControl(EntryType.entries.map { it.label }, type.ordinal, { onTypeChange(EntryType.entries[it]) })
         }
-        AmountField(amount, onAmountChange, symbol)
+        AmountField(amount, onAmountChange, symbol, hint = amountHint)
         Column(Modifier.padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(12.dp), content = fields)
         DateChips(date, today, onDateChange)
         Box(Modifier.padding(horizontal = Spacing.gutter)) { SwField(notes, onNotesChange, "Notes", singleLine = false) }
-        Box(Modifier.padding(horizontal = Spacing.gutter)) { SwButton(primaryLabel, onSave, Modifier.fillMaxWidth(), enabled = saveEnabled) }
     }
 }
 

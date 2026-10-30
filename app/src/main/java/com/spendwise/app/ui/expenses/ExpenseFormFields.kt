@@ -173,31 +173,6 @@ fun ExpenseDetailFields(form: ExpenseForm, viewModel: ExpenseEditorViewModel, re
     }
 }
 
-/** A collapsed section like the web's <details>: [title], a short [hint] of what's inside, and its [content]. */
-@Composable
-fun Collapsible(title: String, hint: String, content: @Composable () -> Unit) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(role = Role.Button, onClickLabel = if (open) "Hide" else "Show") { open = !open }
-                .semantics { stateDescription = if (open) "Expanded" else "Collapsed" }
-                .padding(vertical = 12.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Icon(
-                painterResource(R.drawable.ic_back),
-                contentDescription = null,
-                modifier = Modifier.padding(start = 8.dp).size(18.dp).rotate(if (open) 90f else -90f),
-            )
-        }
-        if (open) content()
-    }
-}
-
 /** Today / Yesterday chips plus a calendar, always as a local-calendar "YYYY-MM-DD" (spec §3.0). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable

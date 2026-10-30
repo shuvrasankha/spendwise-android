@@ -14,8 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,26 +53,29 @@ import com.spendwise.app.ui.debts.DebtsScreen
 import com.spendwise.app.ui.insights.InsightsScreen
 import com.spendwise.app.ui.invest.InvestScreen
 import com.spendwise.app.ui.dashboard.DashboardScreen
-import com.spendwise.app.ui.expenses.AddExpenseScreen
 import com.spendwise.app.ui.expenses.VoiceScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
 import com.spendwise.app.domain.greeting
+import com.spendwise.app.ui.components.BottomTab
+import com.spendwise.app.ui.components.EntryType
 import com.spendwise.app.ui.components.HomeTopBar
+import com.spendwise.app.ui.components.SpendWiseBottomBar
+import com.spendwise.app.ui.components.Toast
+import com.spendwise.app.ui.components.show
+import com.spendwise.app.ui.debts.DebtsViewModel
+import com.spendwise.app.ui.entry.NewEntryHost
+import com.spendwise.app.ui.expenses.ExpenseEditorViewModel
+import com.spendwise.app.ui.income.IncomeViewModel
+import com.spendwise.app.ui.invest.InvestViewModel
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import java.time.LocalTime
 import com.spendwise.app.ui.history.HistoryScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
 import com.spendwise.app.ui.income.IncomeScreen
 import com.spendwise.app.ui.settings.SettingsScreen
 import com.spendwise.app.ui.settings.CsvImportScreen
-
-private data class Tab(val route: Any, val label: String, @param:DrawableRes val icon: Int)
-
-private val tabs = listOf(
-    Tab(Dashboard, "Dashboard", R.drawable.ic_tab_dashboard),
-    Tab(History(), "History", R.drawable.ic_tab_history),
-    Tab(AddExpense, "Expense", R.drawable.ic_tab_wallet),
-    Tab(Insights, "Insights", R.drawable.ic_tab_insights),
-)
 
 private data class More(val route: Any, val label: String, @param:DrawableRes val icon: Int)
 
@@ -88,9 +89,17 @@ private val moreItems = listOf(
 fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewModel = hiltViewModel()) {
     val nav = rememberNavController()
     val header by shell.header.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var entry by rememberSaveable { mutableStateOf<EntryType?>(null) }
+    // One ViewModel of each, shared by the sheet and the page, so a prefilled or half-typed form is the same on both
+    val expenseVm: ExpenseEditorViewModel = hiltViewModel()
+    val incomeVm: IncomeViewModel = hiltViewModel()
+    val debtsVm: DebtsViewModel = hiltViewModel()
+    val investVm: InvestViewModel = hiltViewModel()
     LaunchedEffect(link) {
         if (link == null) return@LaunchedEffect
-        nav.openLink(link)
+        // A shared bank SMS or text lands in the New entry sheet, which takes it from the inbox
+        if (link == AddExpense) entry = EntryType.Expense else nav.openLink(link)
         onLinkOpened()
     }
     val destination = nav.currentBackStackEntryAsState().value?.destination
@@ -99,10 +108,32 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
     val ownsTopBar = onDashboard || destination?.hasRoute(History::class) == true
     val snackbar = remember { SnackbarHostState() }
+    val editor by expenseVm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(editor.undo) {
+        val added = editor.undo ?: return@LaunchedEffect
+        expenseVm.undoShown()
+        entry = null
+        if (snackbar.showSnackbar(added.label, actionLabel = "Undo", duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) expenseVm.undo(added)
+    }
+    // While the sheet is open it takes the Invest confirmation itself
+    val investToast by investVm.toast.collectAsStateWithLifecycle()
+    LaunchedEffect(investToast, entry) {
+        val t = investToast ?: return@LaunchedEffect
+        if (entry != null) return@LaunchedEffect
+        investVm.toastShown()
+        snackbar.show(t)
+    }
     PlayUpdates(snackbar)
     GithubUpdates(snackbar)
     // Back from a tab goes to the Dashboard, even when the stack has no Dashboard under it (it would exit the app)
-    val onTab = inMore || tabs.any { destination?.hasRoute(it.route::class) == true }
+    val selectedTab = when {
+        onDashboard -> BottomTab.Home
+        destination?.hasRoute(History::class) == true -> BottomTab.History
+        destination?.hasRoute(Insights::class) == true -> BottomTab.Insights
+        inMore -> BottomTab.More
+        else -> null
+    }
+    val onTab = selectedTab != null
     val underDashboard = nav.previousBackStackEntry?.destination?.hasRoute(Dashboard::class) == true
     BackHandler(enabled = onTab && destination?.hasRoute(Dashboard::class) != true && !underDashboard) { nav.switchTo(Dashboard) }
 
@@ -111,22 +142,18 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
         // These pages draw their own top bar as the first row of their list
         topBar = { if (!ownsTopBar) Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
         bottomBar = {
-            NavigationBar {
-                tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = destination?.hasRoute(tab.route::class) == true,
-                        onClick = { nav.switchTo(tab.route) },
-                        icon = { Icon(painterResource(tab.icon), contentDescription = null) },
-                        label = { Text(tab.label) },
-                    )
-                }
-                NavigationBarItem(
-                    selected = inMore,
-                    onClick = { showMore = true },
-                    icon = { Icon(painterResource(R.drawable.ic_tab_more), contentDescription = null) },
-                    label = { Text("More") },
-                )
-            }
+            SpendWiseBottomBar(
+                selected = selectedTab,
+                onSelect = {
+                    when (it) {
+                        BottomTab.Home -> nav.switchTo(Dashboard)
+                        BottomTab.History -> nav.switchTo(History())
+                        BottomTab.Insights -> nav.switchTo(Insights)
+                        BottomTab.More -> showMore = true
+                    }
+                },
+                onAdd = { entry = EntryType.Expense },
+            )
         },
     ) { padding ->
         // Consumed so a screen's imePadding doesn't add the keyboard on top of the bottom bar's padding
@@ -139,7 +166,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                             name = greeting(LocalTime.now().hour, header.name),
                         ) { HeaderActions(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) }
                     },
-                    onAddExpense = { nav.switchTo(AddExpense) },
+                    onAddExpense = { entry = EntryType.Expense },
+                    onEditExpense = { nav.navigate(EditExpense(it)) },
                     onOpenIncome = { nav.switchTo(Income) },
                     onOpenDebts = { nav.switchTo(Debts) },
                     onOpenInvest = { nav.navigate(Investments) },
@@ -150,28 +178,39 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                 HistoryScreen(
                     onEditExpense = { nav.navigate(EditExpense(it)) },
                     onEditIncome = { nav.navigate(EditIncome(it)) },
-                    onAddExpense = { nav.switchTo(AddExpense) },
-                    onAddIncome = { nav.switchTo(Income) },
+                    onAddExpense = { entry = EntryType.Expense },
+                    onAddIncome = { entry = EntryType.Income },
                 )
             }
-            composable<AddExpense> { AddExpenseScreen(onEdit = { nav.navigate(EditExpense(it)) }, onVoice = { nav.navigate(Voice) }) }
             composable<Voice> { VoiceScreen(onDone = { nav.popBackStack() }) }
             composable<EditExpense> { EditExpenseScreen(onDone = { nav.popBackStack() }) }
             composable<EditIncome> { EditIncomeScreen(onDone = { nav.popBackStack() }) }
             composable<Insights> {
                 InsightsScreen(
-                    onAddExpense = { nav.switchTo(AddExpense) },
+                    onAddExpense = { entry = EntryType.Expense },
                     onOpenHistory = { nav.navigate(History(income = it.income, q = it.q, from = it.from, to = it.to, cats = it.cats)) },
                 )
             }
             composable<Income> {
-                IncomeScreen(onEdit = { nav.navigate(EditIncome(it)) }, onAllIncome = { nav.navigate(History(income = true)) })
+                IncomeScreen(onEdit = { nav.navigate(EditIncome(it)) }, onAllIncome = { nav.navigate(History(income = true)) }, income = incomeVm)
             }
-            composable<Investments> { InvestScreen(onAllHistory = { nav.navigate(History()) }) }
-            composable<Debts> { DebtsScreen() }
+            composable<Investments> { InvestScreen(onAllHistory = { nav.navigate(History()) }, vm = investVm) }
+            composable<Debts> { DebtsScreen(vm = debtsVm) }
             composable<Settings> { SettingsScreen(onImport = { nav.navigate(CsvImport) }) }
             composable<CsvImport> { CsvImportScreen(onDone = { nav.popBackStack() }) }
         }
+    }
+
+    entry?.let { type ->
+        NewEntryHost(
+            type = type,
+            onTypeChange = { entry = it },
+            onDismiss = { entry = null },
+            onSaved = { text -> entry = null; scope.launch { snackbar.show(Toast(text)) } },
+            onVoice = { entry = null; nav.navigate(Voice) },
+            onNewHolding = { entry = null; nav.switchTo(Investments) },
+            expense = expenseVm, income = incomeVm, debts = debtsVm, invest = investVm,
+        )
     }
 
     if (showMore) {

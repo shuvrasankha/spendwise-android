@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.theme.Radius
@@ -159,6 +160,11 @@ fun DayHeader(date: String, total: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** Overline label above a group of fields or chips. */
+@Composable
+fun FieldLabel(text: String, modifier: Modifier = Modifier, inset: Dp = Spacing.gutter) =
+    Text(text.uppercase(), style = SwType.overline, color = SpendWiseTheme.colors.textMuted, modifier = modifier.padding(horizontal = inset))
+
 sealed interface Trailing {
     data object Chevron : Trailing
     data object None : Trailing
@@ -202,9 +208,9 @@ fun SettingsRow(
 
 /** Overline label above one `surface` block; rows inside pass divider = true except the first. */
 @Composable
-fun SettingsGroup(label: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun SettingsGroup(label: String?, modifier: Modifier = Modifier, inset: Dp = Spacing.gutter, content: @Composable ColumnScope.() -> Unit) {
     val c = SpendWiseTheme.colors
-    Column(modifier.fillMaxWidth().padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth().padding(horizontal = inset), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (label != null) Text(label.uppercase(), style = SwType.overline, color = c.textMuted, modifier = Modifier.padding(start = 4.dp))
         Column(Modifier.fillMaxWidth().clip(Radius.block).background(c.surface), content = content)
     }

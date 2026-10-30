@@ -4,8 +4,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,7 +24,7 @@ fun PersonSuggestions(name: String, email: String, known: List<KnownPerson>, onP
         matches.forEach { p ->
             // Two people with one name are told apart by their email (people.js)
             val twin = known.count { it.name.equals(p.name, true) } > 1
-            SuggestionChip(onClick = { onPick(p) }, label = { Text(if (twin) "${p.name} · ${p.email}" else p.name) })
+            SwChip(if (twin) "${p.name} · ${p.email}" else p.name, false, { onPick(p) })
         }
     }
 }

@@ -56,6 +56,7 @@ import com.spendwise.app.domain.HistorySort
 import com.spendwise.app.domain.meta
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DayHeader
+import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.IconAction
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
@@ -233,7 +234,7 @@ private fun FiltersSheet(v: HistoryView, vm: HistoryViewModel, onDismiss: () -> 
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val gutter = Modifier.padding(horizontal = Spacing.gutter)
     SwSheet("Filters", onDismiss) {
-        Label("Dates")
+        FieldLabel("Dates")
         FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             HistoryRange.entries.forEach { SwChip(it.label, f.range == it, { vm.selectRange(it) }) }
         }
@@ -243,16 +244,16 @@ private fun FiltersSheet(v: HistoryView, vm: HistoryViewModel, onDismiss: () -> 
                 DateField("To", if (f.customTo.isEmpty()) "Today" else formatDate(f.customTo), Modifier.weight(1f)) { picking = "to" }
             }
         }
-        Label("Sort")
+        FieldLabel("Sort")
         Box(gutter) { SegmentedControl(HistorySort.entries.map { it.label.substringBefore(' ') }, f.sort.ordinal, { vm.selectSort(HistorySort.entries[it]) }) }
         if (v.kinds.isNotEmpty()) {
-            Label("Categories")
+            FieldLabel("Categories")
             FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 v.kinds.forEach { SwChip(it, it in f.kinds, { vm.toggleKind(it) }) }
             }
         }
         if (v.tags.isNotEmpty()) {
-            Label("Tags")
+            FieldLabel("Tags")
             FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 v.tags.forEach { SwChip("#$it", it.lowercase() == v.searchedTag, { vm.toggleTag(it) }) }
             }
@@ -267,10 +268,6 @@ private fun FiltersSheet(v: HistoryView, vm: HistoryViewModel, onDismiss: () -> 
         "to" -> PickDateDialog(f.customTo, vm::setCustomTo, onDismiss = { picking = null })
     }
 }
-
-@Composable
-private fun Label(text: String) =
-    Text(text.uppercase(), style = SwType.overline, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
 
 /** A tappable date box that looks like a [SwField]. */
 @Composable

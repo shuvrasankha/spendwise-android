@@ -10,6 +10,8 @@ import com.spendwise.app.data.SettingsRepository
 import com.spendwise.app.data.expenses.ExpenseRepository
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.domain.Currency
+import com.spendwise.app.domain.EmiPlan
+import com.spendwise.app.domain.emiPlans
 import com.spendwise.app.domain.Debt
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.Holding
@@ -58,7 +60,7 @@ sealed interface DashboardState {
     data object Loading : DashboardState
     data class Failed(val message: String) : DashboardState
     /** [firstTime]: no expenses at all, so the Today card points at the first entry. */
-    data class Ready(val home: HomeFigures, val firstTime: Boolean, val overTime: OverTime) : DashboardState
+    data class Ready(val home: HomeFigures, val firstTime: Boolean, val overTime: OverTime, val emis: List<EmiPlan>) : DashboardState
 }
 
 private data class Sources(
@@ -116,6 +118,7 @@ class DashboardViewModel @Inject constructor(
         val today = LocalDate.now()
         return DashboardState.Ready(
             home = homeFigures(s.expenses, s.income, s.debts, s.settings, s.holdings, today) { key, month -> "$key:$month" in skipped },
+            emis = emiPlans(s.expenses, today.toString()),
             firstTime = s.expenses.isEmpty(),
             overTime = OverTime(
                 view = v,

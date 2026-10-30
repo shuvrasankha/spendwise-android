@@ -35,6 +35,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.domain.BudgetLevel
 import com.spendwise.app.domain.Currency
+import com.spendwise.app.domain.EmiPlan
+import com.spendwise.app.domain.emiHeader
+import com.spendwise.app.domain.meta
+import com.spendwise.app.domain.percent
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.HomeFigures
 import com.spendwise.app.domain.Meter
@@ -74,6 +78,7 @@ import java.time.LocalDate
 fun DashboardScreen(
     topBar: @Composable () -> Unit,
     onAddExpense: () -> Unit,
+    onEditExpense: (String) -> Unit,
     onOpenIncome: () -> Unit,
     onOpenDebts: () -> Unit,
     onOpenInvest: () -> Unit,
@@ -114,10 +119,11 @@ fun DashboardScreen(
                     item { Hero(s.home, currency, plans::openBudget) }
                     item { Section(0.dp) { Tiles(s.home, money, onOpenIncome, onOpenDebts) } }
                     if (s.home.due.isNotEmpty()) item { Section { DueThisMonth(s.home.due, money, plans) } }
-                    item { Section { Today(s.home, s.firstTime, currency, money, onAddExpense) } }
+                    if (s.emis.isNotEmpty()) item { Section { Emis(s.emis, currency) } }
+                    item { Section { Today(s.home, s.firstTime, currency, money, onAddExpense, onEditExpense) } }
                     item { Section { Categories(s.home, s.firstTime, money) } }
                     item { Section { Trend(s.overTime, currency, dashboard) } }
-                    item { Section { Recent(s.overTime, currency, onOpenHistory) } }
+                    item { Section { Recent(s.overTime, currency, onOpenHistory, onEditExpense) } }
                     item { Section { Score(s.home) } }
                     item { Section { Goals(s.home, money, plans, onOpenInvest) } }
                 }
@@ -202,7 +208,7 @@ private fun Tiles(h: HomeFigures, money: (Double) -> String, onOpenIncome: () ->
 }
 
 @Composable
-private fun ExpenseRow(e: Expense, money: (Double) -> String, divider: Boolean) {
+private fun ExpenseRow(e: Expense, money: (Double) -> String, divider: Boolean, onEdit: (String) -> Unit) {
     val named = if (e.description.isNotEmpty() && e.description != "-") e.description else ""
     // The category is left out of the subtitle when it is already the title
     val meta = listOf(
@@ -210,11 +216,14 @@ private fun ExpenseRow(e: Expense, money: (Double) -> String, divider: Boolean) 
         e.payment,
         if (e.pending) "waiting to sync" else "",
     ).filter { it.isNotEmpty() }.joinToString(" · ")
-    ListRow(named.ifEmpty { e.category }, meta = meta.ifEmpty { null }, amount = money(e.amount), icon = SwIcons.forCategory(e.category), divider = divider)
+    ListRow(named.ifEmpty { e.category }, meta = meta.ifEmpty { null }, amount = money(e.amount), icon = SwIcons.forCategory(e.category), divider = divider,
+        // An entry waiting to sync has no server record yet, so it can't be edited
+        onClick = if (e.pending) null else ({ onEdit(e.id) }),
+    )
 }
 
 @Composable
-private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money: (Double) -> String, onAddExpense: () -> Unit) {
+private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money: (Double) -> String, onAddExpense: () -> Unit, onEdit: (String) -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
         SectionHeader("Today", action = if (h.todays.isNotEmpty()) money(h.todaySpent) else null)
@@ -234,7 +243,24 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
                 SwButton(if (firstTime) "Add your first expense" else "Add an expense", onAddExpense, style = ButtonStyle.Text, compact = true)
             }
         } else {
-            h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0) }
+            h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
+        }
+    }
+}
+
+/** EMIs: each plan's payments so far, what's left and when it ends (dashboard.js › renderEmis). */
+@Composable
+private fun Emis(plans: List<EmiPlan>, currency: Currency) {
+    val whole = { n: Double -> formatAmount(n, currency) }
+    val today = LocalDate.now()
+    Column {
+        SectionHeader("EMIs")
+        Caption(emiHeader(plans, whole))
+        plans.forEachIndexed { i, p ->
+            Column {
+                ListRow(p.title, meta = p.meta(today, whole), amount = "${whole(p.monthly)}/mo", icon = SwIcons.Receipt, divider = i > 0)
+                Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 12.dp)) { BudgetBar(p.percent / 100f) }
+            }
         }
     }
 }
@@ -318,7 +344,7 @@ private fun <T> PeriodChip(current: String, options: List<Pair<T, String>>, onPi
 }
 
 @Composable
-private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, String?) -> Unit) {
+private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, String?) -> Unit, onEdit: (String) -> Unit) {
     val money = { n: Double -> formatAmount(n, currency) }
     val range = o.view.period.dateRange()
     Column {
@@ -327,7 +353,7 @@ private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, Str
         if (o.rows.isEmpty()) Caption("No expenses in this period.")
         o.rows.take(LATEST_ROWS).groupBy { it.date }.forEach { (date, rows) ->
             DayHeader(formatDate(date), money(rows.sumOf { it.amount }))
-            rows.forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0) }
+            rows.forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
         }
     }
 }
