@@ -10,7 +10,7 @@
 
     <include layout="@layout/widget_month_head" />
 
-    <View
+    <FrameLayout
         android:id="@+id/large_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -135,7 +135,7 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <View
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />

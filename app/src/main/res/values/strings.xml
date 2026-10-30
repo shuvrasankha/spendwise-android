@@ -10,4 +10,7 @@
     <string name="widget_month">This month</string>
     <string name="widget_month_description">This month against your budget</string>
     <string name="widget_large_description">This month, today\'s entries and a quick add</string>
+    <string name="widget_name_today">SpendWise Today</string>
+    <string name="widget_name_month">SpendWise Month</string>
+    <string name="widget_name_large">SpendWise Overview</string>
 </resources>

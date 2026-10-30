@@ -215,7 +215,7 @@ private object TodayWidgetView {
             val gap = view.vsAverage
             rv.setViewVisibility(R.id.widget_vs, if (gap == null) View.GONE else View.VISIBLE)
             if (gap != null) {
-                rv.setTextViewText(R.id.widget_vs, formatAmount(abs(gap), view.currency) + if (gap < 0) " under avg" else " over avg")
+                rv.setTextViewText(R.id.widget_vs, formatAmount(Math.round(abs(gap)).toDouble(), view.currency) + if (gap < 0) " under avg" else " over avg")
                 rv.color(context, R.id.widget_vs, if (gap < 0) R.color.widget_positive else R.color.widget_text_muted)
             }
             rv.setViewVisibility(R.id.widget_add, View.VISIBLE)
@@ -276,7 +276,7 @@ private object TodayWidgetView {
         rv.setViewVisibility(R.id.month_perday, if (spend == null || view.monthSpent <= 0) View.GONE else View.VISIBLE)
         if (spend == null) return
         rv.setTextViewText(R.id.month_today, "Today ${formatAmount(spend.total, view.currency)} · ${daySpendDetail(spend.entries)}")
-        rv.setTextViewText(R.id.month_perday, formatAmount(view.monthSpent / view.day.dayOfMonth, view.currency) + "/day")
+        rv.setTextViewText(R.id.month_perday, formatAmount(Math.round(view.monthSpent / view.day.dayOfMonth).toDouble(), view.currency) + "/day")
     }
 
     private fun fillLarge(context: Context, rv: RemoteViews, view: TodayView) {

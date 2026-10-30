@@ -77,7 +77,8 @@
         <!-- Home-screen widget: today's spending -->
         <receiver
             android:name=".widget.TodayWidget"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_name_today">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -88,7 +89,8 @@
         <!-- Home-screen widget: this month against the budget -->
         <receiver
             android:name=".widget.MonthWidget"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_name_month">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -99,7 +101,8 @@
         <!-- Home-screen widget: this month, today's entries and a quick add -->
         <receiver
             android:name=".widget.LargeWidget"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_name_large">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
