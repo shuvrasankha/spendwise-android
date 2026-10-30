@@ -97,6 +97,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     var showMore by rememberSaveable { mutableStateOf(false) }
     val inMore = moreItems.any { destination?.hasRoute(it.route::class) == true }
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
+    val ownsTopBar = onDashboard || destination?.hasRoute(History::class) == true
     val snackbar = remember { SnackbarHostState() }
     PlayUpdates(snackbar)
     GithubUpdates(snackbar)
@@ -107,8 +108,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        // The Dashboard draws its own top bar as the first row of its list
-        topBar = { if (!onDashboard) Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
+        // These pages draw their own top bar as the first row of their list
+        topBar = { if (!ownsTopBar) Header(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) },
         bottomBar = {
             NavigationBar {
                 tabs.forEach { tab ->

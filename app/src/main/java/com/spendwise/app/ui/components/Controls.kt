@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -124,9 +125,11 @@ fun SwField(
     leading: ImageVector? = null,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     isError: Boolean = false,
     supportingText: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val c = SpendWiseTheme.colors
     OutlinedTextField(
@@ -134,7 +137,8 @@ fun SwField(
         textStyle = SwType.body.copy(color = c.text),
         placeholder = { Text(placeholder, style = SwType.body, color = c.textFaint) },
         leadingIcon = leading?.let { { Icon(it, null, Modifier.size(18.dp), tint = c.textMuted) } },
-        singleLine = singleLine, keyboardOptions = keyboardOptions, visualTransformation = visualTransformation,
+        trailingIcon = trailing,
+        singleLine = singleLine, keyboardOptions = keyboardOptions, keyboardActions = keyboardActions, visualTransformation = visualTransformation,
         isError = isError,
         supportingText = supportingText?.let { { Text(it, style = SwType.caption, color = if (isError) c.negative else c.textMuted) } },
         shape = Radius.control,

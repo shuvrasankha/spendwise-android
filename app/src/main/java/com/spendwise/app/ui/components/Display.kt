@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -111,6 +113,7 @@ fun ListRow(
     icon: ImageVector? = null,
     amountColor: Color = Color.Unspecified,
     metaColor: Color = Color.Unspecified,
+    metaLines: Int = 1,
     divider: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
@@ -131,7 +134,7 @@ fun ListRow(
             }
             Column(Modifier.weight(1f)) {
                 Text(title, style = SwType.bodyStrong, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (meta != null) Text(meta, style = SwType.caption, color = metaColor.takeOrElse { c.textMuted }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (meta != null) Text(meta, style = SwType.caption, color = metaColor.takeOrElse { c.textMuted }, maxLines = metaLines, overflow = TextOverflow.Ellipsis)
             }
             if (amount != null) {
                 Column(horizontalAlignment = Alignment.End) {
@@ -148,7 +151,7 @@ fun ListRow(
 fun DayHeader(date: String, total: String, modifier: Modifier = Modifier) {
     val c = SpendWiseTheme.colors
     Row(
-        modifier.fillMaxWidth().background(c.bg).padding(horizontal = Spacing.gutter, vertical = 8.dp),
+        modifier.fillMaxWidth().background(c.bg).semantics { heading() }.padding(horizontal = Spacing.gutter, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(date.uppercase(), style = SwType.overline, color = c.textMuted, modifier = Modifier.weight(1f))

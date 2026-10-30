@@ -50,6 +50,7 @@ import com.spendwise.app.domain.PAYMENT_METHODS
 import com.spendwise.app.domain.isCard
 import com.spendwise.app.domain.todayStr
 import com.spendwise.app.ui.format.formatDate
+import com.spendwise.app.ui.components.PickDateDialog
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -218,25 +219,6 @@ fun DateField(date: String, onDate: (String) -> Unit) {
 }
 
 /** A calendar for a local "YYYY-MM-DD" date. [onDate] gets the picked day; the dialog then closes. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PickDateDialog(date: String, onDate: (String) -> Unit, onDismiss: () -> Unit) {
-    // The picker works in UTC midnights; converting through UTC keeps the calendar day exact
-    val initial = runCatching { LocalDate.parse(date) }.getOrNull()
-        ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
-    val state = rememberDatePickerState(initialSelectedDateMillis = initial)
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                state.selectedDateMillis?.let { onDate(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
-                onDismiss()
-            }) { Text("OK") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    ) { DatePicker(state) }
-}
-
 @Composable
 fun FormMessageText(message: FormMessage?) {
     message ?: return

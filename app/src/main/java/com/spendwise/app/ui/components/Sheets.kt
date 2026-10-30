@@ -94,7 +94,6 @@ fun AmountField(value: String, onValueChange: (String) -> Unit, symbol: String, 
 private val IntrinsicWidth = 220.dp
 
 /** Today / Yesterday / Pick a date. [date] is the form's `YYYY-MM-DD`, in the local calendar. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateChips(date: String, today: LocalDate, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     var picking by remember { mutableStateOf(false) }
@@ -105,20 +104,24 @@ fun DateChips(date: String, today: LocalDate, onChange: (String) -> Unit, modifi
         SwChip("Yesterday", date == yesterday, { onChange(yesterday) })
         SwChip(if (custom) date else "Pick a date", custom, { picking = true }, leading = SwIcons.Calendar)
     }
-    if (picking) {
-        // The picker speaks UTC midnights; reading them back as UTC dates keeps the calendar day the user tapped
-        val state = rememberDatePickerState(initialSelectedDateMillis = runCatching { LocalDate.parse(date).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull())
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            confirmButton = {
-                TextButton({
-                    state.selectedDateMillis?.let { onChange(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
-                    picking = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton({ picking = false }) { Text("Cancel") } },
-        ) { DatePicker(state) }
-    }
+    if (picking) PickDateDialog(date, onChange, onDismiss = { picking = false })
+}
+
+/** The Material date picker. It speaks UTC midnights; reading them back as UTC dates keeps the calendar day the user tapped. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PickDateDialog(date: String, onDate: (String) -> Unit, onDismiss: () -> Unit) {
+    val state = rememberDatePickerState(initialSelectedDateMillis = runCatching { LocalDate.parse(date).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull())
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton({
+                state.selectedDateMillis?.let { onDate(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()) }
+                onDismiss()
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+    ) { DatePicker(state) }
 }
 
 /**

@@ -82,7 +82,7 @@ import com.spendwise.app.domain.value
 import com.spendwise.app.domain.weekdayCard
 import com.spendwise.app.ui.dashboard.PlanDialogs
 import com.spendwise.app.ui.dashboard.PlansViewModel
-import com.spendwise.app.ui.expenses.PickDateDialog
+import com.spendwise.app.ui.components.PickDateDialog
 import com.spendwise.app.ui.format.formatDate
 import com.spendwise.app.domain.searchedText
 import com.spendwise.app.domain.askRows
