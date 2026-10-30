@@ -19,6 +19,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object AddExpense
 @Serializable data object Voice
 @Serializable data object Insights
+@Serializable data object More
 @Serializable data object Income
 @Serializable data object Investments
 @Serializable data object Debts

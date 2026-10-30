@@ -72,17 +72,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import com.spendwise.app.ui.history.HistoryScreen
+import com.spendwise.app.ui.more.MoreScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
 import com.spendwise.app.ui.income.IncomeScreen
 import com.spendwise.app.ui.settings.SettingsScreen
 import com.spendwise.app.ui.settings.CsvImportScreen
 
-private data class More(val route: Any, val label: String, @param:DrawableRes val icon: Int)
-
-private val moreItems = listOf(
-    More(Income, "Income", R.drawable.ic_cat_income), More(Investments, "Investments", R.drawable.ic_tab_insights),
-    More(Debts, "Debts", R.drawable.ic_debt), More(Settings, "Settings", R.drawable.ic_settings),
-)
+/** The pages More links to, which keep More highlighted in the bottom bar. */
+private val moreRoutes = listOf(More, Income, Investments, Debts, Settings, CsvImport)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,10 +100,9 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
         onLinkOpened()
     }
     val destination = nav.currentBackStackEntryAsState().value?.destination
-    var showMore by rememberSaveable { mutableStateOf(false) }
-    val inMore = moreItems.any { destination?.hasRoute(it.route::class) == true }
+    val inMore = moreRoutes.any { destination?.hasRoute(it::class) == true }
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
-    val ownsTopBar = onDashboard || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true
+    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true
     val snackbar = remember { SnackbarHostState() }
     val editor by expenseVm.state.collectAsStateWithLifecycle()
     LaunchedEffect(editor.undo) {
@@ -133,9 +129,11 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
         inMore -> BottomTab.More
         else -> null
     }
-    val onTab = selectedTab != null
     val underDashboard = nav.previousBackStackEntry?.destination?.hasRoute(Dashboard::class) == true
-    BackHandler(enabled = onTab && destination?.hasRoute(Dashboard::class) != true && !underDashboard) { nav.switchTo(Dashboard) }
+    // Back from a top-level tab goes to the Dashboard, even when the stack has no Dashboard under it (it would exit the app).
+    // Pages opened from More or the Dashboard just pop.
+    val onTopTab = selectedTab == BottomTab.History || selectedTab == BottomTab.Insights || destination?.hasRoute(More::class) == true
+    BackHandler(enabled = onTopTab && !underDashboard) { nav.switchTo(Dashboard) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -149,7 +147,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                         BottomTab.Home -> nav.switchTo(Dashboard)
                         BottomTab.History -> nav.switchTo(History())
                         BottomTab.Insights -> nav.switchTo(Insights)
-                        BottomTab.More -> showMore = true
+                        BottomTab.More -> nav.switchTo(More)
                     }
                 },
                 onAdd = { entry = EntryType.Expense },
@@ -191,6 +189,16 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     onOpenHistory = { nav.navigate(History(income = it.income, q = it.q, from = it.from, to = it.to, cats = it.cats)) },
                 )
             }
+            composable<More> {
+                MoreScreen(
+                    onIncome = { nav.navigate(Income) },
+                    onDebts = { nav.navigate(Debts) },
+                    onInvestments = { nav.navigate(Investments) },
+                    onGoals = { nav.switchTo(Dashboard) },
+                    onImport = { nav.navigate(CsvImport) },
+                    onSettings = { nav.navigate(Settings) },
+                )
+            }
             composable<Income> {
                 IncomeScreen(onEdit = { nav.navigate(EditIncome(it)) }, onAllIncome = { nav.navigate(History(income = true)) }, income = incomeVm)
             }
@@ -211,23 +219,6 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             onNewHolding = { entry = null; nav.switchTo(Investments) },
             expense = expenseVm, income = incomeVm, debts = debtsVm, invest = investVm,
         )
-    }
-
-    if (showMore) {
-        ModalBottomSheet(onDismissRequest = { showMore = false }, tonalElevation = 0.dp) {
-            Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
-                moreItems.forEach { (route, label, icon) ->
-                    ListItem(
-                        headlineContent = { Text(label) },
-                        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-                        modifier = Modifier.clickable {
-                            showMore = false
-                            nav.switchTo(route)
-                        },
-                    )
-                }
-            }
-        }
     }
 }
 
