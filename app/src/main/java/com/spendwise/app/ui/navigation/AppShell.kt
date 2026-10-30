@@ -96,7 +96,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     LaunchedEffect(link) {
         if (link == null) return@LaunchedEffect
         // A shared bank SMS or text lands in the New entry sheet, which takes it from the inbox
-        if (link == AddExpense) entry = EntryType.Expense else nav.openLink(link)
+        if (link is AddExpenseIn) { expenseVm.setCategory(link.category); entry = EntryType.Expense }
+        else if (link == AddExpense) entry = EntryType.Expense else nav.openLink(link)
         onLinkOpened()
     }
     val destination = nav.currentBackStackEntryAsState().value?.destination

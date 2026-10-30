@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's light tokens (ui/theme/SpendWiseColors.kt) for the home-screen widget, which follows the system theme -->
 <resources>
-    <color name="widget_surface">#FFF4F4F6</color>
-    <color name="widget_surface_75">#BFF4F4F6</color>
-    <color name="widget_surface_50">#80F4F4F6</color>
-    <color name="widget_surface_25">#40F4F4F6</color>
+    <color name="widget_surface">#FFFFFFFF</color>
+    <color name="widget_surface_75">#BFFFFFFF</color>
+    <color name="widget_surface_50">#80FFFFFF</color>
+    <color name="widget_surface_25">#40FFFFFF</color>
     <color name="widget_text">#FF0E0E10</color>
     <color name="widget_text_muted">#FF62626A</color>
     <color name="widget_accent">#FFE0A11B</color>
     <color name="widget_on_accent">#FF111111</color>
     <color name="widget_track">#FFE4E4E8</color>
+    <color name="widget_stroke">#FFE4E4E8</color>
+    <color name="widget_stroke_glass">#FFE4E4E8</color>
+    <color name="widget_positive">#FF15803D</color>
+    <color name="widget_negative">#FFB91C1C</color>
 </resources>

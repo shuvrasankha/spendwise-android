@@ -24,6 +24,12 @@ class DaySpendTest {
         assertEquals("₹200 over the ₹1000 budget", monthSpendDetail(1200.0, 1000.0, money))
     }
 
+    @Test fun `today against the average of the days before`() {
+        assertEquals(-605.0, dayVsAverage(35737.0, 606.0, 30)!!, 1.0)
+        assertEquals(null, dayVsAverage(606.0, 606.0, 30))
+        assertEquals(null, dayVsAverage(606.0, 606.0, 1))
+    }
+
     @Test fun detail() {
         assertEquals("Nothing added yet", daySpendDetail(0))
         assertEquals("1 expense", daySpendDetail(1))

@@ -161,6 +161,12 @@ fun monthSpendDetail(spent: Double, budget: Double?, money: (Double) -> String):
     else "${money(state.left)} left of ${money(budget!!)}"
 }
 
+/** Today minus the month's daily average of the days before it, as the Dashboard compares them; null on the 1st or with no average. */
+fun dayVsAverage(monthSpent: Double, todaySpent: Double, dayOfMonth: Int): Double? {
+    val average = if (dayOfMonth > 1) (monthSpent - todaySpent) / (dayOfMonth - 1) else 0.0
+    return if (average > 0) todaySpent - average else null
+}
+
 /** The widget's line under the amount. */
 fun daySpendDetail(entries: Int): String = when (entries) {
     0 -> "Nothing added yet"

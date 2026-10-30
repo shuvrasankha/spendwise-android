@@ -9,4 +9,5 @@
     <string name="widget_description">What you\'ve spent today</string>
     <string name="widget_month">This month</string>
     <string name="widget_month_description">This month against your budget</string>
+    <string name="widget_large_description">This month, today\'s entries and a quick add</string>
 </resources>
