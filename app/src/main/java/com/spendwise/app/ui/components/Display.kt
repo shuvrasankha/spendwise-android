@@ -42,11 +42,11 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 
-/** The screen's hero number: label, symbol + display amount, sub line. [positive] is for money in. */
+/** The screen's hero number: label, symbol + display amount, sub line. [positive] is for money in, [negative] for money owed. */
 @Composable
-fun Metric(label: String, symbol: String, amount: String, modifier: Modifier = Modifier, sub: String? = null, positive: Boolean = false) {
+fun Metric(label: String, symbol: String, amount: String, modifier: Modifier = Modifier, sub: String? = null, positive: Boolean = false, negative: Boolean = false) {
     val c = SpendWiseTheme.colors
-    val color = if (positive) c.positive else c.text
+    val color = if (positive) c.positive else if (negative) c.negative else c.text
     Column(modifier.fillMaxWidth().padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, style = SwType.label, color = c.textMuted)
         Row(verticalAlignment = Alignment.Bottom) {
