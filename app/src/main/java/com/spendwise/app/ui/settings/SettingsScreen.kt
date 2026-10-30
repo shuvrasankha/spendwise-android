@@ -1,68 +1,49 @@
 package com.spendwise.app.ui.settings
 
-import com.spendwise.app.ui.components.Avatar
-import com.spendwise.app.ui.components.Panel
-import com.spendwise.app.R
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.rememberLazyListState
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -75,255 +56,151 @@ import com.spendwise.app.data.prefs.ThemeMode
 import com.spendwise.app.data.prefs.WIDGET_TRANSPARENCY_LEVELS
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.PAYMENT_METHODS
-import com.spendwise.app.ui.dashboard.PlanDialogs
+import com.spendwise.app.ui.components.Avatar
+import com.spendwise.app.ui.components.ButtonStyle
+import com.spendwise.app.ui.components.SettingsGroup
+import com.spendwise.app.ui.components.SettingsRow
+import com.spendwise.app.ui.components.SubPageTopBar
+import com.spendwise.app.ui.components.SwButton
+import com.spendwise.app.ui.components.SwField
+import com.spendwise.app.ui.components.SwSheet
+import com.spendwise.app.ui.components.Trailing
+import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.lock.canLock
 import com.spendwise.app.ui.lock.confirmIdentity
-import com.spendwise.app.ui.dashboard.PlansViewModel
+import com.spendwise.app.ui.theme.Spacing
+import com.spendwise.app.ui.theme.SpendWiseTheme
+import com.spendwise.app.ui.theme.SwType
 
-/** Settings (spec §1.9), in the web's order: Account, Display, Money, Notifications, Your data, then Log out; plus Delete account (§8.2). */
+/** Settings (spec §1.9): Display, Notifications, Security and About, then Log out; plus Delete account (§8.2). */
 @Composable
-fun SettingsScreen(
-    onImport: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
-    plans: PlansViewModel = hiltViewModel(),
-    backup: BackupViewModel = hiltViewModel(),
-) {
+fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
-    var pickingCurrency by rememberSaveable { mutableStateOf(false) }
     val defaultPayment by viewModel.defaultPayment.collectAsStateWithLifecycle()
-    var pickingPayment by rememberSaveable { mutableStateOf(false) }
-    var pickingTime by rememberSaveable { mutableStateOf(false) }
+    val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
+    var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
+    val c = SpendWiseTheme.colors
+    val gutter = Modifier.padding(horizontal = Spacing.gutter)
 
-    Column(
-        Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Settings", style = MaterialTheme.typography.headlineSmall)
+    Scaffold(contentWindowInsets = WindowInsets(0), containerColor = c.bg) { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            SubPageTopBar("Settings", onBack)
 
-        Panel {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(gutter, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Avatar(state.name.ifEmpty { state.email }, size = 56.dp, photoUrl = state.photoUrl)
                 Column(Modifier.weight(1f)) {
-                    Text(state.name.ifEmpty { state.email }, style = MaterialTheme.typography.titleLarge)
-                    if (state.name.isNotEmpty()) {
-                        Text(state.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text(state.name.ifEmpty { state.email }, style = SwType.heading, color = c.text)
+                    if (state.name.isNotEmpty()) Text(state.email, style = SwType.label, color = c.textMuted)
                 }
             }
-        }
 
-        Group("Display")
-        Panel {
-            Text("Appearance", style = MaterialTheme.typography.bodyLarge)
-            Text("Light, dark, or follow your device", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                ThemeMode.entries.forEachIndexed { i, mode ->
-                    SegmentedButton(
-                        selected = state.themeMode == mode,
-                        onClick = { viewModel.setThemeMode(mode) },
-                        shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    ) { Text(mode.label) }
-                }
+            SettingsGroup("Display") {
+                SettingsRow("Appearance", trailing = Trailing.Value(state.themeMode.label), onClick = { picking = "theme" })
+                SettingsRow("Widget transparency", trailing = Trailing.Value("$transparency%"), divider = true, onClick = { picking = "widget" })
+                SettingsRow("Currency", trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
+                SettingsRow("Default payment", trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
             }
-        }
-        Panel {
-            val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
-            Text("Widget transparency", style = MaterialTheme.typography.bodyLarge)
-            Text("How see-through the home-screen widgets are", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                WIDGET_TRANSPARENCY_LEVELS.forEachIndexed { i, percent ->
-                    SegmentedButton(
-                        selected = transparency == percent,
-                        onClick = { viewModel.setWidgetTransparency(percent) },
-                        shape = SegmentedButtonDefaults.itemShape(i, WIDGET_TRANSPARENCY_LEVELS.size),
-                    ) { Text("$percent%") }
-                }
-            }
-        }
-        Panel(padding = 0.dp) {
-            SettingRow(
-                "Currency",
-                "${state.currency.symbol} ${state.currency.code} — ${state.currency.name} · used for every amount in the app",
-                onClick = { pickingCurrency = true },
-            )
-            SettingRow("Default payment method", "$defaultPayment · new expenses start on this", onClick = { pickingPayment = true })
-        }
 
-        Group("Money")
-        Panel(padding = 0.dp) {
-            SettingRow("Monthly budget", "An overall limit, and limits per category", onClick = plans::openBudget)
-            val budgetNotice by plans.notice.collectAsStateWithLifecycle()
-            budgetNotice?.let { Note(it.text) }
-        }
-
-        Group("Notifications")
-        Panel(padding = 0.dp) {
-            SettingRow("Daily reminder", trailing = {
-                Switch(
-                    checked = state.reminderOn,
-                    onCheckedChange = { on ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Notifications") {
+                    SettingsRow("Daily reminder", trailing = Trailing.Switch(state.reminderOn) { on ->
                         when {
                             !on -> viewModel.turnReminderOff()
                             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> askPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                             else -> viewModel.turnReminderOn(true)
                         }
-                    },
-                    modifier = Modifier.semantics { stateDescription = if (state.reminderOn) "On" else "Off" },
-                )
-            })
-            RowDivider()
-            SettingRow("Reminder time", onClick = { pickingTime = true }, trailing = {
-                Text(state.reminderAt, style = MaterialTheme.typography.titleMedium)
-            })
-            state.reminderNote?.let { Note(it) }
-        }
-
-        val activity = LocalContext.current as FragmentActivity
-        if (remember { canLock(activity) }) {
-            Group("Security")
-            Panel(padding = 0.dp) {
-                SettingRow(
-                    "App lock",
-                    "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
-                    trailing = {
-                        Switch(
-                            checked = state.lockOn,
-                            onCheckedChange = { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } },
-                            modifier = Modifier.semantics { stateDescription = if (state.lockOn) "On" else "Off" },
-                        )
-                    },
-                )
+                    })
+                    SettingsRow("Reminder time", trailing = Trailing.Value(state.reminderAt), divider = true, onClick = { picking = "time" })
+                }
+                state.reminderNote?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
             }
-        }
 
-        Group("Your data")
-        Panel(padding = 0.dp) {
-            SettingRow("Import from a bank statement", "A CSV file: AI sorts it into expenses and income, and you check it before saving", onClick = onImport)
-            RowDivider()
-            SettingRow("Backup & restore", "Download everything as a file, or restore from one", onClick = backup::open)
-        }
+            val activity = LocalContext.current as FragmentActivity
+            if (remember { canLock(activity) }) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SettingsGroup("Security") {
+                        SettingsRow("App lock", trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
+                    }
+                    Text(
+                        "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
+                        style = SwType.label, color = c.textMuted, modifier = gutter,
+                    )
+                }
+            }
 
-        Group("About")
-        Panel(padding = 0.dp) {
-            SettingRow("App tour", "A quick look at what SpendWise can do", onClick = viewModel::replayTour)
-            RowDivider()
-            SettingRow("Privacy policy", "What SpendWise stores and who processes it", onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
-        }
+            SettingsGroup("About") {
+                SettingsRow("App tour", onClick = viewModel::replayTour)
+                SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
+            }
 
-        OutlinedButton(onClick = viewModel::logOut, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Log out") }
-        TextButton(onClick = viewModel::askDelete, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text("Delete account", color = MaterialTheme.colorScheme.error)
+            Column(gutter, verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                SwButton("Log out", viewModel::logOut, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.LogOut)
+                SwButton("Delete account", viewModel::askDelete, style = ButtonStyle.Danger)
+            }
         }
     }
 
-    if (pickingCurrency) CurrencyDialog(state.currency.code, viewModel::setCurrency) { pickingCurrency = false }
-    if (pickingPayment) PaymentDialog(defaultPayment, viewModel::setDefaultPayment) { pickingPayment = false }
-    if (pickingTime) TimeDialog(state.reminderAt, viewModel::setReminderTime) { pickingTime = false }
-    PlanDialogs(plans, state.currency)
+    when (picking) {
+        "theme" -> OptionSheet("Appearance", ThemeMode.entries.map { it.name to it.label }, state.themeMode.name, { viewModel.setThemeMode(ThemeMode.valueOf(it)) }) { picking = null }
+        "widget" -> OptionSheet(
+            "Widget transparency", WIDGET_TRANSPARENCY_LEVELS.map { it.toString() to "$it%" }, transparency.toString(),
+            { viewModel.setWidgetTransparency(it.toInt()) },
+        ) { picking = null }
+        "currency" -> CurrencySheet(state.currency.code, viewModel::setCurrency) { picking = null }
+        "payment" -> OptionSheet("Default payment", PAYMENT_METHODS.map { it to it }, defaultPayment, viewModel::setDefaultPayment) { picking = null }
+        "time" -> TimeDialog(state.reminderAt, viewModel::setReminderTime) { picking = null }
+    }
     DeletionDialog(deletion, viewModel)
-    BackupDialog(backup)
 }
 
 /** The page in docs/, served by GitHub Pages. */
 private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise-android/privacy-policy.html"
 
+/** One choice per row, a tick on the current one; picking closes the sheet. */
 @Composable
-private fun Group(title: String) = Text(
-    title,
-    style = MaterialTheme.typography.titleSmall,
-    color = MaterialTheme.colorScheme.onSurfaceVariant,
-    modifier = Modifier.padding(start = 4.dp, top = 16.dp),
-)
-
-/** One setting inside a Panel; with [onClick] and nothing trailing, a chevron says it opens something. */
-@Composable
-private fun SettingRow(title: String, supporting: String? = null, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null) = ListItem(
-    headlineContent = { Text(title) },
-    supportingContent = supporting?.let { { Text(it) } },
-    trailingContent = trailing ?: onClick?.let {
-        { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-    },
-    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-    modifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick),
-)
+private fun OptionRow(title: String, selected: Boolean, sub: String? = null, lead: String? = null, onClick: () -> Unit) {
+    val c = SpendWiseTheme.colors
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.RadioButton, onClick = onClick).padding(horizontal = Spacing.gutter),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (lead != null) Text(lead, style = SwType.heading, color = c.text, modifier = Modifier.width(36.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = SwType.body, color = c.text)
+            if (sub != null) Text(sub, style = SwType.caption, color = c.textMuted)
+        }
+        if (selected) Icon(SwIcons.Check, "Selected", Modifier.size(20.dp), tint = c.text)
+    }
+}
 
 @Composable
-private fun RowDivider() = HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+private fun OptionSheet(title: String, options: List<Pair<String, String>>, current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) =
+    SwSheet(title, onDismiss) {
+        Column {
+            options.forEach { (id, label) -> OptionRow(label, id == current) { onPick(id); onDismiss() } }
+        }
+    }
 
 @Composable
-private fun Note(text: String) = Text(
-    text,
-    style = MaterialTheme.typography.bodyMedium,
-    color = MaterialTheme.colorScheme.onSurfaceVariant,
-    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-)
-
-@Composable
-private fun CurrencyDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+private fun CurrencySheet(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val shown = remember(query) {
         val q = query.trim()
         if (q.isEmpty()) CURRENCIES else CURRENCIES.filter { it.code.contains(q, true) || it.name.contains(q, true) || it.symbol.contains(q, true) }
     }
-    // Opens with the current currency in view
-    val list = rememberLazyListState(initialFirstVisibleItemIndex = CURRENCIES.indexOfFirst { it.code == current }.coerceAtLeast(0))
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Currency") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    query, { query = it }, placeholder = { Text("Search currency") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (shown.isEmpty()) Text("No currency matches.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                LazyColumn(state = list) {
-                    items(shown, key = { it.code }) { currency ->
-                        val selected = currency.code == current
-                        ListItem(
-                            leadingContent = { Text(currency.symbol, style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(40.dp)) },
-                            headlineContent = { Text(currency.name) },
-                            supportingContent = { Text(currency.code) },
-                            trailingContent = if (selected) ({ Icon(painterResource(R.drawable.ic_check), contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }) else null,
-                            colors = ListItemDefaults.colors(containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent),
-                            modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) {
-                                onPick(currency.code)
-                                onDismiss()
-                            },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
-}
-
-@Composable
-private fun PaymentDialog(current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Default payment method") },
-        text = {
-            Column {
-                PAYMENT_METHODS.forEach { method ->
-                    ListItem(
-                        headlineContent = { Text(method) },
-                        trailingContent = if (method == current) ({ Icon(painterResource(R.drawable.ic_check), contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }) else null,
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        modifier = Modifier.selectable(selected = method == current, role = Role.RadioButton) {
-                            onPick(method)
-                            onDismiss()
-                        },
-                    )
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
+    SwSheet("Currency", onDismiss) {
+        Box(Modifier.padding(horizontal = Spacing.gutter)) { SwField(query, { query = it }, "Search currency", leading = SwIcons.Search) }
+        if (shown.isEmpty()) Text("No currency matches.", style = SwType.body, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
+        Column {
+            shown.forEach { currency -> OptionRow(currency.name, currency.code == current, sub = currency.code, lead = currency.symbol) { onPick(currency.code); onDismiss() } }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

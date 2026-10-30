@@ -34,7 +34,8 @@ private fun scheme(c: SpendWiseColors, dark: Boolean): ColorScheme {
         surfaceTint = c.bg, // no tonal tint: surfaces stay flat
         surfaceBright = c.bg, surfaceDim = c.surface,
         surfaceContainerLowest = c.bg, surfaceContainerLow = c.surface, surfaceContainer = c.surface,
-        surfaceContainerHigh = c.line, surfaceContainerHighest = c.line,
+        // Dialogs and menus sit on `surface`, so the `line` outline of their fields still shows
+        surfaceContainerHigh = c.surface, surfaceContainerHighest = c.surface,
         inverseSurface = c.text, inverseOnSurface = c.bg, inversePrimary = c.accent,
         error = c.negative, onError = c.bg,
         errorContainer = c.surface, onErrorContainer = c.negative,
