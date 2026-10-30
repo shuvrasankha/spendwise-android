@@ -1,136 +1,98 @@
 package com.spendwise.app.ui.income
 
-import com.spendwise.app.ui.components.Panel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.res.painterResource
-import androidx.compose.material3.Icon
-import com.spendwise.app.ui.components.IconBadge
-import com.spendwise.app.R
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.spendwise.app.domain.Currency
-import com.spendwise.app.domain.Income
 import com.spendwise.app.domain.recentMeta
-import com.spendwise.app.ui.expenses.FormMessageText
-import com.spendwise.app.ui.format.formatMoney
+import com.spendwise.app.ui.components.ButtonStyle
+import com.spendwise.app.ui.components.ListRow
+import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.SectionHeader
+import com.spendwise.app.ui.components.SubPageTopBar
+import com.spendwise.app.ui.components.SwButton
+import com.spendwise.app.ui.format.formatAmount
+import com.spendwise.app.ui.format.formatNumber
 import com.spendwise.app.ui.format.plural
+import com.spendwise.app.ui.icons.SwIcons
+import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
+import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-/** Income (spec §1.4): this month so far, the add form, and the last 8 entries. */
+/** Income (spec §1.4): this month so far, a button for the New entry sheet, and the last 8 entries. */
 @Composable
-fun IncomeScreen(onEdit: (String) -> Unit, onAllIncome: () -> Unit, income: IncomeViewModel = hiltViewModel()) {
+fun IncomeScreen(
+    onBack: () -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (String) -> Unit,
+    onAllIncome: () -> Unit,
+    income: IncomeViewModel = hiltViewModel(),
+) {
     val page by income.page.collectAsStateWithLifecycle()
-    val form by income.form.collectAsStateWithLifecycle()
-    val message by income.message.collectAsStateWithLifecycle()
     val currency by income.currency.collectAsStateWithLifecycle()
-    val ready = page as? IncomePage.Ready
+    val c = SpendWiseTheme.colors
 
-    LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text("Income", style = MaterialTheme.typography.headlineSmall) }
-        item { Panel { Hero(page, currency) } }
-        item {
-            Panel {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Add income", style = MaterialTheme.typography.titleMedium)
-                    IncomeFormFields(form, income, ready?.sources.orEmpty(), ready?.banks.orEmpty())
-                    FormMessageText(message)
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = income::clear, modifier = Modifier.weight(1f)) { Text("Clear") }
-                        Button(onClick = income::add, modifier = Modifier.weight(1f)) { Text("Add income") }
+    Scaffold(contentWindowInsets = WindowInsets(0), containerColor = c.bg) { padding ->
+        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = Spacing.section)) {
+            item { SubPageTopBar("Income", onBack) }
+            val ready = page as? IncomePage.Ready
+            item {
+                val month = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.US)
+                val s = ready?.summary
+                Metric(
+                    "$month so far", currency.symbol, if (s == null) "—" else formatNumber(s.monthTotal, currency),
+                    sub = s?.let { "${plural(it.monthCount, "entry", "entries")} · ${formatAmount(it.yearTotal, currency)} this year" },
+                    positive = true,
+                )
+            }
+            item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add income", onAdd, Modifier.fillMaxWidth(), leading = SwIcons.Plus) } }
+            item { SectionHeader("Recent", action = if (ready != null && ready.all.size > ready.recent.size) "See all" else null, onAction = onAllIncome) }
+            when (val p = page) {
+                IncomePage.Loading -> item {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = c.text) }
+                }
+                is IncomePage.Failed -> item {
+                    Column(Modifier.padding(Spacing.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(p.message, style = SwType.body, color = c.negative)
+                        SwButton("Try again", income::retry, style = ButtonStyle.Secondary)
+                    }
+                }
+                is IncomePage.Ready -> {
+                    if (p.recent.isEmpty()) item {
+                        Text("No income yet. Add your first one.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
+                    }
+                    p.recent.forEachIndexed { i, inc ->
+                        item(key = inc.id) {
+                            ListRow(
+                                inc.source.ifEmpty { "Income" },
+                                meta = listOf(recentMeta(inc, LocalDate.now()), inc.notes).filter { it.isNotEmpty() }.joinToString("\n"), metaLines = 3,
+                                // "+" says it's money in, as well as the colour
+                                amount = "+" + formatAmount(inc.amount, currency), amountColor = c.positive, icon = SwIcons.MoneyIn, divider = i > 0,
+                                // An entry waiting to sync has no server record yet, so it can't be edited
+                                onClick = if (inc.pending) null else ({ onEdit(inc.id) }),
+                            )
+                        }
                     }
                 }
             }
         }
-        item {
-            Text("Recent", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-        }
-        when (val p = page) {
-            IncomePage.Loading -> item {
-                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            }
-            is IncomePage.Failed -> item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(p.message, color = MaterialTheme.colorScheme.error)
-                    OutlinedButton(onClick = income::retry) { Text("Try again") }
-                }
-            }
-            is IncomePage.Ready -> {
-                if (p.recent.isEmpty()) item {
-                    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(painterResource(R.drawable.ic_cat_income), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
-                        Text("No income yet. Add your first one above.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                items(p.recent, key = { it.id }) { IncomeRow(it, currency) { onEdit(it.id) } }
-                if (p.all.size > p.recent.size) item {
-                    OutlinedButton(onClick = onAllIncome, modifier = Modifier.fillMaxWidth()) { Text("Show more") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Hero(page: IncomePage, currency: Currency) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        val month = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.US)
-        Text("$month so far", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val s = (page as? IncomePage.Ready)?.summary
-        Text(
-            if (s == null) "—" else formatMoney(s.monthTotal, currency),
-            style = MaterialTheme.typography.displaySmall,
-            color = SpendWiseTheme.moneyColors.moneyIn,
-        )
-        if (s != null) {
-            Text(
-                "${plural(s.monthCount, "entry", "entries")} · ${formatMoney(s.yearTotal, currency)} this year",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun IncomeRow(i: Income, currency: Currency, onEdit: () -> Unit) {
-    // An entry waiting to sync has no server record yet, so it can't be edited. Laid out like a History row.
-    val modifier = if (i.pending) Modifier else Modifier.clickable(onClickLabel = "Edit", onClick = onEdit)
-    Row(modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconBadge(R.drawable.ic_cat_income, SpendWiseTheme.moneyColors.moneyIn)
-        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(i.source.ifEmpty { "Income" }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(recentMeta(i, LocalDate.now()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (i.notes.isNotEmpty()) {
-                Text(i.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        }
-        // "+" says it's money in, as well as the colour
-        Text("+" + formatMoney(i.amount, currency), color = SpendWiseTheme.moneyColors.moneyIn)
     }
 }
