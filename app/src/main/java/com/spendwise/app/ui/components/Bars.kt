@@ -99,7 +99,7 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
             @Composable
             fun item(tab: BottomTab) {
                 val on = tab == selected
-                val tint = if (on) c.text else c.textFaint
+                val tint = if (on) c.text else c.textMuted
                 Column(
                     Modifier.weight(1f).height(64.dp).clickable(role = Role.Tab) { onSelect(tab) }.semantics { this.selected = on },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
