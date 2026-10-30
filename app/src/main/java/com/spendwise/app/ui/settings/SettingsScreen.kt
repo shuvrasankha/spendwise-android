@@ -33,6 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -116,7 +117,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             }
 
             SettingsGroup("Display") {
-                SettingsRow("Appearance", trailing = Trailing.Value(state.themeMode.label), onClick = { picking = "theme" })
+                SettingsRow("Appearance", icon = state.themeMode.icon, trailing = Trailing.Value(state.themeMode.label), onClick = { picking = "theme" })
                 SettingsRow("Widget transparency", trailing = Trailing.Value("$transparency%"), divider = true, onClick = { picking = "widget" })
                 SettingsRow("Currency", trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
                 SettingsRow("Default payment", trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
@@ -162,7 +163,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     }
 
     when (picking) {
-        "theme" -> OptionSheet("Appearance", ThemeMode.entries.map { it.name to it.label }, state.themeMode.name, { viewModel.setThemeMode(ThemeMode.valueOf(it)) }) { picking = null }
+        "theme" -> OptionSheet("Appearance", ThemeMode.entries.map { it.name to it.label }, state.themeMode.name, { viewModel.setThemeMode(ThemeMode.valueOf(it)) }, { ThemeMode.valueOf(it).icon }) { picking = null }
         "widget" -> OptionSheet(
             "Widget transparency", WIDGET_TRANSPARENCY_LEVELS.map { it.toString() to "$it%" }, transparency.toString(),
             { viewModel.setWidgetTransparency(it.toInt()) },
@@ -226,12 +227,13 @@ private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise
 
 /** One choice per row, a tick on the current one; picking closes the sheet. */
 @Composable
-private fun OptionRow(title: String, selected: Boolean, sub: String? = null, lead: String? = null, onClick: () -> Unit) {
+private fun OptionRow(title: String, selected: Boolean, sub: String? = null, lead: String? = null, icon: ImageVector? = null, onClick: () -> Unit) {
     val c = SpendWiseTheme.colors
     Row(
         Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.RadioButton, onClick = onClick).padding(horizontal = Spacing.gutter),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (icon != null) Icon(icon, null, Modifier.size(22.dp), tint = c.text)
         if (lead != null) Text(lead, style = SwType.heading, color = c.text, modifier = Modifier.width(36.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = SwType.body, color = c.text)
@@ -242,10 +244,10 @@ private fun OptionRow(title: String, selected: Boolean, sub: String? = null, lea
 }
 
 @Composable
-private fun OptionSheet(title: String, options: List<Pair<String, String>>, current: String, onPick: (String) -> Unit, onDismiss: () -> Unit) =
+private fun OptionSheet(title: String, options: List<Pair<String, String>>, current: String, onPick: (String) -> Unit, icon: (String) -> ImageVector? = { null }, onDismiss: () -> Unit) =
     SwSheet(title, onDismiss) {
         Column {
-            options.forEach { (id, label) -> OptionRow(label, id == current) { onPick(id); onDismiss() } }
+            options.forEach { (id, label) -> OptionRow(label, id == current, icon = icon(id)) { onPick(id); onDismiss() } }
         }
     }
 
@@ -370,6 +372,13 @@ private fun DeletionDialog(d: Deletion, vm: SettingsViewModel) {
         )
     }
 }
+
+private val ThemeMode.icon
+    get() = when (this) {
+        ThemeMode.SYSTEM -> SwIcons.Monitor
+        ThemeMode.LIGHT -> SwIcons.Sun
+        ThemeMode.DARK -> SwIcons.Moon
+    }
 
 private val ThemeMode.label
     get() = when (this) {

@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.theme
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
@@ -50,10 +52,17 @@ fun SpendWiseTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val colors = if (dark) DarkSpendWiseColors else LightSpendWiseColors
+    val colors = (if (dark) DarkSpendWiseColors else LightSpendWiseColors).animated()
     CompositionLocalProvider(LocalSpendWiseColors provides colors) {
         MaterialTheme(colorScheme = scheme(colors, dark), typography = Typography, shapes = AppShapes, content = content)
     }
+}
+
+/** Cross-fades every token when the theme flips. */
+@Composable
+private fun SpendWiseColors.animated(): SpendWiseColors {
+    @Composable fun Color.a() = animateColorAsState(this, tween(300), label = "theme").value
+    return SpendWiseColors(bg.a(), surface.a(), line.a(), text.a(), textMuted.a(), textFaint.a(), accent.a(), onAccent.a(), positive.a(), negative.a())
 }
 
 object SpendWiseTheme {

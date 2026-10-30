@@ -106,8 +106,9 @@ class AuthRepository @Inject constructor(
         return GoogleAuthProvider.getCredential(idToken, null)
     }
 
-    /** Account deletion confirms with a password when the account has one, otherwise with Google. */
-    val usesPassword: Boolean get() = auth.currentUser?.providerData?.any { it.providerId == "password" } == true
+    /** Account deletion confirms with Google when the account has it (even if a password is also linked), otherwise with the password. */
+    val usesPassword: Boolean get() = auth.currentUser?.providerData?.map { it.providerId }
+        ?.let { "password" in it && "google.com" !in it } == true
 
     /** A fresh sign-in, so Firebase lets the account be deleted (spec §8.2). Throws on a wrong password. */
     suspend fun reauthenticateWithPassword(password: String) {

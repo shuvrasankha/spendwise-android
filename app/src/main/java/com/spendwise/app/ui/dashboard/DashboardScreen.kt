@@ -1,5 +1,8 @@
 package com.spendwise.app.ui.dashboard
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -22,6 +26,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +90,9 @@ fun DashboardScreen(
     onOpenInvest: () -> Unit,
     /** The period shown, as dates; null for both when History should show everything. */
     onOpenHistory: (from: String?, to: String?) -> Unit,
+    /** Scroll to the goals section once loaded, then call [onGoalsShown]. */
+    showGoals: Boolean = false,
+    onGoalsShown: () -> Unit = {},
     dashboard: DashboardViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
 ) {
@@ -99,9 +107,17 @@ fun DashboardScreen(
         if (result == SnackbarResult.ActionPerformed) n.undoId?.let(plans::undoDue)
     }
     PlanDialogs(plans, currency)
+    val list = rememberLazyListState()
+    LaunchedEffect(showGoals, state) {
+        if (showGoals && state is DashboardState.Ready) {
+            withFrameNanos { } // the list is measured by the next frame
+            list.scrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) // Goals is the last item
+            onGoalsShown()
+        }
+    }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0), containerColor = SpendWiseTheme.colors.bg) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = Spacing.section)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding), state = list, contentPadding = PaddingValues(bottom = Spacing.section)) {
             item { topBar() }
             when (val s = state) {
                 DashboardState.Loading -> item {
@@ -148,7 +164,11 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
     Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(h.spent, currency))
+        // Counts up from 0 on first show, then from the old value on a change; the exact figure is shown once it lands.
+        val count = remember { Animatable(0f) }
+        LaunchedEffect(h.spent) { count.animateTo(h.spent.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
+        val shown = if (count.value == h.spent.toFloat()) h.spent else count.value.toDouble()
+        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(shown, currency))
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER

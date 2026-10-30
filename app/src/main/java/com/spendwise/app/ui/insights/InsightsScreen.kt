@@ -386,6 +386,14 @@ private fun WeekdaySection(s: InsightSummary, w: WeekdayCard, money: (Double) ->
     }
 }
 
+private fun paymentIcon(method: String) = when (method) {
+    "UPI" -> SwIcons.Smartphone
+    "Cash" -> SwIcons.Banknote
+    "Credit Card" -> SwIcons.CreditCard
+    "Net Banking" -> SwIcons.Landmark
+    else -> SwIcons.Wallet
+}
+
 @Composable
 private fun PaymentSection(rows: List<Pair<PaymentShare, String>>) {
     val c = SpendWiseTheme.colors
@@ -393,7 +401,7 @@ private fun PaymentSection(rows: List<Pair<PaymentShare, String>>) {
         SectionHeader("How you pay")
         rows.forEachIndexed { i, (p, text) ->
             Column {
-                ListRow(p.name, amount = text, icon = SwIcons.Wallet, divider = i > 0)
+                ListRow(p.name, amount = text, icon = paymentIcon(p.name), divider = i > 0)
                 Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 12.dp)) {
                     StackedBar(listOf(BarSegment(maxOf(p.share, 2.0).toFloat(), c.textMuted), BarSegment((100 - maxOf(p.share, 2.0)).toFloat(), Color.Transparent)))
                 }

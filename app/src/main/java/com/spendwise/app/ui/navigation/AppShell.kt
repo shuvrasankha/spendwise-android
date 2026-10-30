@@ -88,6 +88,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val header by shell.header.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var entry by rememberSaveable { mutableStateOf<EntryType?>(null) }
+    var showGoals by remember { mutableStateOf(false) } // More › Savings goals: open the Dashboard scrolled to its goals
     // One ViewModel of each, shared by the sheet and the page, so a prefilled or half-typed form is the same on both
     val expenseVm: ExpenseEditorViewModel = hiltViewModel()
     val incomeVm: IncomeViewModel = hiltViewModel()
@@ -171,6 +172,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     onOpenDebts = { nav.switchTo(Debts) },
                     onOpenInvest = { nav.navigate(Investments) },
                     onOpenHistory = { from, to -> nav.navigate(History(from = from, to = to)) },
+                    showGoals = showGoals,
+                    onGoalsShown = { showGoals = false },
                 )
             }
             composable<History> {
@@ -195,7 +198,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     onIncome = { nav.navigate(Income) },
                     onDebts = { nav.navigate(Debts) },
                     onInvestments = { nav.navigate(Investments) },
-                    onGoals = { nav.switchTo(Dashboard) },
+                    onGoals = { showGoals = true; nav.switchTo(Dashboard) },
                     onImport = { nav.navigate(CsvImport) },
                     onSettings = { nav.navigate(Settings) },
                 )
