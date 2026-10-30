@@ -9,15 +9,10 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.spendwise.app.data.prefs.ThemeMode
-
-/** Kept for screens not yet moved to [SpendWiseColors]; money in is `positive`. */
-@Immutable
-data class MoneyColors(val moneyIn: Color)
 
 private fun scheme(c: SpendWiseColors, dark: Boolean): ColorScheme {
     val base = if (dark) darkColorScheme() else lightColorScheme()
@@ -64,7 +59,4 @@ fun SpendWiseTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -
 object SpendWiseTheme {
     val colors: SpendWiseColors
         @Composable @ReadOnlyComposable get() = LocalSpendWiseColors.current
-
-    val moneyColors: MoneyColors
-        @Composable @ReadOnlyComposable get() = MoneyColors(colors.positive)
 }

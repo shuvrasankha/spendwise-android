@@ -129,7 +129,7 @@ fun SignInScreen(viewModel: AuthViewModel = hiltViewModel()) {
         state.message?.let { message ->
             Text(
                 message.text,
-                color = if (message.success) SpendWiseTheme.moneyColors.moneyIn else MaterialTheme.colorScheme.error,
+                color = if (message.success) SpendWiseTheme.colors.positive else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )

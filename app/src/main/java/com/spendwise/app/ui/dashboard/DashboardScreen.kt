@@ -49,6 +49,7 @@ import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.BudgetBar
 import com.spendwise.app.ui.components.DayHeader
 import com.spendwise.app.ui.components.ListRow
+import com.spendwise.app.ui.components.MenuChip
 import com.spendwise.app.ui.components.Metric
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SegmentedControl
@@ -307,12 +308,12 @@ private fun Trend(o: OverTime, currency: Currency, vm: DashboardViewModel) {
             SegmentedControl(TABS.map { it.second }, TABS.indexOfFirst { it.first == o.view.tab }, { vm.selectTab(TABS[it].first) })
         }
         Row(Modifier.padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PeriodChip(
+            MenuChip(
                 o.view.period.month?.let { MONTH_NAMES[it.toInt() - 1] } ?: "All Months",
                 listOf(null to "All Months") + MONTH_NAMES.mapIndexed { i, n -> (i + 1).toString().padStart(2, '0') to n },
                 vm::selectMonth,
             )
-            PeriodChip(o.view.period.year ?: "All Years", listOf(null to "All Years") + o.years.map { it to it }, vm::selectYear)
+            MenuChip(o.view.period.year ?: "All Years", listOf(null to "All Years") + o.years.map { it to it }, vm::selectYear)
         }
         if (o.trend.values.isEmpty()) {
             Caption("No spending to chart yet.")
@@ -328,18 +329,6 @@ private fun Trend(o: OverTime, currency: Currency, vm: DashboardViewModel) {
             "${formatAmount(s.total, currency)} in ${plural(s.count, "entry", "entries")} · ${formatAmount(s.averagePerDay, currency)} a day · largest ${formatAmount(s.largest, currency)}",
             c.textMuted,
         )
-    }
-}
-
-/** A chip showing [current] that opens a menu of [options] (value to label). */
-@Composable
-private fun <T> PeriodChip(current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        SwChip(current, false, { open = true }, leading = SwIcons.Calendar)
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { (value, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onPick(value) }) }
-        }
     }
 }
 
@@ -386,7 +375,3 @@ private fun Score(h: HomeFigures) {
         }
     }
 }
-
-/** An outlined button showing [current] that opens a menu of [options]. Still used by History, Invest and the goal dialog until they move to chips. */
-@Composable
-internal fun <T> Picker(current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit) = PeriodChip(current, options, onPick)

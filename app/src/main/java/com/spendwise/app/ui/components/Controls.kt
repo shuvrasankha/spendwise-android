@@ -18,6 +18,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -130,6 +137,7 @@ fun SwField(
     isError: Boolean = false,
     supportingText: String? = null,
     trailing: (@Composable () -> Unit)? = null,
+    prefix: String? = null,
 ) {
     val c = SpendWiseTheme.colors
     OutlinedTextField(
@@ -138,6 +146,7 @@ fun SwField(
         placeholder = { Text(placeholder, style = SwType.body, color = c.textFaint) },
         leadingIcon = leading?.let { { Icon(it, null, Modifier.size(18.dp), tint = c.textMuted) } },
         trailingIcon = trailing,
+        prefix = prefix?.let { { Text("$it ", style = SwType.body, color = c.textMuted) } },
         singleLine = singleLine, keyboardOptions = keyboardOptions, keyboardActions = keyboardActions, visualTransformation = visualTransformation,
         isError = isError,
         supportingText = supportingText?.let { { Text(it, style = SwType.caption, color = if (isError) c.negative else c.textMuted) } },
@@ -175,6 +184,27 @@ fun DateField(label: String, value: String, modifier: Modifier, onClick: () -> U
         Column {
             Text(label, style = SwType.caption, color = c.textMuted)
             Text(value, style = SwType.body, color = c.text)
+        }
+    }
+}
+
+/** A labelled amount field with the currency symbol in front. */
+@Composable
+fun MoneyField(label: String, value: String, symbol: String, placeholder: String = "0", onChange: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = SwType.label, color = SpendWiseTheme.colors.textMuted)
+        SwField(value, onChange, placeholder, prefix = symbol, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+    }
+}
+
+/** A chip showing [current] that opens a menu of [options] (value to label). */
+@Composable
+fun <T> MenuChip(current: String, options: List<Pair<T, String>>, onPick: (T) -> Unit, leading: ImageVector? = SwIcons.ChevronDown) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        SwChip(current, false, { open = true }, leading = leading)
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { (value, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onPick(value) }) }
         }
     }
 }

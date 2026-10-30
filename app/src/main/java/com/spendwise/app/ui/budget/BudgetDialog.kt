@@ -1,16 +1,17 @@
 package com.spendwise.app.ui.budget
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -18,21 +19,22 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
-import com.spendwise.app.ui.dashboard.SuggestState
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Column
 import com.spendwise.app.domain.Budget
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.EXPENSE_CATEGORIES
+import com.spendwise.app.ui.components.ButtonStyle
+import com.spendwise.app.ui.components.FieldLabel
+import com.spendwise.app.ui.components.MoneyField
+import com.spendwise.app.ui.components.SwButton
+import com.spendwise.app.ui.components.SwSheet
+import com.spendwise.app.ui.dashboard.SuggestState
 import com.spendwise.app.ui.invest.plain
+import com.spendwise.app.ui.theme.Spacing
+import com.spendwise.app.ui.theme.SpendWiseTheme
+import com.spendwise.app.ui.theme.SwType
 
 /** "Monthly budget" (budget.js): a monthly limit, optional limits by category, and "Suggest from my income". */
 @Composable
@@ -46,6 +48,7 @@ fun BudgetDialog(
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val c = SpendWiseTheme.colors
     val total = remember { mutableStateOf(budget.total?.let(::plain).orEmpty()) }
     val cats = remember { mutableStateMapOf<String, String>().apply { budget.cats.forEach { (c, v) -> put(c, plain(v)) } } }
     // A suggestion fills the form for a look before saving
@@ -55,51 +58,44 @@ fun BudgetDialog(
         cats.clear()
         s.cats.forEach { (c, v) -> cats[c] = plain(v) }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Monthly budget") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Saved to your account. Home shows how much of it you've used.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = onSuggest, enabled = suggest?.working != true, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (suggest?.working == true) "Working it out…" else "Suggest from my income")
-                }
-                suggest?.takeIf { !it.working }?.let { s ->
-                    Text(
-                        buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(s.keeps) }
-                            if (s.keeps.isNotEmpty()) append(" ")
-                            append(s.text)
-                        },
-                        color = if (s.error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                }
-                MoneyField("Monthly limit", total.value, currency) { total.value = it }
-                Text("Limits by category (optional)", style = MaterialTheme.typography.titleSmall)
-                EXPENSE_CATEGORIES.forEach { c -> MoneyField(c, cats[c].orEmpty(), currency) { cats[c] = it } }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    val gutter = Modifier.padding(horizontal = Spacing.gutter)
+    SwSheet(
+        "Monthly budget", onDismiss,
+        footer = {
+            error?.let { Text(it, style = SwType.label, color = c.negative, modifier = gutter) }
+            Row(gutter, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (budget.total != null || budget.cats.isNotEmpty()) SwButton("Remove", onRemove, style = ButtonStyle.Danger)
+                SwButton("Save", { onSave(total.value, cats.toMap()) }, Modifier.weight(1f))
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(total.value, cats.toMap()) }) { Text("Save") } },
-        dismissButton = {
-            Row {
-                if (budget.total != null || budget.cats.isNotEmpty()) TextButton(onClick = onRemove) { Text("Remove budget") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+    ) {
+        Text("Saved to your account. Home shows how much of it you've used.", style = SwType.label, color = c.textMuted, modifier = gutter)
+        Box(gutter) { SwButton(if (suggest?.working == true) "Working it out…" else "Suggest from my income", onSuggest, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, enabled = suggest?.working != true) }
+        suggest?.takeIf { !it.working }?.let { s ->
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(s.keeps) }
+                    if (s.keeps.isNotEmpty()) append(" ")
+                    append(s.text)
+                },
+                style = SwType.body, color = if (s.error) c.negative else c.text,
+                modifier = gutter.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        Box(gutter) { MoneyField("Monthly limit", total.value, currency.symbol) { total.value = it } }
+        FieldLabel("Limits by category (optional)")
+        Column(gutter, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            EXPENSE_CATEGORIES.forEach { cat ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(cat, style = SwType.body, color = c.text, modifier = Modifier.weight(1f))
+                    Box(Modifier.weight(1f)) {
+                        com.spendwise.app.ui.components.SwField(
+                            cats[cat].orEmpty(), { cats[cat] = it }, "No limit", prefix = currency.symbol,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                        )
+                    }
+                }
             }
-        },
-    )
+        }
+    }
 }
-
-@Composable
-internal fun MoneyField(label: String, value: String, currency: Currency, placeholder: String? = null, onChange: (String) -> Unit) =
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = { Text(label) },
-        placeholder = placeholder?.let { { Text(it) } },
-        prefix = { Text(currency.symbol + " ") },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        modifier = Modifier.fillMaxWidth(),
-    )
