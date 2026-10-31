@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.navigation
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,12 +22,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -41,6 +46,7 @@ import com.spendwise.app.domain.notifTitle
 import com.spendwise.app.domain.shortDay
 import com.spendwise.app.ui.format.formatMoney
 import java.time.LocalDate
+import kotlinx.coroutines.delay
 
 /** The bell and its list (notifications.js). Opening it marks what's listed as seen; a row opens Debts. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,13 +59,25 @@ fun Bell(onOpenDebts: () -> Unit, vm: BellViewModel = hiltViewModel()) {
     var newOnOpen by remember { mutableStateOf(emptySet<String>()) }
     val money = { a: Double -> formatMoney(a, currency) }
     val unread = state.unread.size
+    // Rings (a short decaying swing from the top) every few seconds while something is unread
+    val swing = remember { Animatable(0f) }
+    LaunchedEffect(unread > 0) {
+        if (unread == 0) return@LaunchedEffect
+        while (true) {
+            for (deg in floatArrayOf(14f, -12f, 9f, -6f, 3f, 0f)) swing.animateTo(deg, tween(90))
+            delay(3_000)
+        }
+    }
 
     IconButton(
         onClick = { newOnOpen = state.unread; open = true; vm.markSeen() },
         modifier = Modifier.semantics { contentDescription = if (unread > 0) "Notifications, $unread new" else "Notifications" },
     ) {
         BadgedBox(badge = { if (unread > 0) Badge { Text(notifBadge(unread)) } }) {
-            Icon(painterResource(R.drawable.ic_bell), contentDescription = null)
+            Icon(
+                painterResource(R.drawable.ic_bell), contentDescription = null,
+                modifier = Modifier.graphicsLayer { rotationZ = swing.value; transformOrigin = TransformOrigin(0.5f, 0f) },
+            )
         }
     }
 

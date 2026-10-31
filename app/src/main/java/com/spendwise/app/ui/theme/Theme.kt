@@ -62,7 +62,7 @@ fun SpendWiseTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -
 @Composable
 private fun SpendWiseColors.animated(): SpendWiseColors {
     @Composable fun Color.a() = animateColorAsState(this, tween(300), label = "theme").value
-    return SpendWiseColors(bg.a(), surface.a(), line.a(), text.a(), textMuted.a(), textFaint.a(), accent.a(), onAccent.a(), positive.a(), negative.a())
+    return SpendWiseColors(bg.a(), surface.a(), line.a(), text.a(), textMuted.a(), textFaint.a(), accent.a(), onAccent.a(), positive.a(), negative.a(), caution.a(), warning.a())
 }
 
 object SpendWiseTheme {

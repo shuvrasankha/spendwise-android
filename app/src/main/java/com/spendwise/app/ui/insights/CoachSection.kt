@@ -40,6 +40,7 @@ import com.spendwise.app.domain.ITALIC_OFF
 import com.spendwise.app.domain.ITALIC_ON
 import com.spendwise.app.domain.MdBlock
 import com.spendwise.app.domain.markdownBlocks
+import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SwButton
@@ -58,7 +59,7 @@ internal fun CoachSection(state: CoachState, glance: Glance?, coach: CoachViewMo
     val ready = glance != null && glance.summary.hasData
     val gutter = Modifier.padding(horizontal = Spacing.gutter)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader("AI coach", action = if (chat != null) "New chat" else null, onAction = { if (!state.busy) coach.close() })
+        SectionHeader("AI coach", action = if (chat != null) "New chat" else null, onAction = { if (!state.busy) coach.close() }, icon = SwIcons.Sparkles)
         val note = when {
             chat != null -> "${chat.topic.title} · ${chat.label}. Answers are written by AI and can be wrong."
             glance == null || ready -> COACH_NOTE

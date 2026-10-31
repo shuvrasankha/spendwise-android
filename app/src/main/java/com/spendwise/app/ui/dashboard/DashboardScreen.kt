@@ -52,6 +52,7 @@ import com.spendwise.app.domain.dateRange
 import com.spendwise.app.domain.toFixed0
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.BudgetBar
+import com.spendwise.app.ui.components.budgetTierColor
 import com.spendwise.app.ui.components.DayHeader
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.MenuChip
@@ -168,19 +169,24 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
         val count = remember { Animatable(0f) }
         LaunchedEffect(h.spent) { count.animateTo(h.spent.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
         val shown = if (count.value == h.spent.toFloat()) h.spent else count.value.toDouble()
-        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(shown, currency))
+        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(shown, currency), icon = SwIcons.Calendar)
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
                 val text = if (over) "${money(-m.state.left)} over your ${money(m.total)} budget"
                 else "${Math.round(m.state.ratio * 100)}% of your ${money(m.total)} budget · ${money(m.state.left)} left"
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = m.state.level != BudgetLevel.OK) }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true) }
                 Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    when {
-                        over -> StatusPill("Over budget", color = c.negative)
-                        m.state.ratio > pace -> StatusPill("Ahead of pace")
-                        else -> StatusPill("On track")
-                    }
+                    // Same colour as the bar; "Near limit" is the app's NEAR level (80%), otherwise the pace check
+                    StatusPill(
+                        when {
+                            over -> "Over budget"
+                            m.state.level == BudgetLevel.NEAR -> "Near limit"
+                            m.state.ratio > pace -> "Ahead of pace"
+                            else -> "On track"
+                        },
+                        color = budgetTierColor(m.state.ratio.toFloat()),
+                    )
                     Text(text, style = SwType.label, color = if (over) c.negative else c.textMuted, modifier = Modifier.weight(1f))
                 }
             }
@@ -196,8 +202,8 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
         if (h.perDay != null && h.forecastTotal != null) {
             Caption("${money(h.perDay)} a day · on track for ${money(h.forecastTotal)} by the end of ${h.monthName}")
         }
-        Box(Modifier.padding(horizontal = 8.dp)) {
-            SwButton(if (h.budget.total != null) "Update budget" else "Set a monthly budget", onBudget, style = ButtonStyle.Text, compact = true)
+        Box(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = 8.dp)) {
+            SwButton(if (h.budget.total != null) "Update budget" else "Set a monthly budget", onBudget, style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Receipt)
         }
     }
 }
@@ -247,7 +253,7 @@ private fun ExpenseRow(e: Expense, money: (Double) -> String, divider: Boolean, 
 private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money: (Double) -> String, onAddExpense: () -> Unit, onEdit: (String) -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Today", action = if (h.todays.isNotEmpty()) money(h.todaySpent) else null)
+        SectionHeader("Today", value = if (h.todays.isNotEmpty()) money(h.todaySpent) else null)
         if (h.todays.isNotEmpty()) Caption(plural(h.todays.size, "entry", "entries"))
         val cmp = h.todayCompare
         if (cmp != null) {
@@ -308,7 +314,7 @@ private fun Categories(h: HomeFigures, firstTime: Boolean, money: (Double) -> St
             Column {
                 ListRow(cat.category, meta = detail, metaColor = if (over) c.negative else Color.Unspecified, amount = money(cat.amount), icon = SwIcons.forCategory(cat.category), divider = i > 0)
                 Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 12.dp)) {
-                    BudgetBar(cat.fill.toFloat(), over = cap != null && cap.level != BudgetLevel.OK)
+                    BudgetBar(cat.fill.toFloat(), over = over, tiered = cap != null)
                 }
             }
         }

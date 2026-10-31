@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.dashboard
 
+import com.spendwise.app.ui.components.BudgetBar
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,7 +41,8 @@ internal fun DueThisMonth(due: List<DueBill>, money: (Double) -> String, plans: 
         Text(money(due.sumOf { it.template.amount }) + " to add", style = SwType.label, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
         due.forEachIndexed { i, d ->
             ListRow(billTitle(d.template), meta = d.meta(today), amount = money(d.template.amount), icon = SwIcons.Receipt, divider = i > 0)
-            Row(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Lined up with the goal's text and bar, not the icon
+            Row(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 SwButton("Add", { plans.addDue(d) }, style = ButtonStyle.Secondary, compact = true)
                 SwButton("Skip month", { plans.skip(d) }, style = ButtonStyle.Text, compact = true)
                 SwButton("Stop repeating", { plans.stop(d) }, style = ButtonStyle.Text, compact = true)
@@ -53,7 +56,7 @@ internal fun DueThisMonth(due: List<DueBill>, money: (Double) -> String, plans: 
 internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewModel, onOpenInvest: () -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Savings goals", action = "New goal", onAction = plans::newGoal)
+        SectionHeader("Savings goals", action = "New goal", onAction = plans::newGoal, actionIcon = SwIcons.Plus)
         goalsNeed(h.goals, h.saved, money)?.let {
             Text(it, style = SwType.label, color = if (it.endsWith("covered")) c.positive else c.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
         }
@@ -69,9 +72,11 @@ internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewMo
             ListRow(
                 g.name, meta = row.meta(money), metaColor = if (row.pace.level == GoalLevel.LATE) c.negative else Color.Unspecified,
                 amount = if (done) "Done" else "${row.percent}%", amountColor = if (done) c.positive else Color.Unspecified,
-                sub = row.amounts(money), icon = SwIcons.Target, divider = i > 0,
+                sub = row.amounts(money), icon = SwIcons.Target, divider = i > 0, metaLines = 2,
             )
-            Row(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 4.dp)) { BudgetBar(row.percent / 100f) }
+            // Lined up with the goal's text and bar, not the icon
+            Row(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (!done) SwButton("Add money", { plans.addMoney(g.id) }, style = ButtonStyle.Secondary, compact = true)
                 SwButton("Edit", { plans.editGoal(g.id) }, style = ButtonStyle.Text, compact = true)
                 if (row.linked > 0) SwButton("${money(row.linked)} invested", onOpenInvest, style = ButtonStyle.Text, compact = true)

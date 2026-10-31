@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.theme.Radius
 import com.spendwise.app.ui.theme.Spacing
@@ -44,11 +45,14 @@ import com.spendwise.app.ui.theme.SwType
 
 /** The screen's hero number: label, symbol + display amount, sub line. [positive] is for money in, [negative] for money owed. */
 @Composable
-fun Metric(label: String, symbol: String, amount: String, modifier: Modifier = Modifier, sub: String? = null, positive: Boolean = false, negative: Boolean = false) {
+fun Metric(label: String, symbol: String, amount: String, modifier: Modifier = Modifier, sub: String? = null, positive: Boolean = false, negative: Boolean = false, icon: ImageVector? = null) {
     val c = SpendWiseTheme.colors
     val color = if (positive) c.positive else if (negative) c.negative else c.text
     Column(modifier.fillMaxWidth().padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = SwType.label, color = c.textMuted)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (icon != null) Icon(icon, null, Modifier.size(16.dp), tint = c.textMuted)
+            Text(label, style = SwType.label, color = c.textMuted)
+        }
         Row(verticalAlignment = Alignment.Bottom) {
             Text(symbol, style = SwType.title, color = color, modifier = Modifier.padding(bottom = 6.dp, end = 2.dp))
             Text(amount, style = SwType.display, color = color)
@@ -90,15 +94,26 @@ fun StatGrid(stats: List<Stat>, modifier: Modifier = Modifier) {
 
 /** Title plus at most one text action. */
 @Composable
-fun SectionHeader(title: String, modifier: Modifier = Modifier, action: String? = null, onAction: () -> Unit = {}) {
+fun SectionHeader(title: String, modifier: Modifier = Modifier, action: String? = null, onAction: () -> Unit = {}, value: String? = null, actionIcon: ImageVector? = null, icon: ImageVector? = null) {
     val c = SpendWiseTheme.colors
     Row(
         modifier.fillMaxWidth().padding(horizontal = Spacing.gutter).heightIn(min = 32.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = SwType.heading, color = c.text, modifier = Modifier.weight(1f))
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = c.text)
+            Text(title, style = SwType.heading, color = c.text)
+        }
+        // A figure, not a link: larger and bolder than the text actions
+        if (value != null) Text(value, style = SwType.heading.copy(fontSize = 22.sp), color = c.text)
         if (action != null) {
-            Text(action, style = SwType.labelStrong, color = c.textMuted, modifier = Modifier.clickable(role = Role.Button, onClick = onAction).padding(vertical = 8.dp))
+            Row(
+                Modifier.clickable(role = Role.Button, onClick = onAction).padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (actionIcon != null) Icon(actionIcon, null, Modifier.size(16.dp), tint = c.textMuted)
+                Text(action, style = SwType.labelStrong, color = c.textMuted)
+            }
         }
     }
 }
@@ -230,13 +245,26 @@ fun SettingsGroup(label: String?, modifier: Modifier = Modifier, inset: Dp = Spa
     }
 }
 
-/** Progress is accent; [over] (past the limit by default) turns it negative. [pace] (0..1) marks how far through the period we are. */
+/** Green under half the budget, yellow to 80% (where the app says "near"), orange to the limit, red past it. */
 @Composable
-fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null, over: Boolean = progress > 1f) {
+fun budgetTierColor(ratio: Float): Color {
     val c = SpendWiseTheme.colors
+    return when {
+        ratio > 1f -> c.negative
+        ratio >= 0.8f -> c.warning
+        ratio >= 0.5f -> c.caution
+        else -> c.positive
+    }
+}
+
+/** Progress is accent (or, with [tiered], green to red by how much of the budget is used); [over] (past the limit by default) turns it negative. [pace] (0..1) marks how far through the period we are. */
+@Composable
+fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null, over: Boolean = progress > 1f, tiered: Boolean = false) {
+    val c = SpendWiseTheme.colors
+    val fill = if (tiered) budgetTierColor(if (over) maxOf(progress, 1.01f) else progress) else if (over) c.negative else c.accent
     BoxWithConstraints(modifier.fillMaxWidth().height(12.dp), contentAlignment = Alignment.CenterStart) {
         Box(Modifier.fillMaxWidth().height(6.dp).clip(Radius.pill).background(c.line))
-        Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(6.dp).clip(Radius.pill).background(if (over) c.negative else c.accent))
+        Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(6.dp).clip(Radius.pill).background(fill))
         if (pace != null) Box(Modifier.offset(x = maxWidth * pace.coerceIn(0f, 1f) - 1.dp).width(2.dp).height(12.dp).background(c.text))
     }
 }

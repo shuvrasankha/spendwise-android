@@ -35,4 +35,11 @@ class PushDataTest {
         assertEquals(setOf("debt-d1", "claim-d2", "debt-d3"), pushTagsFor(ids))
         assertEquals(emptySet<String>(), pushTagsFor(emptyList()))
     }
+
+    @Test fun `debt alerts lead with the amount, anything else is untouched`() {
+        assertEquals("You owe ₹600" to "a@b.com added a debt with you. Tap to review it in Debts.", prettyPush("a@b.com added a debt with you", "You owe ₹600"))
+        assertEquals("Your share is ₹300" to "Ann split a bill with you. Note: Dinner. Tap to review it in Debts.", prettyPush("Ann split a bill with you", "You owe ₹300 · Dinner"))
+        assertEquals("₹50 owed to you" to "Ann added a debt with you. Tap to see it in Debts.", prettyPush("Ann added a debt with you", "Ann owes you ₹50"))
+        assertEquals("Bill due" to "Rent tomorrow", prettyPush("Bill due", "Rent tomorrow"))
+    }
 }

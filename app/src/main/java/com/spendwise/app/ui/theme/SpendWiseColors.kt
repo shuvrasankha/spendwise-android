@@ -17,6 +17,9 @@ data class SpendWiseColors(
     val onAccent: Color,
     val positive: Color,
     val negative: Color,
+    /** Budget bar steps between positive and negative: yellow, then orange. */
+    val caution: Color,
+    val warning: Color,
 )
 
 val DarkSpendWiseColors = SpendWiseColors(
@@ -24,6 +27,7 @@ val DarkSpendWiseColors = SpendWiseColors(
     text = Color(0xFFF5F5F6), textMuted = Color(0xFF8E8E96), textFaint = Color(0xFF66666E),
     accent = Color(0xFFF2B33D), onAccent = Color(0xFF111111),
     positive = Color(0xFF4ADE80), negative = Color(0xFFF87171),
+    caution = Color(0xFFFACC15), warning = Color(0xFFFB923C),
 )
 
 val LightSpendWiseColors = SpendWiseColors(
@@ -31,6 +35,7 @@ val LightSpendWiseColors = SpendWiseColors(
     text = Color(0xFF0E0E10), textMuted = Color(0xFF62626A), textFaint = Color(0xFF9A9AA2),
     accent = Color(0xFFE0A11B), onAccent = Color(0xFF111111),
     positive = Color(0xFF15803D), negative = Color(0xFFDC2626),
+    caution = Color(0xFFCA8A04), warning = Color(0xFFEA580C),
 )
 
 val LocalSpendWiseColors = staticCompositionLocalOf { LightSpendWiseColors }

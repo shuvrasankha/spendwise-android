@@ -48,7 +48,9 @@ object Notifications {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.drawable.ic_tab_add)
+            .setSmallIcon(if (channel == REMINDER_CHANNEL) R.drawable.ic_tab_add else R.drawable.ic_bell)
+            .setColor(0xFFE0A11B.toInt()) // the accent, tinting the small icon
+            .setCategory(if (channel == DEBTS_CHANNEL) NotificationCompat.CATEGORY_SOCIAL else NotificationCompat.CATEGORY_REMINDER)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

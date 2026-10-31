@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.theme.Spacing
@@ -44,7 +45,7 @@ fun IconAction(icon: ImageVector, description: String, onClick: () -> Unit, modi
 
 /** Home: greeting over the name, actions on the right. Insets are the caller's: [statusBarInset] adds the status bar. */
 @Composable
-fun HomeTopBar(greeting: String, name: String, modifier: Modifier = Modifier, statusBarInset: Boolean = false, actions: @Composable () -> Unit = {}) {
+fun HomeTopBar(title: String, subtitle: String, modifier: Modifier = Modifier, statusBarInset: Boolean = false, actions: @Composable () -> Unit = {}) {
     val c = SpendWiseTheme.colors
     Row(
         modifier.then(if (statusBarInset) Modifier.statusBarsPadding() else Modifier).fillMaxWidth()
@@ -52,8 +53,8 @@ fun HomeTopBar(greeting: String, name: String, modifier: Modifier = Modifier, st
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(greeting, style = SwType.label, color = c.textMuted)
-            Text(name, style = SwType.heading, color = c.text)
+            Text(title, style = SwType.stat, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = SwType.label, color = c.textMuted)
         }
         actions()
     }
@@ -128,7 +129,7 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
 @Composable
 private fun BarsPreview() = PreviewSurface {
     Column {
-        HomeTopBar("Good evening", "Shuvra") { IconAction(SwIcons.Bell, "Notifications", {}) }
+        HomeTopBar("SpendWise", "Good evening, Shuvra") { IconAction(SwIcons.Bell, "Notifications", {}) }
         TabTopBar("History") { IconAction(SwIcons.Download, "Export", {}) }
         SubPageTopBar("Income", {})
         SpendWiseBottomBar(BottomTab.Home, {}, {})

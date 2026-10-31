@@ -141,7 +141,6 @@ fun InsightsScreen(
                 is InsightsState.Ready -> {
                     item { AskSection(s.ask, asking, insights::ask, money, onOpenHistory) }
                     item { Section { Periods(s.choice, insights) } }
-                    item { Section { ForecastSection(s.forecast, money) } }
                     val g = s.glance
                     when {
                         s.periodError != null -> item { Section { Note(s.periodError, c.negative) } }
@@ -165,6 +164,7 @@ fun InsightsScreen(
                             fixedCard(g.summary, money)?.let { f -> item { Section { FixedSection(f) } } }
                         }
                     }
+                    item { Section { ForecastSection(s.forecast, money) } }
                     item { Section { CoachSection(coachState, g.takeIf { s.periodError == null }, coach) } }
                 }
             }
@@ -191,11 +191,14 @@ private fun BigFigure(f: InsightFigure) = Row(Modifier.padding(horizontal = Spac
 @Composable
 private fun ChangeLine(c: Change) = Note(c.text, if (c.up) SpendWiseTheme.colors.negative else Color.Unspecified)
 
-/** Greys from the text colour down, so slices are told apart without borrowing the accent. */
+// Distinct hues, mid-lightness so they read on both themes; none is the green/red/accent that carry meaning elsewhere.
+private val SliceHues = listOf(0xFF3B82F6, 0xFF8B5CF6, 0xFF14B8A6, 0xFFEC4899, 0xFF06B6D4, 0xFFF97316, 0xFF6366F1).map(::Color)
+
+/** One colour per slice; the last of several is the grey "rest", so it never reads as a category of its own. */
 @Composable
 private fun shades(n: Int): List<Color> {
     val c = SpendWiseTheme.colors
-    return List(n) { i -> if (i == n - 1 && n > 1) c.textFaint else c.text.copy(alpha = (1f - i * 0.17f).coerceAtLeast(0.35f)) }
+    return List(n) { i -> if (i == n - 1 && n > 1) c.textFaint else SliceHues[i % SliceHues.size] }
 }
 
 // ── Ask ──
@@ -272,7 +275,7 @@ private fun ForecastSection(f: Forecast, money: (Double) -> String) {
     val colors = shades(card.parts.size)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Forecast", style = SwType.label, color = c.textMuted)
+            Text("Forecast", style = SwType.heading, color = c.text)
             Text(card.figure.amount, style = SwType.display, color = c.text)
             Text(card.figure.unit, style = SwType.label, color = c.textMuted)
         }
@@ -302,7 +305,7 @@ private fun CompareSection(s: InsightSummary, g: Glance, money: (Double) -> Stri
         card.none?.let { Note(it) }
         card.figure?.let { BigFigure(it) }
         card.change?.let { ChangeLine(it) }
-        if (card.rows.isNotEmpty()) StatGrid(card.rows.map { (k, v) -> Stat(k, v) })
+        if (card.rows.isNotEmpty()) StatGrid(card.rows.map { (k, v) -> Stat(k, v, when (k) { "Income" -> SwIcons.MoneyIn; "Saved" -> SwIcons.Wallet; else -> null }) })
     }
 }
 
@@ -310,7 +313,7 @@ private fun CompareSection(s: InsightSummary, g: Glance, money: (Double) -> Stri
 private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudget: () -> Unit) {
     val c = SpendWiseTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Against your budget", action = if (rep != null) "Change budget" else null, onAction = onBudget)
+        SectionHeader("Against your budget")
         if (rep == null) {
             Note("See how each month goes against a plan.")
             Box(Modifier.padding(horizontal = 8.dp)) { SwButton("Set a monthly budget", onBudget, style = ButtonStyle.Text, compact = true) }

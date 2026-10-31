@@ -3,6 +3,7 @@ package com.spendwise.app.reminder
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.spendwise.app.data.prefs.DevicePrefs
+import com.spendwise.app.domain.prettyPush
 import com.spendwise.app.domain.pushIsDebt
 import com.spendwise.app.domain.pushPage
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,7 +28,8 @@ class PushService : FirebaseMessagingService() {
                 val title = data["title"].orEmpty().ifBlank { return }
                 val tag = data["tag"]
                 val channel = if (pushIsDebt(tag)) Notifications.DEBTS_CHANNEL else Notifications.BILLS_CHANNEL
-                Notifications.message(this, channel, tag, title, data["body"].orEmpty(), pushPage(data["url"]))
+                val (shownTitle, shownBody) = prettyPush(title, data["body"].orEmpty())
+                Notifications.message(this, channel, tag, shownTitle, shownBody, pushPage(data["url"]))
             }
         }
     }

@@ -26,6 +26,7 @@ import com.spendwise.app.domain.Budget
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.EXPENSE_CATEGORIES
 import com.spendwise.app.ui.components.ButtonStyle
+import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.MoneyField
 import com.spendwise.app.ui.components.SwButton
@@ -70,7 +71,7 @@ fun BudgetDialog(
         },
     ) {
         Text("Saved to your account. Home shows how much of it you've used.", style = SwType.label, color = c.textMuted, modifier = gutter)
-        Box(gutter) { SwButton(if (suggest?.working == true) "Working it out…" else "Suggest from my income", onSuggest, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, enabled = suggest?.working != true) }
+        Box(gutter) { SwButton(if (suggest?.working == true) "Working it out…" else "Suggest from my income", onSuggest, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, enabled = suggest?.working != true, leading = SwIcons.Sparkles) }
         suggest?.takeIf { !it.working }?.let { s ->
             Text(
                 buildAnnotatedString {

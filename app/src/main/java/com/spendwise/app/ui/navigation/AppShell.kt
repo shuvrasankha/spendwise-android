@@ -162,8 +162,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                 DashboardScreen(
                     topBar = {
                         HomeTopBar(
-                            greeting = header.status ?: "SpendWise",
-                            name = greeting(LocalTime.now().hour, header.name),
+                            title = header.status ?: "SpendWise",
+                            subtitle = greeting(LocalTime.now().hour, header.name),
                         ) { HeaderActions(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) }
                     },
                     onAddExpense = { entry = EntryType.Expense },
