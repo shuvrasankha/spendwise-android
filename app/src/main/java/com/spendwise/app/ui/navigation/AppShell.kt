@@ -77,6 +77,9 @@ import com.spendwise.app.ui.income.EditIncomeScreen
 import com.spendwise.app.ui.income.IncomeScreen
 import com.spendwise.app.ui.settings.SettingsScreen
 import com.spendwise.app.ui.settings.CsvImportScreen
+import androidx.compose.runtime.CompositionLocalProvider
+import com.spendwise.app.ui.haptic.HapticManager
+import com.spendwise.app.ui.haptic.LocalHaptic
 
 /** The pages More links to, which keep More highlighted in the bottom bar. */
 private val moreRoutes = listOf(More, Income, Investments, Debts, Settings, CsvImport)
@@ -137,6 +140,8 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val onTopTab = selectedTab == BottomTab.History || selectedTab == BottomTab.Insights || destination?.hasRoute(More::class) == true
     BackHandler(enabled = onTopTab && !underDashboard) { nav.switchTo(Dashboard) }
 
+    val haptic = shell.haptic
+    CompositionLocalProvider(LocalHaptic provides haptic) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         // These pages draw their own top bar as the first row of their list
@@ -145,6 +150,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             SpendWiseBottomBar(
                 selected = selectedTab,
                 onSelect = {
+                    haptic.tick()
                     when (it) {
                         BottomTab.Home -> nav.switchTo(Dashboard)
                         BottomTab.History -> nav.switchTo(History())
@@ -152,7 +158,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                         BottomTab.More -> nav.switchTo(More)
                     }
                 },
-                onAdd = { entry = EntryType.Expense },
+                onAdd = { haptic.medium(); entry = EntryType.Expense },
             )
         },
     ) { padding ->
@@ -230,6 +236,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             expense = expenseVm, income = incomeVm, debts = debtsVm, invest = investVm,
         )
     }
+    } // end CompositionLocalProvider
 }
 
 /** The header on every signed-in page (spec §1.0): sync status, the bell, and the avatar menu with who's signed in. */

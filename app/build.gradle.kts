@@ -43,8 +43,8 @@ android {
 
     buildTypes {
         release {
-            // Without keystore.properties the release build is unsigned and can't be uploaded or installed
-            signingConfig = signingConfigs.findByName("release")
+            // Falls back to debug signing when keystore.properties is missing so the APK can be installed
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             manifestPlaceholders["crashlytics"] = true
             // R8 over the whole app; Firestore is read as maps, so no model class needs keeping
             optimization {
