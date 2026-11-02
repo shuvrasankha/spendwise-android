@@ -188,7 +188,7 @@ private fun DebtItem(d: Debt, meta: String, fmt: (Double) -> String, divider: Bo
                 StackedBar(listOf(BarSegment(share, c.textMuted), BarSegment(1f - share, Color.Transparent)))
             }
         }
-        Row(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) { actions() }
+        Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) { actions() }
     }
 }
 
