@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
@@ -30,20 +28,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.domain.ASK_EXAMPLES
-import com.spendwise.app.domain.ASK_MAX
-import com.spendwise.app.domain.AskHistory
 import com.spendwise.app.domain.BudgetReport
 import com.spendwise.app.domain.Change
-import com.spendwise.app.domain.Entry
 import com.spendwise.app.domain.FixedCard
 import com.spendwise.app.domain.Forecast
 import com.spendwise.app.domain.InsightFigure
@@ -52,10 +44,6 @@ import com.spendwise.app.domain.InsightSummary
 import com.spendwise.app.domain.PaymentShare
 import com.spendwise.app.domain.PieSlice
 import com.spendwise.app.domain.WeekdayCard
-import com.spendwise.app.domain.answerFor
-import com.spendwise.app.domain.askHistory
-import com.spendwise.app.domain.askName
-import com.spendwise.app.domain.askRows
 import com.spendwise.app.domain.catRows
 import com.spendwise.app.domain.compareCard
 import com.spendwise.app.domain.figure
@@ -64,7 +52,6 @@ import com.spendwise.app.domain.forecastCard
 import com.spendwise.app.domain.meta
 import com.spendwise.app.domain.monthRows
 import com.spendwise.app.domain.paymentRows
-import com.spendwise.app.domain.searchedText
 import com.spendwise.app.domain.shareText
 import com.spendwise.app.domain.sub
 import com.spendwise.app.domain.title
@@ -83,7 +70,6 @@ import com.spendwise.app.ui.components.StatGrid
 import com.spendwise.app.ui.components.StackedBar
 import com.spendwise.app.ui.components.SwButton
 import com.spendwise.app.ui.components.SwChip
-import com.spendwise.app.ui.components.SwField
 import com.spendwise.app.ui.components.TabTopBar
 import com.spendwise.app.ui.components.Toast
 import com.spendwise.app.ui.components.WeekBars
@@ -96,21 +82,24 @@ import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
+import com.spendwise.app.ui.theme.Radius
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 
-/** Insights (spec §1.7): Ask (read on the device), the forecast, the period chips, then the period's cards in the web's order. */
+/** Insights (spec §1.7): the way into the assistant, the forecast, the period chips, then the period's cards in the web's order. */
 @Composable
 fun InsightsScreen(
     onAddExpense: () -> Unit,
-    onOpenHistory: (AskHistory) -> Unit,
+    onOpenAssistant: (String?) -> Unit,
     insights: InsightsViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
-    coach: CoachViewModel = hiltViewModel(),
 ) {
     val state by insights.state.collectAsStateWithLifecycle()
-    val asking by insights.asking.collectAsStateWithLifecycle()
-    val coachState by coach.state.collectAsStateWithLifecycle()
-    val consentAsked by insights.consentAsked.collectAsStateWithLifecycle()
-    if (consentAsked) ConsentDialog(insights::answerConsent)
     val currency by insights.currency.collectAsStateWithLifecycle()
     val money = { n: Double -> formatAmount(n, currency) }
     val snackbar = remember { SnackbarHostState() }
@@ -139,7 +128,7 @@ fun InsightsScreen(
                     }
                 }
                 is InsightsState.Ready -> {
-                    item { AskSection(s.ask, asking, insights::ask, money, onOpenHistory) }
+                    item { AskEntry(onOpenAssistant) }
                     item { Section { Periods(s.choice, insights) } }
                     val g = s.glance
                     when {
@@ -165,7 +154,6 @@ fun InsightsScreen(
                         }
                     }
                     item { Section { ForecastSection(s.forecast, money) } }
-                    item { Section { CoachSection(coachState, g.takeIf { s.periodError == null }, coach) } }
                 }
             }
         }
@@ -203,42 +191,21 @@ private fun shades(n: Int): List<Color> {
 
 // ── Ask ──
 
+/** The way into the assistant: a field-shaped button and a few questions to start from. */
 @Composable
-private fun AskSection(ask: AskView?, asking: Boolean, onAsk: (String) -> Unit, money: (Double) -> String, onOpenHistory: (AskHistory) -> Unit) {
+private fun AskEntry(onOpen: (String?) -> Unit) {
     val c = SpendWiseTheme.colors
-    var text by rememberSaveable { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.padding(horizontal = Spacing.gutter)) {
-            SwField(
-                text, { text = it.take(ASK_MAX) }, "Ask about your spending", leading = SwIcons.Search,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onAsk(text) }),
-                trailing = { SwButton(if (asking) "Working…" else "Ask", { onAsk(text) }, style = ButtonStyle.Text, compact = true, enabled = !asking) },
-            )
+        Row(
+            Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth().heightIn(min = 48.dp).clip(Radius.control).border(1.dp, c.line, Radius.control)
+                .clickable(role = Role.Button, onClick = { onOpen(null) }).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(SwIcons.Sparkles, null, Modifier.size(18.dp), tint = c.textMuted)
+            Text("Ask about your money, or get advice", style = SwType.body, color = c.textMuted)
         }
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ASK_EXAMPLES.forEach { q -> SwChip(q, false, { text = q; onAsk(q) }) }
-        }
-        if (asking) Note("Looking through your entries…")
-        ask ?: return@Column
-        val answer = answerFor(ask.spec, ask.result, money, ask.today)
-        Column(
-            Modifier.padding(horizontal = Spacing.gutter).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(answer.headline, style = SwType.title, color = c.text)
-            Text(answer.sentence, style = SwType.body, color = c.text)
-            Text("Searched: ${searchedText(ask.spec, ask.today)}", style = SwType.caption, color = c.textMuted)
-        }
-        askRows(ask.spec, ask.result).forEachIndexed { i, r ->
-            val sub = listOf(if (r is Entry.Earned) "Income" else r.kind, formatDate(r.date)).filter { it.isNotEmpty() }.joinToString(" · ")
-            ListRow(askName(r).ifEmpty { if (r is Entry.Earned) "Income" else "" }, meta = sub, amount = money(r.amount), divider = i > 0)
-        }
-        val link = askHistory(ask.spec)
-        if (link != null && ask.result.count > 0) {
-            Box(Modifier.padding(horizontal = 8.dp)) {
-                SwButton(if (ask.result.count > 5) "See all ${ask.result.count} in History" else "Open in History", { onOpenHistory(link) }, style = ButtonStyle.Text, compact = true)
-            }
+            ASK_EXAMPLES.forEach { q -> SwChip(q, false, { onOpen(q) }) }
         }
     }
 }

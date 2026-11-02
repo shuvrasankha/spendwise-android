@@ -279,6 +279,12 @@ app is a set of separate HTML pages. Each one loads all of the user's records wi
   - Compare card with no prior data: "Nothing to compare yet…".
   - AI errors (`errorText`), including "Daily AI limit reached" (HTTP 429).
 
+- **Android differs here (v1.6.3):** Ask and the AI coach are one "Ask SpendWise" screen, opened from
+  the top of Insights (`domain/Assistant.kt`, `ui/assistant/`). The web keeps them separate. Each
+  question is read on the device and becomes a calculation, advice or a clarifying question. Figures
+  are always calculated on the device. The AI writes advice from the same facts as the coach, and reads
+  only questions the parser isn't sure of. No Firestore data changes.
+
 ### 1.8 Investments (`invest.html`) — `assets/js/invest.js`, `modules/invest-data.js`
 
 - **Purpose**: holdings (fund, FD, PPF, …), what they're worth, and the money put in.
