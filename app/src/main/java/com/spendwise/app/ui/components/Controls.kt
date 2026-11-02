@@ -213,7 +213,8 @@ fun <T> MenuChip(current: String, options: List<Pair<T, String>>, onPick: (T) ->
     var open by remember { mutableStateOf(false) }
     Box {
         SwChip(current, false, { open = true }, leading = leading)
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        // Capped so long lists (13 months, many years) scroll inside the menu instead of running off screen
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 260.dp)) {
             options.forEach { (value, label) -> DropdownMenuItem(text = { Text(label) }, onClick = { open = false; onPick(value) }) }
         }
     }
