@@ -186,7 +186,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
     val money = { n: Double -> formatAmount(n, currency) }
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
-    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Counts up from 0 on first show, then from the old value on a change; the exact figure is shown once it lands.
         val count = remember { Animatable(0f) }
         LaunchedEffect(h.spent) { count.animateTo(h.spent.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
@@ -437,13 +437,13 @@ private fun SpendingCalendar(expenses: List<Expense>, money: (Double) -> String,
     Column {
         SectionHeader("Spending calendar")
         Column(
-            Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth()
+            Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = 12.dp).fillMaxWidth()
                 .clip(Radius.block).background(c.surface).border(1.dp, c.line, Radius.block)
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(horizontal = 8.dp, vertical = 16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconAction(SwIcons.Back, "Previous month", { month = addMonths(month, -1) })
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         "${ym.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${ym.year}",
                         style = SwType.bodyStrong, color = c.text,
@@ -453,7 +453,7 @@ private fun SpendingCalendar(expenses: List<Expense>, money: (Double) -> String,
                 IconAction(SwIcons.ChevronRight, "Next month", { month = addMonths(month, 1) })
             }
             if (month != thisMonth) SwButton("Today", { month = thisMonth }, style = ButtonStyle.Text, compact = true)
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
                 listOf("M", "T", "W", "T", "F", "S", "S").forEach {
                     Text(it, Modifier.weight(1f), style = SwType.caption, color = c.textFaint, textAlign = TextAlign.Center)
                 }

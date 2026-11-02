@@ -151,8 +151,14 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
     /** The "YYYY-MM" this account last got an AI budget suggestion on this device (one a month). */
     fun aiBudgetMonth(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("ai_budget_month:$uid")] }
 
-    suspend fun setAiBudgetMonth(uid: String, month: String) {
-        store.edit { it[stringPreferencesKey("ai_budget_month:$uid")] = month }
+    /** That month's AI plan, as planJson, so closing the sheet doesn't lose it. */
+    fun aiBudgetPlan(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("ai_budget_plan:$uid")] }
+
+    suspend fun setAiBudgetPlan(uid: String, month: String, plan: String) {
+        store.edit {
+            it[stringPreferencesKey("ai_budget_month:$uid")] = month
+            it[stringPreferencesKey("ai_budget_plan:$uid")] = plan
+        }
     }
 
     /** The budget alert last sent to this account on this device, "YYYY-MM:NEAR|OVER" (domain/BudgetAlert.kt). */
