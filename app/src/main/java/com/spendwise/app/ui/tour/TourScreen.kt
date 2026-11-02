@@ -40,7 +40,7 @@ private val pages = listOf(
     TourPage(SwIcons.Home, "See where your money goes", "Home shows this month at a glance, what's left of your budget, and your spending over time."),
     TourPage(SwIcons.Target, "Stay on budget", "Set a monthly budget with limits per category, and savings goals to work toward."),
     TourPage(SwIcons.People, "Keep track of debts", "Record who owes you and who you owe. Share a debt with someone by email and both of you see it."),
-    TourPage(SwIcons.Insights, "Ask the AI coach", "Get tips on your spending, or ask a question in plain words. Answers are written by AI and can be wrong."),
+    TourPage(SwIcons.Insights, "Ask SpendWise", "Ask about your money in plain words. Figures come from your own entries; advice is written by AI and can be wrong."),
 )
 
 /** First-run tour: a few pages that can be swiped, with Skip always there until the last one. [onDone] ends it either way. */

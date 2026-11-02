@@ -19,6 +19,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object AddExpense
 @Serializable data object Voice
 @Serializable data object Insights
+/** The one assistant. [question]: asked as it opens, from a suggestion on Insights. */
+@Serializable data class Assistant(val question: String? = null)
 @Serializable data object More
 @Serializable data object Income
 @Serializable data object Investments

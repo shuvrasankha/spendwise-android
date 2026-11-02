@@ -101,6 +101,12 @@ class SettingsViewModel @Inject constructor(
         SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty(), lockOn)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
+    val hapticOn: StateFlow<Boolean> = prefs.hapticEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setHaptic(on: Boolean) {
+        viewModelScope.launch { prefs.setHapticEnabled(on) }
+    }
+
     val widgetTransparency: StateFlow<Int> = prefs.widgetTransparency.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val defaultPayment: StateFlow<String> = prefs.defaultPayment.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DEFAULT_PAYMENT)

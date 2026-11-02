@@ -141,6 +141,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (on) it[APP_LOCK] = true else it.remove(APP_LOCK) }
     }
 
+    /** Haptic ticks on taps; on unless switched off. Per device, never synced. */
+    val hapticEnabled: Flow<Boolean> = store.data.map { it[HAPTIC_OFF] != true }
+
+    suspend fun setHapticEnabled(on: Boolean) {
+        store.edit { if (on) it.remove(HAPTIC_OFF) else it[HAPTIC_OFF] = true }
+    }
+
     /** The "YYYY-MM" this account last got an AI budget suggestion on this device (one a month). */
     fun aiBudgetMonth(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("ai_budget_month:$uid")] }
 
@@ -198,6 +205,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
+        val HAPTIC_OFF = booleanPreferencesKey("haptic_off")
         val TOUR_SEEN = booleanPreferencesKey("tour_seen")
         val WIDGET_TRANSPARENCY = intPreferencesKey("widget_transparency")
     }

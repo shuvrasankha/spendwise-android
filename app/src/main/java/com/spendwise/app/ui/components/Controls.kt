@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -48,6 +50,13 @@ import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 
 /** Selected is always inverted: `text` fill, `bg` content. */
+/** [onClick] preceded by a light tick; the tick is dropped when the user turned haptics off (see MainActivity). */
+@Composable
+fun hapticClick(onClick: () -> Unit): () -> Unit {
+    val haptic = LocalHapticFeedback.current
+    return { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }
+}
+
 @Composable
 fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, leading: ImageVector? = null) {
     val c = SpendWiseTheme.colors
@@ -55,7 +64,7 @@ fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modi
     Row(
         modifier.heightIn(min = 36.dp).clip(Radius.pill)
             .then(if (selected) Modifier.background(c.text) else Modifier.border(1.dp, c.line, Radius.pill))
-            .clickable(role = Role.Button, onClick = onClick).semantics { this.selected = selected }
+            .clickable(role = Role.Button, onClick = hapticClick(onClick)).semantics { this.selected = selected }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -68,13 +77,14 @@ fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modi
 @Composable
 fun SegmentedControl(items: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = SpendWiseTheme.colors
+    val tick = hapticClick {}
     Row(modifier.fillMaxWidth().clip(Radius.control).background(c.surface).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { i, label ->
             val on = i == selectedIndex
             Box(
                 Modifier.weight(1f).heightIn(min = 36.dp).clip(Radius.segment)
                     .then(if (on) Modifier.background(c.text) else Modifier)
-                    .clickable(role = Role.Tab) { onSelect(i) }.semantics { selected = on },
+                    .clickable(role = Role.Tab) { tick(); onSelect(i) }.semantics { selected = on },
                 contentAlignment = Alignment.Center,
             ) { Text(label, style = SwType.labelStrong, color = if (on) c.bg else c.textMuted) }
         }
