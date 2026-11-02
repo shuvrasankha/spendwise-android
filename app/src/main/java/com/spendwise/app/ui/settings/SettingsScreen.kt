@@ -89,6 +89,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     val passwordChange by viewModel.password.collectAsStateWithLifecycle()
     val defaultPayment by viewModel.defaultPayment.collectAsStateWithLifecycle()
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
+    val hapticOn by viewModel.hapticOn.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
@@ -121,7 +122,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 SettingsRow("Widget transparency", trailing = Trailing.Value("$transparency%"), divider = true, onClick = { picking = "widget" })
                 SettingsRow("Currency", trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
                 SettingsRow("Default payment", trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
-                SettingsRow("Haptic feedback", divider = true, trailing = Trailing.Switch(state.hapticOn) { viewModel.setHaptic(it) })
+                SettingsRow("Haptic feedback", trailing = Trailing.Switch(hapticOn) { viewModel.setHaptic(it) }, divider = true)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

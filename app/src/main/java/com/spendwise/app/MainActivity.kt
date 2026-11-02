@@ -9,7 +9,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -69,6 +74,13 @@ class MainActivity : FragmentActivity() {
             val locked by lock.locked.collectAsStateWithLifecycle(null)
             val tourSeen by prefs.tourSeen.collectAsStateWithLifecycle(null)
             val scope = rememberCoroutineScope()
+            // Every tick goes through LocalHapticFeedback, so the preference is applied here once
+            val hapticOn by prefs.hapticEnabled.collectAsStateWithLifecycle(true)
+            val system = LocalHapticFeedback.current
+            val haptic = remember(hapticOn, system) {
+                if (hapticOn) system else object : HapticFeedback { override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {} }
+            }
+            CompositionLocalProvider(LocalHapticFeedback provides haptic) {
             SpendWiseTheme(themeMode) {
                 // Auth gate: the app shell only exists for a signed-in, verified user (spec §1.0)
                 Surface(Modifier.fillMaxSize()) {
@@ -81,6 +93,7 @@ class MainActivity : FragmentActivity() {
                         else -> AppShell(link, onLinkOpened = { link = null })
                     }
                 }
+            }
             }
         }
     }

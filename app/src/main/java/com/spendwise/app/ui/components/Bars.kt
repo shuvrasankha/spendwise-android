@@ -94,6 +94,7 @@ enum class BottomTab(val label: String, val icon: ImageVector) {
 @Composable
 fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAdd: () -> Unit, modifier: Modifier = Modifier) {
     val c = SpendWiseTheme.colors
+    val tick = hapticClick {}
     Column(modifier.fillMaxWidth().background(c.bg)) {
         HorizontalDivider(color = c.line)
         Row(Modifier.navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -102,7 +103,7 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
                 val on = tab == selected
                 val tint = if (on) c.text else c.textMuted
                 Column(
-                    Modifier.weight(1f).height(64.dp).clickable(role = Role.Tab) { onSelect(tab) }.semantics { this.selected = on },
+                    Modifier.weight(1f).height(64.dp).clickable(role = Role.Tab) { tick(); onSelect(tab) }.semantics { this.selected = on },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                 ) {
                     Icon(tab.icon, null, Modifier.size(22.dp), tint = tint)
@@ -114,7 +115,7 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
             item(BottomTab.History)
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Box(
-                    Modifier.size(52.dp).clip(CircleShape).background(c.accent).clickable(role = Role.Button, onClick = onAdd)
+                    Modifier.size(52.dp).clip(CircleShape).background(c.accent).clickable(role = Role.Button, onClick = hapticClick(onAdd))
                         .semantics { contentDescription = "New entry" },
                     contentAlignment = Alignment.Center,
                 ) { Icon(SwIcons.Plus, null, Modifier.size(24.dp), tint = c.onAccent) }

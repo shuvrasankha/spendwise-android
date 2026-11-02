@@ -12,7 +12,6 @@ import com.spendwise.app.data.auth.AuthState
 import com.spendwise.app.data.auth.webAuthCode
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.data.prefs.ThemeMode
-import com.spendwise.app.ui.haptic.HapticManager
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DEFAULT_PAYMENT
 import com.spendwise.app.domain.DEFAULT_REMIND_AT
@@ -53,7 +52,6 @@ data class SettingsUiState(
     val reminderNote: String? = null,
     val photoUrl: String = "",
     val lockOn: Boolean = false,
-    val hapticOn: Boolean = true,
 )
 
 /** Delete account (spec §8.2): confirm → sign in again → delete, with progress and a way to finish after a failure. */
@@ -81,7 +79,6 @@ class SettingsViewModel @Inject constructor(
     private val scheduler: ReminderScheduler,
     private val deleter: AccountDeleter,
     private val lock: AppLock,
-    private val haptic: HapticManager,
 ) : ViewModel() {
 
     /** A note from the last tap (blocked, failed), shown instead of the usual one until the next change. */
@@ -91,8 +88,9 @@ class SettingsViewModel @Inject constructor(
         combine(prefs.themeMode, prefs.currency, auth.authState, ::Triple),
         settings.settings().catch { emit(UserSettings()) },
         prefs.reminderAt,
-        combine(tapNote, prefs.appLock, prefs.hapticEnabled, ::Triple),
-    ) { (mode, currency, authState), s, deviceAt, (note, lockOn, hapticOn) ->
+        tapNote,
+        prefs.appLock,
+    ) { (mode, currency, authState), s, deviceAt, note, lockOn ->
         val user = (authState as? AuthState.SignedIn)?.user
         val at = accountRemindAt(s.remindAt) ?: deviceAt ?: DEFAULT_REMIND_AT
         val usual = when {
@@ -100,8 +98,14 @@ class SettingsViewModel @Inject constructor(
             s.remindOn == true -> REMINDER_ASK
             else -> null
         }
-        SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty(), lockOn, hapticOn)
+        SettingsUiState(mode, currency, user?.displayName.orEmpty(), user?.email.orEmpty(), deviceAt != null, at, note ?: usual, user?.photoUrl.orEmpty(), lockOn)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
+
+    val hapticOn: StateFlow<Boolean> = prefs.hapticEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setHaptic(on: Boolean) {
+        viewModelScope.launch { prefs.setHapticEnabled(on) }
+    }
 
     val widgetTransparency: StateFlow<Int> = prefs.widgetTransparency.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
@@ -136,12 +140,6 @@ class SettingsViewModel @Inject constructor(
     /** Called once the phone's check passed: turning it off needs the same check as opening the app. */
     fun setLock(on: Boolean) {
         viewModelScope.launch { lock.setOn(on) }
-    }
-
-    /** Toggles haptic feedback on this device; also updates the in-memory [HapticManager] immediately. */
-    fun setHaptic(on: Boolean) {
-        haptic.enabled = on
-        viewModelScope.launch { prefs.setHapticEnabled(on) }
     }
 
     // ── Daily reminder (reminders.js › enable, disable, onTimeChange) ──

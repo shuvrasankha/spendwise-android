@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.SyncStatus
 import com.spendwise.app.data.auth.AuthRepository
-import com.spendwise.app.ui.haptic.HapticManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -38,11 +37,7 @@ data class HeaderState(val name: String, val email: String, val status: String?,
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class ShellViewModel @Inject constructor(
-    private val auth: AuthRepository,
-    sync: SyncStatus,
-    val haptic: HapticManager,
-) : ViewModel() {
+class ShellViewModel @Inject constructor(private val auth: AuthRepository, sync: SyncStatus) : ViewModel() {
 
     // true for a few seconds after going from offline to online
     private val backOnline = sync.online.withIndex().transformLatest { (i, on) ->
