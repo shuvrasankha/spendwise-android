@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,10 +50,10 @@ fun HomeTopBar(title: String, subtitle: String, modifier: Modifier = Modifier, s
     val c = SpendWiseTheme.colors
     Row(
         modifier.then(if (statusBarInset) Modifier.statusBarsPadding() else Modifier).fillMaxWidth()
-            .padding(start = Spacing.gutter, end = 8.dp).height(64.dp),
+            .padding(start = Spacing.gutter, end = 8.dp, top = 12.dp, bottom = 12.dp).heightIn(min = 64.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = SwType.stat, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = SwType.label, color = c.textMuted)
         }
