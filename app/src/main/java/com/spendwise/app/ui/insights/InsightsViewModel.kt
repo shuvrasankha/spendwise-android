@@ -66,14 +66,10 @@ data class PeriodChoice(
 /** One period's cards: [range] is null when Custom has an error ([periodError]). */
 data class Glance(val range: PeriodRange, val summary: InsightSummary, val budget: BudgetReport?, val pie: List<PieSlice>)
 
-/** "Ask about your spending": the spec read from the question, and what it found (ask-data.js). */
-data class AskView(val spec: AskSpec, val result: AskResult, val today: String)
-
 sealed interface InsightsState {
     data object Loading : InsightsState
     data class Failed(val message: String) : InsightsState
-    /** [ask]: the answer to the last question asked, kept up to date as entries change. */
-    data class Ready(val choice: PeriodChoice, val forecast: Forecast, val glance: Glance?, val periodError: String?, val ask: AskView? = null) : InsightsState
+    data class Ready(val choice: PeriodChoice, val forecast: Forecast, val glance: Glance?, val periodError: String?) : InsightsState
 }
 
 private data class Records(
@@ -84,7 +80,7 @@ private data class Records(
     val skipped: Set<String>,
 )
 
-/** Insights (spec §1.7, §6.9): Ask, the forecast, then the chosen period's cards. */
+/** Insights (spec §1.7, §6.9): the forecast, then the chosen period's cards. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class InsightsViewModel @Inject constructor(
@@ -93,24 +89,10 @@ class InsightsViewModel @Inject constructor(
     debtRepo: DebtRepository,
     settingsRepo: SettingsRepository,
     prefs: DevicePrefs,
-    private val worker: WorkerClient,
-    private val consent: AiConsent,
-    private val allowance: AiAllowance,
 ) : ViewModel() {
 
     private val reload = MutableStateFlow(0)
     private val choice = MutableStateFlow(PeriodChoice())
-    private val spec = MutableStateFlow<AskSpec?>(null)
-    private val _asking = MutableStateFlow(false)
-    /** The question is being read (by the AI, or on the device). */
-    val asking: StateFlow<Boolean> = _asking.asStateFlow()
-
-    /** The AI dialog is up, for Ask or the coach. */
-    val consentAsked: StateFlow<Boolean> = consent.pending.map { it != null }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    fun answerConsent(ok: Boolean) = consent.answer(ok)
-
     val state: StateFlow<InsightsState> = reload.flatMapLatest {
         val records = combine(
             // The web loads them in Firestore's order (by document id); equal amounts keep that order
@@ -121,7 +103,7 @@ class InsightsViewModel @Inject constructor(
             prefs.skippedBills,
             ::Records,
         )
-        combine(records, choice, spec) { r, c, q -> ready(r, c, q) }
+        combine(records, choice) { r, c -> ready(r, c) }
             .flowOn(Dispatchers.Default)
             .onStart<InsightsState> { emit(InsightsState.Loading) }
             .catch { emit(InsightsState.Failed("Couldn't load your data. Check your connection and try again.")) }
@@ -135,48 +117,16 @@ class InsightsViewModel @Inject constructor(
     fun setCustomStart(date: String) = choice.update { it.copy(customStart = date) }
     fun setCustomEnd(date: String) = choice.update { it.copy(customEnd = date) }
 
-    /** askQuestion: trimmed and cut to 200 characters; an empty one, or one while asking, is ignored. */
-    fun ask(text: String) {
-        val q = text.trim().take(ASK_MAX)
-        if (q.isEmpty() || _asking.value) return
-        _asking.value = true
-        viewModelScope.launch {
-            try {
-                spec.value = specFor(q, todayStr())
-            } finally {
-                _asking.value = false
-            }
-        }
-    }
-
-    /** specFor: the AI reads the question (it gets the question and today's date only); declined, offline or failed, guessSpec does. */
-    private suspend fun specFor(question: String, today: String): AskSpec {
-        // Over today's cap, the question is read on the phone, as when offline
-        if (consent.ensure() && allowance.left(AiFeature.ASK)) {
-            try {
-                val res = worker.post("/", aiRequest(ASK_AI_MODEL, listOf("system" to askPrompt(today), "user" to question), maxTokens = 200, temperature = 0.0))
-                if (res.ok) allowance.used(AiFeature.ASK)
-                if (res.ok) readSpec(aiContent(res.body).orEmpty())?.let { return it }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // offline or over the limit: read it here
-            }
-        }
-        return guessSpec(question, today)
-    }
-
-    private fun ready(r: Records, c: PeriodChoice, q: AskSpec?): InsightsState {
+    private fun ready(r: Records, c: PeriodChoice): InsightsState {
         val today = LocalDate.now()
         val todayS = today.toString()
-        val ask = q?.let { AskView(it, runQuery(it, r.expenses, r.income), todayS) }
         val f = forecast(r.expenses, todayS) { key, month -> "$key:$month" in r.skipped }
         return when (val range = periodRange(c.period, today, c.customStart, c.customEnd)) {
-            is Checked.Invalid -> InsightsState.Ready(c, f, null, range.message, ask)
+            is Checked.Invalid -> InsightsState.Ready(c, f, null, range.message)
             is Checked.Ok -> {
                 val s = summarize(r.expenses, r.income, r.debts, range.value)
                 val glance = Glance(range.value, s, budgetReport(r.expenses, r.settings.budget, range.value, todayS, f.total), pieSlices(s.categories))
-                InsightsState.Ready(c, f, glance, null, ask)
+                InsightsState.Ready(c, f, glance, null)
             }
         }
     }

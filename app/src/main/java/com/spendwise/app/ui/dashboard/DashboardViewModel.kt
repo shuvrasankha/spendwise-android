@@ -60,7 +60,7 @@ sealed interface DashboardState {
     data object Loading : DashboardState
     data class Failed(val message: String) : DashboardState
     /** [firstTime]: no expenses at all, so the Today card points at the first entry. */
-    data class Ready(val home: HomeFigures, val firstTime: Boolean, val overTime: OverTime, val emis: List<EmiPlan>) : DashboardState
+    data class Ready(val home: HomeFigures, val firstTime: Boolean, val overTime: OverTime, val emis: List<EmiPlan>, val expenses: List<Expense>) : DashboardState
 }
 
 private data class Sources(
@@ -120,6 +120,7 @@ class DashboardViewModel @Inject constructor(
             home = homeFigures(s.expenses, s.income, s.debts, s.settings, s.holdings, today) { key, month -> "$key:$month" in skipped },
             emis = emiPlans(s.expenses, today.toString()),
             firstTime = s.expenses.isEmpty(),
+            expenses = s.expenses,
             overTime = OverTime(
                 view = v,
                 summary = periodSummary(s.expenses, v.period),

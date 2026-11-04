@@ -38,6 +38,12 @@ enum class CoachTopic(val title: String, val chip: String, val focus: String, va
         "How does this period compare with before, and what is driving the change?",
         listOf("Which category changed the most?", "Will I spend more than last month?", "What should I watch next month?"),
     ),
+    BUDGET(
+        "Budget", "Suggest a budget",
+        "a realistic monthly budget from the spending in the numbers: a total and a limit for the main categories, each rounded, with one line on why. Base it on the monthly amounts the numbers support.",
+        "Suggest a monthly budget based on my spending.",
+        listOf("Which limit will be hardest?", "How much could I save with this?", "What should I cut first?"),
+    ),
     DEBT(
         "Debt", "What about my debts?",
         "the unsettled debts in the numbers: what to settle first, money others owe the user that is worth following up, and a simple plan. If there are no unsettled debts, say so in one sentence and give one tip.",
@@ -93,7 +99,9 @@ fun factsText(s: InsightSummary, r: PeriodRange, money: (Double) -> String): Str
 fun coachSystemPrompt(topic: CoachTopic, facts: String, currency: Currency): String = """You are the money coach inside SpendWise, a personal expense tracker. Amounts are in ${currency.code} (${currency.symbol}).
 Rules:
 - Use only the numbers below. Never invent amounts, dates, income, goals or interest rates. If something isn't in the data, say so in one short sentence.
+- Answer the question asked in the first sentence, with a clear yes, no or number, then explain.
 - Be specific: name categories and amounts from the data, and estimate savings in ${currency.symbol}.
+- A saving per month can never be more than what's spent per month on that thing: check PER MONTH below. Say when an amount is already small.
 - Keep each answer under 150 words. Use a short numbered or bulleted list for steps.
 - Plain, friendly English. Don't recommend specific financial products, funds or stocks.
 Focus: ${topic.focus}

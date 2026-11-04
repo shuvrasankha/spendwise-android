@@ -38,7 +38,7 @@ class BudgetSuggestTest {
 
     @Test fun `what the AI sees is numbers only`() {
         val text = factsLines(facts, "₹")
-        assertTrue(text.contains("Income: ₹60000"))
+        assertTrue(text.contains("Income: ₹60000 a month on average"))
         assertTrue(text.contains("Home & Rent: ₹15000 (of which ₹15000 repeating"))
         assertFalse(text.contains("secret") || text.contains("Goa"))
         assertFalse(budgetPrompt(facts, currencyOf("INR")).toList().any { it.contains("secret") || it.contains("Goa") })
@@ -85,8 +85,83 @@ class BudgetSuggestTest {
         assertFalse(aiBudgetUsed("2025-10", "2026-10-15"))
     }
 
-    @Test fun `limit says when the next one opens`() {
-        assertTrue(aiBudgetLimitText(java.time.LocalDate.of(2026, 10, 29)).endsWith("from 1 Nov."))
-        assertTrue(aiBudgetLimitText(java.time.LocalDate.of(2026, 12, 5)).endsWith("from 1 Jan."))
+    @Test fun `an early rent payment counts once`() {
+        val rent = listOf("2026-08-01", "2026-09-01", "2026-10-01", "2026-10-30").map { exp(it, "Home & Rent", 9500.0, "monthly") }
+        val f = budgetFacts(rent, income, emptyList(), "2026-11-02")!!
+        assertEquals(9500.0, f.cats.getValue("Home & Rent"), 0.0)
+        assertEquals(9500.0, f.fixed.getValue("Home & Rent"), 0.0)
+        assertEquals(9500.0, f.spent, 0.0)
+    }
+
+    @Test fun `a repeating bill counts at its latest amount`() {
+        val bills = listOf(exp("2026-08-05", "Bills & Utilities", 800.0, "monthly"), exp("2026-10-05", "Bills & Utilities", 1000.0, "monthly"))
+        assertEquals(1000.0, budgetFacts(bills, income, emptyList(), "2026-11-02")!!.fixed.getValue("Bills & Utilities"), 0.0)
+    }
+
+    @Test fun `one-off spending stays out of the typical month and is named as a number`() {
+        val trips = listOf(exp("2026-08-14", "Travel", 28000.0), exp("2026-09-10", "Travel", 2000.0), exp("2026-10-10", "Travel", 2000.0))
+        val f = budgetFacts(trips, income, emptyList(), "2026-11-02")!!
+        assertEquals(2000.0, f.cats.getValue("Travel"), 0.0)
+        assertEquals(8667.0, f.oneOffs.getValue("Travel"), 1.0)
+        assertTrue(factsLines(f, "₹").contains("One-off spending on top of that, averaged:\n- Travel: ₹8667 a month"))
+        assertFalse(factsLines(facts, "₹").contains("One-off"))
+    }
+
+    @Test fun `a one-time category gets no limit`() {
+        val f = budgetFacts(listOf(exp("2026-09-03", "Other", 5000.0)), income, emptyList(), "2026-11-02")!!
+        assertFalse("Other" in f.cats)
+        assertTrue("Other" in f.oneOffs)
+    }
+
+    private val goodCats = mapOf("Home & Rent" to 15000.0, "Food & Dining" to 9000.0, "Shopping" to 8000.0, "Groceries" to 8000.0)
+    private fun plan(total: Double, cats: Map<String, Double> = goodCats) = checkSuggestion(total, cats.toList(), null, facts.copy(goalsMonthly = 0.0))!!
+    private val noGoals get() = facts.copy(goalsMonthly = 0.0)
+
+    @Test fun `a sound AI plan holds`() = assertTrue(aiPlanHolds(plan(40000.0), noGoals))
+
+    @Test fun `an AI plan that misses the saving aim does not hold`() {
+        assertFalse(aiPlanHolds(plan(55000.0), noGoals))
+        assertFalse(aiPlanHolds(plan(90000.0), noGoals)) // capped at income, keeps nothing
+    }
+
+    @Test fun `an AI plan with limits that do not add up does not hold`() {
+        assertFalse(aiPlanHolds(plan(40000.0, mapOf("Home & Rent" to 15000.0, "Shopping" to 5000.0)), noGoals))
+        assertFalse(aiPlanHolds(plan(40000.0, emptyMap()), noGoals))
+    }
+
+    @Test fun `an AI plan that skips a bill or raises a category does not hold`() {
+        assertFalse(aiPlanHolds(plan(25000.0, goodCats - "Home & Rent"), noGoals))
+        assertFalse(aiPlanHolds(plan(48000.0, goodCats + ("Shopping" to 17000.0)), noGoals))
+    }
+
+    @Test fun `goals raise what must be kept`() {
+        val big = noGoals.copy(goalsMonthly = 25000.0)
+        assertFalse(aiPlanHolds(checkSuggestion(40000.0, goodCats.toList(), null, big)!!, big))
+    }
+
+    @Test fun `the device plan always holds`() = assertTrue(aiPlanHolds(suggestFromFacts(noGoals)!!, noGoals))
+
+    @Test fun `the tip ends as a sentence`() {
+        assertEquals("Cut travel and shopping.", checkSuggestion(40000.0, goodCats.toList(), "Cut travel and shopping", noGoals)!!.tip)
+        assertEquals("Cut travel!", checkSuggestion(40000.0, goodCats.toList(), "Cut travel!", noGoals)!!.tip)
+        assertEquals("", checkSuggestion(40000.0, goodCats.toList(), null, noGoals)!!.tip)
+    }
+
+    @Test fun `a stored plan reads back the same`() {
+        val s = checkSuggestion(40000.0, goodCats.toList(), "Cut shopping.", noGoals)!!
+        assertEquals(s, checkReply(readReply(planJson(s)), noGoals))
+    }
+
+    @Test fun `only real bills are blamed for keeping nothing`() {
+        val money = { n: Double -> "₹${n.toLong()}" }
+        val s = BudgetSuggestion(60000.0, emptyMap(), "", 0.0)
+        assertEquals("This uses all of your ₹60000 average income.", suggestionText(s, noGoals, true, money = money).first)
+        val heavy = noGoals.copy(fixed = mapOf("Home & Rent" to 60000.0))
+        assertTrue(suggestionText(s, heavy, true, money = money).first.startsWith("Your bills take all"))
+    }
+
+    @Test fun `a saved plan says so`() {
+        val text = suggestionText(plan(40000.0), noGoals, fromAi = true, saved = true) { it.toString() }.second
+        assertEquals("Your suggestion from earlier this month. Change anything, then save.", text)
     }
 }

@@ -50,6 +50,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.spendwise.app.R
 import com.spendwise.app.ui.debts.DebtsScreen
+import com.spendwise.app.ui.assistant.AssistantScreen
 import com.spendwise.app.ui.insights.InsightsScreen
 import com.spendwise.app.ui.invest.InvestScreen
 import com.spendwise.app.ui.dashboard.DashboardScreen
@@ -104,7 +105,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val destination = nav.currentBackStackEntryAsState().value?.destination
     val inMore = moreRoutes.any { destination?.hasRoute(it::class) == true }
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
-    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(Income::class) == true || destination?.hasRoute(Debts::class) == true || destination?.hasRoute(Investments::class) == true || destination?.hasRoute(Settings::class) == true || destination?.hasRoute(EditIncome::class) == true || destination?.hasRoute(EditExpense::class) == true || destination?.hasRoute(Voice::class) == true || destination?.hasRoute(CsvImport::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true
+    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(Income::class) == true || destination?.hasRoute(Debts::class) == true || destination?.hasRoute(Investments::class) == true || destination?.hasRoute(Settings::class) == true || destination?.hasRoute(EditIncome::class) == true || destination?.hasRoute(EditExpense::class) == true || destination?.hasRoute(Voice::class) == true || destination?.hasRoute(CsvImport::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true || destination?.hasRoute(Assistant::class) == true
     val snackbar = remember { SnackbarHostState() }
     val editor by expenseVm.state.collectAsStateWithLifecycle()
     LaunchedEffect(editor.undo) {
@@ -190,6 +191,12 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             composable<Insights> {
                 InsightsScreen(
                     onAddExpense = { entry = EntryType.Expense },
+                    onOpenAssistant = { nav.navigate(Assistant(it)) },
+                )
+            }
+            composable<Assistant> {
+                AssistantScreen(
+                    onBack = { nav.popBackStack() },
                     onOpenHistory = { nav.navigate(History(income = it.income, q = it.q, from = it.from, to = it.to, cats = it.cats)) },
                 )
             }

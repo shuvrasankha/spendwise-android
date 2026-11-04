@@ -279,6 +279,12 @@ app is a set of separate HTML pages. Each one loads all of the user's records wi
   - Compare card with no prior data: "Nothing to compare yet…".
   - AI errors (`errorText`), including "Daily AI limit reached" (HTTP 429).
 
+- **Android differs here (v1.6.3):** Ask and the AI coach are one "Ask SpendWise" screen, opened from
+  the top of Insights (`domain/Assistant.kt`, `ui/assistant/`). The web keeps them separate. Each
+  question is read on the device and becomes a calculation, advice or a clarifying question. Figures
+  are always calculated on the device. The AI writes advice from the same facts as the coach, and reads
+  only questions the parser isn't sure of. No Firestore data changes.
+
 ### 1.8 Investments (`invest.html`) — `assets/js/invest.js`, `modules/invest-data.js`
 
 - **Purpose**: holdings (fund, FD, PPF, …), what they're worth, and the money put in.
@@ -1163,8 +1169,16 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
 - `withLinked(goal) = saved + linked`.
 - `afterDebts(worth, debts) = worth + owedToYou − youOwe`, using `debtLeft`.
 - **Budget suggestion** (`budget-data.js › budgetFacts, suggestFromFacts, checkSuggestion`):
-  - Averages over the last 3 **whole** months that have entries. Returns null with no income in
-    them.
+  - Uses the last 3 **whole** months that have entries. Returns null with no income in them.
+  - Income and investing are monthly averages.
+  - **Android differs from the web here (decided 2026-11-02):**
+    - Spending is a typical month, not the plain average: the median month per category, and at least
+      its repeating bills. Each repeating bill counts once, at its latest amount.
+    - What the average adds above the typical month goes to the AI as a one-off amount by category.
+    - An AI plan is used only if `aiPlanHolds`: it meets the saving aim, its limits come to at least 90%
+      of its total, every bill's category has a limit, and no limit is over 110% of a typical month.
+      Otherwise the device's plan is shown and the month's go isn't used.
+    - The month's AI plan is stored on the device, and tapping Suggest again brings it back.
   - `keep = max(0.2·income, goalsMonthly)`.
   - `target = max(min(spent, income − keep), Σ fixed)`.
   - Flexible spending per category is scaled by `(target − fixed)/flexible`, rounded down to
@@ -1257,7 +1271,7 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
   - Limit: 100 requests per user per UTC day; over the limit gets **429**.
   - **Android only, on top of that** (decided 2026-10-29): per account, counted on the device and reset
     at local midnight: coach 5 answers, Ask 10 questions, voice and receipt 20 readings, CSV 3 imports a
-    day; the budget suggestion one a month. Only answers the AI gave count. Over a cap, the feature says
+    day; the budget suggestion one a month, which Suggest brings back as made. Only answers the AI gave count. Over a cap, the feature says
     so, except Ask, which reads the question on the phone as it does offline (`domain/AiLimits.kt`).
   - Response: `{choices:[{message:{content}}]}`.
   - **Privacy rule**: no descriptions, notes or names go to the AI. Only number facts or the

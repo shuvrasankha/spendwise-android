@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import com.spendwise.app.ui.theme.Radius
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,6 +79,24 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import com.spendwise.app.domain.addMonths
+import com.spendwise.app.domain.isSpending
+import com.spendwise.app.domain.spendingCalendar
+import com.spendwise.app.domain.todayStr
+import com.spendwise.app.ui.components.IconAction
+import com.spendwise.app.ui.components.SwSheet
 
 /**
  * Dashboard (spec §1.2): this month at a glance, then spending over time. Copy matches dashboard.js › renderHome.
@@ -139,6 +160,7 @@ fun DashboardScreen(
                     if (s.home.due.isNotEmpty()) item { Section { DueThisMonth(s.home.due, money, plans) } }
                     if (s.emis.isNotEmpty()) item { Section { Emis(s.emis, currency) } }
                     item { Section { Today(s.home, s.firstTime, currency, money, onAddExpense, onEditExpense) } }
+                    item { Section { SpendingCalendar(s.expenses, money, onEditExpense) } }
                     item { Section { Categories(s.home, s.firstTime, money) } }
                     item { Section { Trend(s.overTime, currency, dashboard) } }
                     item { Section { Recent(s.overTime, currency, onOpenHistory, onEditExpense) } }
@@ -164,7 +186,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
     val money = { n: Double -> formatAmount(n, currency) }
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
-    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Counts up from 0 on first show, then from the old value on a change; the exact figure is shown once it lands.
         val count = remember { Animatable(0f) }
         LaunchedEffect(h.spent) { count.animateTo(h.spent.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
@@ -397,6 +419,98 @@ private fun Score(h: HomeFigures) {
                 Text(part.name, Modifier.width(96.dp), style = SwType.label, color = c.text)
                 Box(Modifier.weight(1f)) { BudgetBar(maxOf(pct, 2) / 100f, over = part.value < 0.5) }
                 Text("$pct%", Modifier.width(44.dp), style = SwType.label, color = c.textMuted)
+            }
+        }
+    }
+}
+
+private val DayTitle = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
+
+@Composable
+private fun SpendingCalendar(expenses: List<Expense>, money: (Double) -> String, onEdit: (String) -> Unit) {
+    val c = SpendWiseTheme.colors
+    val thisMonth = todayStr().take(7)
+    var month by rememberSaveable { mutableStateOf(thisMonth) }
+    var picked by rememberSaveable { mutableStateOf<String?>(null) }
+    val cal = remember(expenses, month) { spendingCalendar(expenses, month) }
+    val ym = YearMonth.parse(month)
+    Column {
+        SectionHeader("Spending calendar")
+        Column(
+            Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = 12.dp).fillMaxWidth()
+                .clip(Radius.block).background(c.surface).border(1.dp, c.line, Radius.block)
+                .padding(horizontal = 8.dp, vertical = 16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconAction(SwIcons.Back, "Previous month", { month = addMonths(month, -1) })
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "${ym.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${ym.year}",
+                        style = SwType.bodyStrong, color = c.text,
+                    )
+                    Text(money(cal.total), style = SwType.caption, color = c.accent)
+                }
+                IconAction(SwIcons.ChevronRight, "Next month", { month = addMonths(month, 1) })
+            }
+            if (month != thisMonth) SwButton("Today", { month = thisMonth }, style = ButtonStyle.Text, compact = true)
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)) {
+                listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+                    Text(it, Modifier.weight(1f), style = SwType.caption, color = c.textFaint, textAlign = TextAlign.Center)
+                }
+            }
+            (List(cal.lead) { null } + cal.days).chunked(7).forEach { week ->
+                Row(Modifier.fillMaxWidth()) {
+                    for (i in 0 until 7) {
+                        val d = week.getOrNull(i)
+                        Box(Modifier.weight(1f).height(32.dp), contentAlignment = Alignment.Center) {
+                            if (d != null) {
+                                val mark = Modifier.size(28.dp).clip(CircleShape).let {
+                                    when (d.level) {
+                                        2 -> it.background(c.accent)
+                                        1 -> it.background(c.accent.copy(alpha = 0.22f))
+                                        else -> it
+                                    }
+                                }.let { if (d.date == todayStr()) it.border(1.5.dp, c.text, CircleShape) else it }
+                                Box(mark.clickable { picked = d.date }, contentAlignment = Alignment.Center) {
+                                    Text(
+                                        d.date.takeLast(2).trimStart('0'),
+                                        style = SwType.caption,
+                                        color = when (d.level) { 2 -> c.onAccent; 1 -> c.text; else -> c.textMuted },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 6.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf("None" to 0, "Lower" to 1, "Higher" to 2).forEachIndexed { i, (label, level) ->
+                    if (i > 0) Spacer(Modifier.width(14.dp))
+                    val dot = Modifier.size(10.dp).clip(CircleShape)
+                    Box(
+                        when (level) {
+                            2 -> dot.background(c.accent)
+                            1 -> dot.background(c.accent.copy(alpha = 0.22f))
+                            else -> dot.border(1.dp, c.line, CircleShape)
+                        },
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(label, style = SwType.caption, color = c.textMuted)
+                }
+            }
+        }
+    }
+    picked?.let { day ->
+        val rows = expenses.filter { it.date == day && isSpending(it.category) && it.amount > 0 }
+        SwSheet(title = LocalDate.parse(day).format(DayTitle), onDismiss = { picked = null }) {
+            if (rows.isEmpty()) Caption("No spending this day.")
+            else {
+                Caption("${money(rows.sumOf { it.amount })} spent · ${plural(rows.size, "transaction", "transactions")}")
+                rows.forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0) { picked = null; onEdit(it) } }
             }
         }
     }
