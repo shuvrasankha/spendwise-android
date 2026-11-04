@@ -216,6 +216,7 @@ private fun ExpenseFields(state: com.spendwise.app.ui.expenses.EditorState, vm: 
                 keyboardActions = KeyboardActions(onDone = { vm.commitTagDraft() }),
             )
             if (form.tags.isNotEmpty()) ChipFlow { form.tags.forEach { SwChip("#$it", true, { vm.removeTag(it) }, leading = SwIcons.Close) } }
+            if (state.suggestedTags.isNotEmpty()) ChipFlow { state.suggestedTags.forEach { SwChip("#$it", false, { vm.addSuggestedTag(it) }, leading = SwIcons.Plus) } }
             SplitFields(state, currency, vm)
         }
     }

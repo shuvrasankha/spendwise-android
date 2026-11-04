@@ -109,6 +109,11 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
                             f.tags.forEach { tag -> SwChip("#$tag", true, { editor.removeTag(tag) }, leading = SwIcons.Close) }
                         }
                     }
+                    if (state.suggestedTags.isNotEmpty()) {
+                        FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.suggestedTags.forEach { tag -> SwChip("#$tag", false, { editor.addSuggestedTag(tag) }, leading = SwIcons.Plus) }
+                        }
+                    }
                     state.message?.let { Text(it.text, style = SwType.label, color = if (it.success) c.positive else c.negative, modifier = gutter) }
                     Row(gutter, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         SwButton("Delete", editor::askDelete, style = ButtonStyle.Danger)

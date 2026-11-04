@@ -12,6 +12,8 @@ import com.spendwise.app.data.auth.AuthState
 import com.spendwise.app.data.auth.webAuthCode
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.data.prefs.ThemeMode
+import com.spendwise.app.data.update.GithubUpdater
+import com.spendwise.app.data.update.Release
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DEFAULT_PAYMENT
 import com.spendwise.app.domain.DEFAULT_REMIND_AT
@@ -71,6 +73,28 @@ data class PasswordChange(
 
 const val DELETE_WORD = "DELETE"
 
+/** Settings › Check for updates: where the last tap got to. [Available] shows the update dialog. */
+sealed interface UpdateCheck {
+    data object Idle : UpdateCheck
+    data object Checking : UpdateCheck
+    data class Latest(val version: String) : UpdateCheck
+    data object Failed : UpdateCheck
+    data class Available(val release: Release) : UpdateCheck
+    data object NeedsPermission : UpdateCheck
+    data object Downloading : UpdateCheck
+    data object DownloadFailed : UpdateCheck
+}
+
+/** The line under About for [check], or null when there's nothing to say. */
+fun updateNote(check: UpdateCheck): String? = when (check) {
+    is UpdateCheck.Latest -> "You're on the latest version (${check.version})."
+    UpdateCheck.Failed -> "Couldn't check for updates. Check your connection and try again."
+    UpdateCheck.NeedsPermission -> "Allow SpendWise to install updates, then check again."
+    UpdateCheck.Downloading -> "Downloading the update…"
+    UpdateCheck.DownloadFailed -> "Couldn't download the update. Try again."
+    else -> null
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: DevicePrefs,
@@ -78,6 +102,7 @@ class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val scheduler: ReminderScheduler,
     private val deleter: AccountDeleter,
+    private val updater: GithubUpdater,
     private val lock: AppLock,
 ) : ViewModel() {
 
@@ -141,6 +166,55 @@ class SettingsViewModel @Inject constructor(
     fun setLock(on: Boolean) {
         viewModelScope.launch { lock.setOn(on) }
     }
+
+    // ── Check for updates (GitHub installs; a Play install opens its Play listing) ──
+
+    val installedVersion: String get() = updater.installedVersion
+
+    private val _update = MutableStateFlow<UpdateCheck>(UpdateCheck.Idle)
+    val update: StateFlow<UpdateCheck> = _update.asStateFlow()
+
+    fun checkForUpdates() {
+        if (_update.value == UpdateCheck.Checking || _update.value == UpdateCheck.Downloading) return
+        if (updater.fromPlay) {
+            runCatching { updater.openPlayListing() } // no Play Store app: nothing to open
+            return
+        }
+        _update.value = UpdateCheck.Checking
+        viewModelScope.launch {
+            _update.value = try {
+                updater.newerRelease()?.let { UpdateCheck.Available(it) } ?: UpdateCheck.Latest(updater.installedVersion)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UpdateCheck.Failed
+            }
+        }
+    }
+
+    /** From the update dialog: install now, or ask for permission to install first. */
+    fun installUpdate() {
+        val release = (_update.value as? UpdateCheck.Available)?.release ?: return
+        if (!updater.canInstall) {
+            _update.value = UpdateCheck.NeedsPermission
+            updater.openAllowInstalls()
+            return
+        }
+        _update.value = UpdateCheck.Downloading
+        viewModelScope.launch {
+            _update.value = try {
+                // Leaving Settings mid-download still ends at the installer
+                withContext(NonCancellable) { updater.install(release) }
+                UpdateCheck.Idle
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UpdateCheck.DownloadFailed
+            }
+        }
+    }
+
+    fun dismissUpdate() = _update.update { UpdateCheck.Idle }
 
     // ── Daily reminder (reminders.js › enable, disable, onTimeChange) ──
 

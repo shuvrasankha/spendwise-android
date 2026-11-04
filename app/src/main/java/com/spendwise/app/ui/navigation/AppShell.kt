@@ -123,7 +123,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
         snackbar.show(t)
     }
     PlayUpdates(snackbar)
-    GithubUpdates(snackbar)
+    GithubUpdates(snackbar, shell.updater)
     // Back from a tab goes to the Dashboard, even when the stack has no Dashboard under it (it would exit the app)
     val selectedTab = when {
         onDashboard -> BottomTab.Home

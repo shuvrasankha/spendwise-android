@@ -52,14 +52,17 @@ class ReminderScheduler @Inject constructor(
         const val WORK_NAME = "daily-reminder"
         const val KEY_AT = "at"
 
-        /** Replaces any pending one, so changing the time never leaves two. */
-        fun enqueue(context: Context, at: String) {
+        /**
+         * Replaces any pending one, so changing the time never leaves two. From inside [ReminderWorker], pass
+         * APPEND_OR_REPLACE: REPLACE would cancel the running reminder itself, since it's the same unique work.
+         */
+        fun enqueue(context: Context, at: String, policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE) {
             val delay = untilNextReminder(ZonedDateTime.now(), at)
             val request = OneTimeWorkRequestBuilder<ReminderWorker>()
                 .setInitialDelay(delay.toMillis(), TimeUnit.MILLISECONDS)
                 .setInputData(workDataOf(KEY_AT to at))
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, policy, request)
         }
     }
 }

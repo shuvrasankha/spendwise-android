@@ -16,6 +16,8 @@ import com.spendwise.app.domain.DUPLICATE_WINDOW_MS
 import com.spendwise.app.domain.ExpenseCheck
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.domain.Checked
+import com.spendwise.app.domain.tagSuggestions
+import com.spendwise.app.domain.usedTags
 import com.spendwise.app.domain.DebtInput
 import com.spendwise.app.domain.MAX_SPLIT_PEOPLE
 import com.spendwise.app.domain.SplitRow
@@ -97,7 +99,11 @@ data class EditorState(
     val tiles: List<Pair<String, String>> = CATEGORY_TILE_LABELS.toList(),
     /** Add: people from past debts, suggested on the split rows (people.js). */
     val known: List<KnownPerson> = emptyList(),
-)
+    /** Tags from past expenses, most used first, offered under the tag field. */
+    val usedTags: List<String> = emptyList(),
+) {
+    val suggestedTags: List<String> get() = tagSuggestions(usedTags, form.tags, form.tagDraft)
+}
 
 /** The Add form, and the edit screen for one expense (route arg "id"). Spec §1.3, §2.3. */
 @HiltViewModel
@@ -144,6 +150,13 @@ class ExpenseEditorViewModel @Inject constructor(
                 .onEach { known -> _state.update { it.copy(known = known) } }
                 .launchIn(viewModelScope)
         }
+    }
+
+    init {
+        // A load error just leaves the suggestions empty
+        repo.expenses().map { usedTags(it) }.catch { emit(emptyList()) }
+            .onEach { used -> _state.update { it.copy(usedTags = used) } }
+            .launchIn(viewModelScope)
     }
 
     init {
@@ -216,6 +229,8 @@ class ExpenseEditorViewModel @Inject constructor(
         if (v.endsWith(',') || v.endsWith(' ')) it.copy(tags = addTags(it.tags, v), tagDraft = "") else it.copy(tagDraft = v)
     }
     fun commitTagDraft() = updateForm { it.copy(tags = addTags(it.tags, it.tagDraft), tagDraft = "") }
+    /** A suggested tag tapped: added, and whatever was half-typed toward it cleared. */
+    fun addSuggestedTag(tag: String) = updateForm { it.copy(tags = addTags(it.tags, tag), tagDraft = "") }
     fun removeTag(tag: String) = updateForm { it.copy(tags = it.tags - tag) }
     fun clearTags() = updateForm { it.copy(tags = emptyList()) }
 
