@@ -90,6 +90,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     val defaultPayment by viewModel.defaultPayment.collectAsStateWithLifecycle()
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val hapticOn by viewModel.hapticOn.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
@@ -152,9 +153,16 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 }
             }
 
-            SettingsGroup("About") {
-                SettingsRow("App tour", onClick = viewModel::replayTour)
-                SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("About") {
+                    SettingsRow("App tour", onClick = viewModel::replayTour)
+                    SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
+                    SettingsRow(
+                        "Check for updates", icon = SwIcons.Download, divider = true, onClick = viewModel::checkForUpdates,
+                        trailing = Trailing.Value(if (update == UpdateCheck.Checking) "Checking…" else viewModel.installedVersion),
+                    )
+                }
+                updateNote(update)?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
             }
 
             Column(gutter, verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -163,6 +171,8 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             }
         }
     }
+
+    (update as? UpdateCheck.Available)?.let { UpdateDialog(it.release.version, viewModel::installUpdate, viewModel::dismissUpdate) }
 
     when (picking) {
         "theme" -> OptionSheet("Appearance", ThemeMode.entries.map { it.name to it.label }, state.themeMode.name, { viewModel.setThemeMode(ThemeMode.valueOf(it)) }, { ThemeMode.valueOf(it).icon }) { picking = null }
@@ -268,6 +278,16 @@ private fun CurrencySheet(current: String, onPick: (String) -> Unit, onDismiss: 
         }
     }
 }
+
+/** A newer GitHub release: download and install it now, or later. */
+@Composable
+private fun UpdateDialog(version: String, onUpdate: () -> Unit, onLater: () -> Unit) = AlertDialog(
+    onDismissRequest = onLater,
+    title = { Text("Update available") },
+    text = { Text("Version ${version.removePrefix("v")} is ready to download. Your data stays as it is.") },
+    confirmButton = { TextButton(onClick = onUpdate) { Text("Update") } },
+    dismissButton = { TextButton(onClick = onLater) { Text("Later") } },
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
