@@ -119,22 +119,22 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
 
             SettingsGroup("Display") {
                 SettingsRow("Appearance", icon = state.themeMode.icon, trailing = Trailing.Value(state.themeMode.label), onClick = { picking = "theme" })
-                SettingsRow("Widget transparency", trailing = Trailing.Value("$transparency%"), divider = true, onClick = { picking = "widget" })
-                SettingsRow("Currency", trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
-                SettingsRow("Default payment", trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
-                SettingsRow("Haptic feedback", trailing = Trailing.Switch(hapticOn) { viewModel.setHaptic(it) }, divider = true)
+                SettingsRow("Widget transparency", icon = SwIcons.Blend, trailing = Trailing.Value("$transparency%"), divider = true, onClick = { picking = "widget" })
+                SettingsRow("Currency", icon = SwIcons.Banknote, trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
+                SettingsRow("Default payment", icon = SwIcons.CreditCard, trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
+                SettingsRow("Haptic feedback", icon = SwIcons.Vibrate, trailing = Trailing.Switch(hapticOn) { viewModel.setHaptic(it) }, divider = true)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("Notifications") {
-                    SettingsRow("Daily reminder", trailing = Trailing.Switch(state.reminderOn) { on ->
+                    SettingsRow("Daily reminder", icon = SwIcons.Bell, trailing = Trailing.Switch(state.reminderOn) { on ->
                         when {
                             !on -> viewModel.turnReminderOff()
                             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> askPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                             else -> viewModel.turnReminderOn(true)
                         }
                     })
-                    SettingsRow("Reminder time", trailing = Trailing.Value(state.reminderAt), divider = true, onClick = { picking = "time" })
+                    SettingsRow("Reminder time", icon = SwIcons.Clock, trailing = Trailing.Value(state.reminderAt), divider = true, onClick = { picking = "time" })
                 }
                 state.reminderNote?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
             }
