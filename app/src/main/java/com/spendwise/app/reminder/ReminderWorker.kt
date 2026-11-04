@@ -2,11 +2,13 @@ package com.spendwise.app.reminder
 
 import android.content.Context
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkerParameters
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.spendwise.app.domain.DEFAULT_REMIND_AT
 import com.spendwise.app.domain.todayStr
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
 
 /** "Log today's spending" (sw.js), unless something was already added today. Then sets up tomorrow's. */
@@ -14,7 +16,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     override suspend fun doWork(): Result {
         val at = inputData.getString(ReminderScheduler.KEY_AT) ?: DEFAULT_REMIND_AT
-        ReminderScheduler.enqueue(applicationContext, at) // the next one first, so a failure below can't end the chain
+        // The next one first, so a failure below can't end the chain. Appended: it starts its delay once this run ends
+        ReminderScheduler.enqueue(applicationContext, at, ExistingWorkPolicy.APPEND_OR_REPLACE)
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return Result.success()
         if (!loggedToday(uid)) Notifications.reminder(applicationContext)
         return Result.success()
@@ -30,6 +33,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         listOf("expenses", "income").any { name ->
             !db.collection(name).whereEqualTo("uid", uid).whereEqualTo("date", today).limit(1).get().await().isEmpty
         }
+    } catch (e: CancellationException) {
+        throw e // stopped (turned off, or a new time): no reminder from this run
     } catch (e: Exception) {
         false // can't tell: remind, as the web does when it hasn't heard otherwise
     }
