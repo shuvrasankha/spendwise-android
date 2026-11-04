@@ -70,6 +70,25 @@ private val controlCharacters = Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]")
 fun sanitize(text: String, maxLength: Int = 500): String =
     controlCharacters.replace(text, "").take(maxLength).trim()
 
+/** Every tag on [expenses], most used first; a tie goes to the one used most recently. */
+fun usedTags(expenses: List<Expense>): List<String> {
+    val count = mutableMapOf<String, Int>()
+    val last = mutableMapOf<String, String>()
+    expenses.forEach { e ->
+        e.tags.distinct().forEach { tag ->
+            count[tag] = (count[tag] ?: 0) + 1
+            if (e.date > (last[tag] ?: "")) last[tag] = e.date
+        }
+    }
+    return count.keys.sortedWith(compareByDescending<String> { count[it] }.thenByDescending { last[it] })
+}
+
+/** The [used] tags to offer: not already on the entry, and starting with what's being typed (any case, # ignored). */
+fun tagSuggestions(used: List<String>, chosen: List<String>, draft: String, limit: Int = 6): List<String> {
+    val typed = draft.trim().removePrefix("#").lowercase()
+    return used.filter { it !in chosen && it.lowercase().startsWith(typed) }.take(limit)
+}
+
 /** addTag: commas and spaces separate tags, a leading # is dropped, and duplicates are skipped. */
 fun addTags(existing: List<String>, typed: String): List<String> {
     val new = typed.replace(',', ' ').trim().split(Regex("\\s+"))
