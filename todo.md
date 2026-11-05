@@ -18,8 +18,8 @@
 
 ## Before launch
 
-- [ ] **Store listing**: 512×512 icon (from `docs/brand/spendwise-icon.svg`), 1024×500 feature graphic,
-      at least 2 phone screenshots, short and full descriptions.
+- [ ] **Store listing**: 1024×500 feature graphic, at least 2 phone screenshots, short and full
+      descriptions. The 512×512 icon is done: `docs/playstore/icon-512.png` (from `docs/brand/spendwise-icon-play.svg`).
 - [ ] **Crashlytics**: turn it on in the Firebase console.
 - [ ] **Play app signing SHA-1 → Firebase** (Play Console › App integrity), or Google Sign-In fails in the
       Play-installed app.

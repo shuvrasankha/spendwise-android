@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification small icon: docs/brand/spendwise-icon.svg's mark alone. The status bar draws only its alpha,
+     so it's white with no tile. The 288-unit viewport keeps the strokes inside the 22dp live area. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="288" android:viewportHeight="288">
+    <group android:translateX="-121.2" android:translateY="-96">
+        <path android:pathData="M150,168H282" android:strokeColor="#FFFFFFFF" android:strokeWidth="27" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M150,130H270A50,50 0,0 1,270 230H210L250,350L280,280L310,350L361.3,227.9" android:strokeColor="#FFFFFFFF" android:strokeWidth="27" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M308.8,252.6L361.3,227.9L380.4,282.7" android:strokeColor="#FFFFFFFF" android:strokeWidth="27" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    </group>
+</vector>

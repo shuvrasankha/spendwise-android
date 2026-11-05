@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="t">
+  <title id="t">SpendWise</title>
+  <!-- Play Store icon: full-bleed square, since Play applies its own rounded mask. Mark as spendwise-icon.svg -->
+  <rect width="1024" height="1024" fill="#1C1C1E"/>
+  <g transform="translate(511.25 512.00) scale(1.95) translate(-256 -240)" fill="none" stroke="#FF9F0A" stroke-width="27" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M150 168H282"/>
+    <path d="M150 130H270A50 50 0 0 1 270 230H210L250 350L280 280L310 350L361.3 227.9"/>
+    <path d="M308.8 252.6L361.3 227.9L380.4 282.7"/>
+  </g>
+</svg>

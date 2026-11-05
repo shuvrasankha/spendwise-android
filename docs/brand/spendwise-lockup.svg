@@ -7,8 +7,8 @@
     <!-- rupee crossbar -->
     <path d="M150 168H282"/>
     <!-- primary layer: one line draws top bar, S bowl, W, growth arrow -->
-    <path d="M150 130H270A50 50 0 0 1 270 230H210L250 350L280 280L310 350L352 250"/>
-    <path d="M320 267L352 250L363 284"/>
+    <path d="M150 130H270A50 50 0 0 1 270 230H210L250 350L280 280L310 350L361.3 227.9"/>
+    <path d="M308.8 252.6L361.3 227.9L380.4 282.7"/>
   </g>
   </g>
   <text x="580" y="280.0" dominant-baseline="central" font-family="'SF Pro Display', -apple-system, BlinkMacSystemFont, Inter, 'Helvetica Neue', Arial, sans-serif" font-size="150" font-weight="600" letter-spacing="-4" fill="#F5F5F7">SpendWise</text>

@@ -21,6 +21,9 @@
         android:theme="@style/Theme.Spendwiseandroid">
         <meta-data android:name="firebase_crashlytics_collection_enabled" android:value="${crashlytics}" />
         <meta-data android:name="firebase_performance_collection_enabled" android:value="${perf}" />
+        <!-- Push messages FCM draws itself (app in the background) use the same small icon as ours -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_spendwise" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_accent" />
 
         <activity
             android:name=".MainActivity"
