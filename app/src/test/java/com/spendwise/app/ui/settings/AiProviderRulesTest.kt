@@ -24,7 +24,7 @@ class AiProviderRulesTest {
     @Test fun `every error has words, none from the provider`() {
         val all = listOf(
             AiError.Unauthorized, AiError.RateLimited, AiError.ModelNotFound, AiError.Busy, AiError.Network, AiError.Timeout,
-            AiError.BadReply, AiError.Blocked, AiError.NoConsent, AiError.NoVisionModel, AiError.KeyUnreadable, AiError.Http(500),
+            AiError.BadReply, AiError.Blocked, AiError.NoConsent, AiError.KeyUnreadable, AiError.Http(500),
         )
         assertEquals(all.size, all.map(::byokErrorText).filter { it.isNotBlank() }.toSet().size)
         assertEquals("API key rejected. Check the key.", byokErrorText(AiError.Unauthorized))

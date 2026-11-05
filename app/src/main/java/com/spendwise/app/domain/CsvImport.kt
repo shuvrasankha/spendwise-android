@@ -1,5 +1,10 @@
 package com.spendwise.app.domain
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -160,4 +165,10 @@ fun csvDoneText(expenses: Int, income: Int): String {
         msg += "$income income entr${if (income != 1) "ies" else "y"}"
     }
     return "Successfully imported $msg!"
+}
+
+/** [f] over [items], in order, with at most [maxInFlight] running at once; one failure fails all. */
+suspend fun <T, R> mapInParallel(items: List<T>, maxInFlight: Int, f: suspend (T) -> R): List<R> = coroutineScope {
+    val gate = Semaphore(maxInFlight.coerceAtLeast(1))
+    items.map { async { gate.withPermit { f(it) } } }.awaitAll()
 }

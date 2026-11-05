@@ -13,6 +13,7 @@ import com.spendwise.app.data.ai.AiCall
 import com.spendwise.app.data.ai.AiGateway
 import com.spendwise.app.data.ai.AiResult
 import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.byokErrorText
 import com.spendwise.app.data.ReceiptPhotos
 import android.net.Uri
 import kotlinx.serialization.json.JsonElement
@@ -135,17 +136,20 @@ class VoiceViewModel @Inject constructor(
 
     /** parseWithAI: sends the messages and opens the review cards with what comes back; nothing is saved yet. */
     private suspend fun read(task: AiTask, messages: List<Pair<String, JsonElement>>, busy: String, none: String, fix: (List<VoiceEntry>) -> List<VoiceEntry>) {
-        if (!allowance.left(AiFeature.VOICE)) return _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
+        val byok = ai.byok()
+        if (!byok && !allowance.left(AiFeature.VOICE)) return _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
         _state.update { it.copy(reading = true, message = FormMessage(busy, success = true)) }
         val failure = try {
             val res = ai.complete(AiCall(task, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
-            val status = (res as? AiResult.Failed)?.status
+            val failed = res as? AiResult.Failed
+            val status = failed?.status
             when {
+                byok && failed != null -> byokErrorText(failed.error)
                 status == 429 -> VOICE_RATE_LIMITED
                 status == 503 -> VOICE_MODEL_LOADING
                 else -> {
                     val content = (res as? AiResult.Ok)?.content ?: throw IOException("AI $status")
-                    allowance.used(AiFeature.VOICE)
+                    if (!byok) allowance.used(AiFeature.VOICE)
                     val entries = fix(readEntries(content).mapNotNull { cleanEntry(it, todayStr()) })
                     if (entries.isEmpty()) none else return show(entries, foundText(entries.size))
                 }

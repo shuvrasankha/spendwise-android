@@ -11,10 +11,12 @@ import com.spendwise.app.data.SyncStatus
 import com.spendwise.app.data.export.ExportFiles
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.data.ai.AiCall
+import com.spendwise.app.data.ai.AiFailedException
 import com.spendwise.app.data.ai.AiError
 import com.spendwise.app.data.ai.AiGateway
 import com.spendwise.app.data.ai.AiResult
 import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.byokErrorText
 import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.domain.CSV_MAX_BYTES
 import com.spendwise.app.domain.CSV_READ_TIMEOUT_MS
@@ -29,13 +31,11 @@ import com.spendwise.app.domain.csvDoneText
 import com.spendwise.app.domain.csvErrorText
 import com.spendwise.app.domain.csvPrompt
 import com.spendwise.app.domain.currencyOf
+import com.spendwise.app.domain.mapInParallel
 import com.spendwise.app.domain.readCsvReply
 import com.spendwise.app.domain.todayStr
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -93,20 +93,25 @@ class CsvImportViewModel @Inject constructor(
 
     private suspend fun process() {
         val uri = file ?: return
-        if (!allowance.left(AiFeature.CSV)) return _phase.update { CsvPhase.Failed(aiLimitText(AiFeature.CSV)) }
+        val byok = ai.byok()
+        if (!byok && !allowance.left(AiFeature.CSV)) return _phase.update { CsvPhase.Failed(aiLimitText(AiFeature.CSV)) }
         _phase.value = CsvPhase.Processing("Reading your CSV file…")
         _phase.value = try {
             val text = files.read(uri)
             if (text.toByteArray().size > CSV_MAX_BYTES) throw CsvImportError(CSV_TOO_BIG)
             checkCsvLines(text)
             _phase.value = CsvPhase.Processing("AI is analyzing your data…")
-            // In parallel, in file order; one failed piece fails the whole file, as one call would
-            val rows = coroutineScope { csvChunks(text).map { async { extract(it) } }.awaitAll().flatten() }
-            allowance.used(AiFeature.CSV)
+            // In parallel, in file order; one failed piece fails the whole file, as one call would.
+            // Two at a time on the user's own key, whose free tier may refuse a burst (BYOK plan §7.3).
+            val chunks = csvChunks(text)
+            val rows = mapInParallel(chunks, if (byok) 2 else chunks.size) { extract(it, byok) }.flatten()
+            if (!byok) allowance.used(AiFeature.CSV)
             if (rows.isEmpty()) throw CsvImportError("NO_DATA_EXTRACTED")
             CsvPhase.Preview(rows, rows.map { importer.newId() }, rows.indices.toSet())
         } catch (e: CancellationException) {
             throw e
+        } catch (e: AiFailedException) {
+            CsvPhase.Failed(byokErrorText(e.error))
         } catch (e: CsvImportError) {
             CsvPhase.Failed(csvErrorText(e.code))
         } catch (e: IOException) {
@@ -117,10 +122,11 @@ class CsvImportViewModel @Inject constructor(
     }
 
     /** callAIModel for one piece of the file. */
-    private suspend fun extract(csv: String): List<CsvTx> {
+    private suspend fun extract(csv: String, byok: Boolean): List<CsvTx> {
         val (system, user) = csvPrompt(csv)
         val res = ai.complete(AiCall(AiTask.CSV, textMessages(listOf("system" to system, "user" to user)), maxTokens = 4096, temperature = 0.1, topP = 0.9, readTimeoutMs = CSV_READ_TIMEOUT_MS))
         if (res is AiResult.Failed) {
+            if (byok) throw AiFailedException(res.error)
             if (res.status == 429) throw CsvImportError("RATE_LIMITED")
             if (res.status == 503) throw CsvImportError("MODEL_LOADING")
             if (res.error == AiError.Network) throw IOException("AI unreachable")

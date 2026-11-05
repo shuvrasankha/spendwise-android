@@ -15,6 +15,7 @@ import com.spendwise.app.data.ai.AiError
 import com.spendwise.app.data.ai.AiGateway
 import com.spendwise.app.data.ai.AiResult
 import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.byokErrorText
 import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.data.worker.AiAllowance
 import com.spendwise.app.data.worker.AiConsent
@@ -223,11 +224,12 @@ class AssistantViewModel @Inject constructor(
 
     /** A question the parser isn't sure of. Over the cap, declined, offline or unreadable, the parser's reading stands. */
     private suspend fun readWithAi(question: String, local: FinQuery, today: String): FinQuery {
-        if (!consent.ensure() || !allowance.left(AiFeature.ASK)) return local
+        val byok = ai.byok()
+        if (!consent.ensure() || (!byok && !allowance.left(AiFeature.ASK))) return local
         return try {
             val res = ai.complete(AiCall(AiTask.ASK, textMessages(listOf("system" to askPrompt(today), "user" to question)), maxTokens = 200, temperature = 0.0))
             if (res !is AiResult.Ok) return local
-            allowance.used(AiFeature.ASK)
+            if (!byok) allowance.used(AiFeature.ASK)
             readSpec(res.content)?.let { mergeAiSpec(local, it) } ?: local
         } catch (e: CancellationException) {
             throw e
@@ -251,19 +253,21 @@ class AssistantViewModel @Inject constructor(
             error.value = message to retry
         }
         if (!consent.ensure()) return failed(ASSISTANT_NO_CONSENT)
-        if (!allowance.left(AiFeature.COACH)) return failed(aiLimitText(AiFeature.COACH), retry = false)
+        val byok = ai.byok()
+        if (!byok && !allowance.left(AiFeature.COACH)) return failed(aiLimitText(AiFeature.COACH), retry = false)
         val failure = try {
             val currency = prefs.currency.first()
             val facts = adviceFacts(summary, range) { formatWhole(it, currency).replaceFirst(' ', ' ') }
             val messages = listOf("system" to coachSystemPrompt(route.topic, facts, currency)) + aiHistory(r, currency, question)
             val res = ai.complete(AiCall(AiTask.COACH, textMessages(messages), maxTokens = 700, temperature = 0.4))
             val content = (res as? AiResult.Ok)?.content?.trim()?.takeIf { it.isNotEmpty() }
+            if (byok && content == null) return failed(byokErrorText((res as? AiResult.Failed)?.error ?: AiError.BadReply))
             when {
                 res is AiResult.Failed && res.status == 429 -> AiFailure.RATE_LIMITED
                 res is AiResult.Failed && res.error == AiError.Network -> AiFailure.OFFLINE
                 content == null -> AiFailure.OTHER
                 else -> {
-                    allowance.used(AiFeature.COACH)
+                    if (!byok) allowance.used(AiFeature.COACH)
                     add(AssistantTurn(TurnKind.ADVICE, content, query, route.topic))
                     null
                 }

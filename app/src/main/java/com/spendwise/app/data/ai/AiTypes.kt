@@ -26,7 +26,6 @@ sealed interface AiError {
     data object BadReply : AiError
     data object Blocked : AiError
     data object NoConsent : AiError
-    data object NoVisionModel : AiError
     data object KeyUnreadable : AiError
     data class Http(val status: Int) : AiError
 }
@@ -51,7 +50,6 @@ fun byokErrorText(e: AiError): String = when (e) {
     AiError.BadReply -> "Provider returned an unsupported response."
     AiError.Blocked -> "Provider could not complete this request."
     AiError.KeyUnreadable -> "Your saved key couldn't be read, so it was removed. SpendWise AI is in use again; add your key to switch back."
-    AiError.NoVisionModel -> "Receipt scan needs a vision model; set one in Settings."
     AiError.NoConsent -> "Agree to send requests to your provider first, in Settings › AI provider."
     is AiError.Http -> "Provider error (${e.status}). Try again later."
 }
