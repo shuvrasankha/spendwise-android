@@ -1,5 +1,6 @@
 package com.spendwise.app.data.auth
 
+import com.spendwise.app.data.ai.ApiKeyStore
 import com.spendwise.app.data.worker.PushRegistry
 import android.content.Context
 import androidx.credentials.ClearCredentialStateRequest
@@ -42,6 +43,7 @@ class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     @param:ApplicationContext private val appContext: Context,
     private val push: PushRegistry,
+    private val keys: ApiKeyStore,
 ) {
 
     /** An unverified email-and-password user counts as signed out, so a half-finished sign-up never reaches the app. */
@@ -136,6 +138,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun signOut() {
+        keys.forgetAll()
         push.unregister() // needs the sign-in to reach the Worker
         auth.signOut()
         // So the next Google sign-in asks which account, instead of reusing this one

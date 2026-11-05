@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -94,7 +95,7 @@ import com.spendwise.app.ui.theme.SwType
 
 /** Settings (spec §1.9): Display, Notifications, Security and About, then Log out; plus Delete account (§8.2). */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
     val passwordChange by viewModel.password.collectAsStateWithLifecycle()
@@ -102,6 +103,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val appIcon by viewModel.appIcon.collectAsStateWithLifecycle()
     val hapticOn by viewModel.hapticOn.collectAsStateWithLifecycle()
+    val aiLabel by viewModel.aiLabel.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
@@ -139,7 +141,12 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 SettingsRow("Haptic feedback", icon = SwIcons.Vibrate, trailing = Trailing.Switch(hapticOn) { viewModel.setHaptic(it) }, divider = true)
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SettingsGroup("AI") {
+                SettingsRow("AI provider", icon = SwIcons.Sparkles, trailing = Trailing.Value(aiLabel), onClick = onAiProvider)
+            }
+
+            // The note under the group appears and goes, so let the block grow instead of jumping
+            Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("Notifications") {
                     SettingsRow("Daily reminder", icon = SwIcons.Bell, trailing = Trailing.Switch(state.reminderOn) { on ->
                         when {
@@ -166,7 +173,8 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The note under the group appears and goes, so let the block grow instead of jumping
+            Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("About") {
                     SettingsRow("App tour", onClick = viewModel::replayTour)
                     SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
@@ -253,7 +261,7 @@ private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise
 
 /** One choice per row, a tick on the current one; picking closes the sheet. */
 @Composable
-private fun OptionRow(
+internal fun OptionRow(
     title: String, selected: Boolean, sub: String? = null, lead: String? = null, icon: ImageVector? = null,
     leading: (@Composable () -> Unit)? = null, onClick: () -> Unit,
 ) {

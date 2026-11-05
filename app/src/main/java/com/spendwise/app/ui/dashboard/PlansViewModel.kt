@@ -4,10 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.SettingsRepository
-import com.spendwise.app.data.worker.WorkerClient
-import com.spendwise.app.data.worker.aiContent
-import com.spendwise.app.data.worker.aiRequest
-import com.spendwise.app.domain.BUDGET_AI_MODEL
+import com.spendwise.app.data.ai.AiCall
+import com.spendwise.app.data.ai.AiGateway
+import com.spendwise.app.data.ai.AiResult
+import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.domain.BudgetFacts
 import com.spendwise.app.domain.BudgetSuggestion
 import com.spendwise.app.domain.Currency
@@ -71,7 +72,7 @@ class PlansViewModel @Inject constructor(
     private val settingsRepo: SettingsRepository,
     private val prefs: DevicePrefs,
     private val income: IncomeRepository,
-    private val worker: WorkerClient,
+    private val ai: AiGateway,
     private val auth: AuthRepository,
 ) : ViewModel() {
 
@@ -156,8 +157,8 @@ class PlansViewModel @Inject constructor(
     /** Only the facts' numbers go out; null on any failure, so the device's plan is used. */
     private suspend fun askAi(facts: BudgetFacts, currency: Currency): BudgetSuggestion? = try {
         val (system, user) = budgetPrompt(facts, currency)
-        val res = worker.post("/", aiRequest(BUDGET_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 400, temperature = 0.2))
-        if (res.ok) checkReply(readReply(aiContent(res.body)), facts)?.takeIf { aiPlanHolds(it, facts) } else null
+        val res = ai.complete(AiCall(AiTask.BUDGET, textMessages(listOf("system" to system, "user" to user)), maxTokens = 400, temperature = 0.2))
+        (res as? AiResult.Ok)?.let { checkReply(readReply(it.content), facts)?.takeIf { p -> aiPlanHolds(p, facts) } }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {

@@ -30,6 +30,7 @@ import com.spendwise.app.domain.friendlyErr
 import com.spendwise.app.domain.reminderOnNote
 import com.spendwise.app.reminder.ReminderScheduler
 import com.spendwise.app.ui.lock.AppLock
+import com.spendwise.app.data.ai.byokProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -130,6 +131,8 @@ class SettingsViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     val hapticOn: StateFlow<Boolean> = prefs.hapticEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val aiLabel: StateFlow<String> = combine(prefs.aiMode, prefs.byokProvider) { mode, p -> if (mode == "byok") "${byokProvider(p).name} (your key)" else "SpendWise AI" }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "SpendWise AI")
 
     fun setHaptic(on: Boolean) {
         viewModelScope.launch { prefs.setHapticEnabled(on) }

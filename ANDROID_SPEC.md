@@ -14,7 +14,9 @@ cited functions.
    has no crypto class (§8, Q1).
 2. **The web app is hosted on GitHub Pages, not Netlify.** Netlify was removed in commit `dbe62c7`.
    It also uses a **Cloudflare Worker** (`worker/`) for AI and push notifications. See §7.
-   **Decided:** Android v1 never calls the Worker (§8, Q4).
+   **Decided:** Android v1 never calls the Worker (§8, Q4). **Superseded after v1:** `ROADMAP.md`
+   Phase C (D1, D5) added Worker calls for AI and push, and D6 adds BYOK AI providers
+   (`BYOK_IMPLEMENTATION_PLAN.md`). The Worker contract itself is unchanged.
 3. **The web app does much more than the original package layout covered.** It also has
    investments, debts shared by email, splitting a bill, budgets, savings goals, repeating bills
    and EMIs, a forecast, AI features, voice/receipt/SMS entry, CSV import, backup and restore, push
@@ -1409,7 +1411,7 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
 | Q1 | Encryption | Plain values only, written with `encoding: "plain"`. No crypto class and no `data/crypto/`. **Resolved:** no XOR-encoded docs exist in production (§3.9), so no decoder is needed. |
 | Q2 | v1 scope | See §8.1. |
 | Q3 | Notifications | A local daily reminder through WorkManager, driven by `settings.remindOn` and `settings.remindAt` (default 21:00). No FCM and no Worker push. Bill alerts, debt pushes and month summaries are not in v1. |
-| Q4 | Libraries | No HTTP client in v1, so the Worker is never called. Charts are drawn with Compose Canvas. Biometric comes later, with the app lock. |
+| Q4 | Libraries | No HTTP client in v1, so the Worker is never called (superseded after v1 by `ROADMAP.md` D1 and D6: `HttpURLConnection` for the Worker and BYOK providers). Charts are drawn with Compose Canvas. Biometric comes later, with the app lock. |
 | Q5 | Per-device prefs | Currency, theme, skipped bills and last payment method stay per device, in DataStore. Nothing new goes into `settings/{uid}`. |
 | Q6 | Hosting | The web is on GitHub Pages, with the Cloudflare Worker `spendwise-ai`. `CLAUDE.md` is corrected. |
 | Q7 | Amount type | Mirror the JS SDK: a Long for whole numbers and a Double otherwise. |

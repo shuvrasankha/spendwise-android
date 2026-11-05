@@ -127,6 +127,43 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { it[CSV_CONSENT] = true }
     }
 
+    // ── Bring your own key (BYOK plan §5). None of these is secret; the key itself lives in ApiKeyStore. ──
+
+    /** "worker" (SpendWise AI, the default when missing) or "byok". */
+    val aiMode: Flow<String> = store.data.map { it[AI_MODE] ?: "worker" }
+
+    suspend fun setAiMode(mode: String) {
+        store.edit { it[AI_MODE] = mode }
+    }
+
+    val byokProvider: Flow<String?> = store.data.map { it[BYOK_PROVIDER] }
+
+    suspend fun setByokProvider(provider: String) {
+        store.edit { it[BYOK_PROVIDER] = provider }
+    }
+
+    /** The user's model override for [kind] ("text" or "vision"); empty or missing means the shipped default. */
+    fun byokModel(kind: String, provider: String): Flow<String> = store.data.map { it[stringPreferencesKey("byok_${kind}_model:$provider")].orEmpty() }
+
+    suspend fun setByokModel(kind: String, provider: String, model: String) {
+        store.edit { it[stringPreferencesKey("byok_${kind}_model:$provider")] = model.trim() }
+    }
+
+    /** The saved key's last 4 characters, or null when there's no key. */
+    fun byokKeyMask(provider: String): Flow<String?> = store.data.map { it[stringPreferencesKey("byok_key_mask:$provider")] }
+
+    suspend fun setByokKeyMask(provider: String, mask: String?) {
+        val key = stringPreferencesKey("byok_key_mask:$provider")
+        store.edit { if (mask == null) it.remove(key) else it[key] = mask }
+    }
+
+    fun byokConsent(provider: String): Flow<Boolean> = store.data.map { it[booleanPreferencesKey("byok_consent:$provider")] == true }
+
+    suspend fun setByokConsent(provider: String, given: Boolean) {
+        val key = booleanPreferencesKey("byok_consent:$provider")
+        store.edit { if (given) it[key] = true else it.remove(key) }
+    }
+
     /** The coach's conversation as JSON (SavedChat), kept a day on this device only, like the web's saveChat. */
     val coachChat: Flow<String?> = store.data.map { it[COACH_CHAT] }
 
@@ -214,5 +251,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val HAPTIC_OFF = booleanPreferencesKey("haptic_off")
         val TOUR_SEEN = booleanPreferencesKey("tour_seen")
         val WIDGET_TRANSPARENCY = intPreferencesKey("widget_transparency")
+        val AI_MODE = stringPreferencesKey("ai_mode")
+        val BYOK_PROVIDER = stringPreferencesKey("byok_provider")
     }
 }

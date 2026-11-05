@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.OutlinedButton
@@ -60,10 +62,11 @@ fun hapticClick(onClick: () -> Unit): () -> Unit {
 @Composable
 fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, leading: ImageVector? = null) {
     val c = SpendWiseTheme.colors
-    val content = if (selected) c.bg else c.text
+    val content by animateColorAsState(if (selected) c.bg else c.text, label = "chip")
+    val fill by animateColorAsState(if (selected) c.text else Color.Transparent, label = "chip")
     Row(
-        modifier.heightIn(min = 36.dp).clip(Radius.pill)
-            .then(if (selected) Modifier.background(c.text) else Modifier.border(1.dp, c.line, Radius.pill))
+        modifier.heightIn(min = 36.dp).clip(Radius.pill).background(fill)
+            .then(if (selected) Modifier else Modifier.border(1.dp, c.line, Radius.pill))
             .clickable(role = Role.Button, onClick = hapticClick(onClick)).semantics { this.selected = selected }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -81,12 +84,13 @@ fun SegmentedControl(items: List<String>, selectedIndex: Int, onSelect: (Int) ->
     Row(modifier.fillMaxWidth().clip(Radius.control).background(c.surface).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { i, label ->
             val on = i == selectedIndex
+            val fill by animateColorAsState(if (on) c.text else Color.Transparent, label = "segment")
+            val ink by animateColorAsState(if (on) c.bg else c.textMuted, label = "segment")
             Box(
-                Modifier.weight(1f).heightIn(min = 36.dp).clip(Radius.segment)
-                    .then(if (on) Modifier.background(c.text) else Modifier)
+                Modifier.weight(1f).heightIn(min = 36.dp).clip(Radius.segment).background(fill)
                     .clickable(role = Role.Tab) { tick(); onSelect(i) }.semantics { selected = on },
                 contentAlignment = Alignment.Center,
-            ) { Text(label, style = SwType.labelStrong, color = if (on) c.bg else c.textMuted) }
+            ) { Text(label, style = SwType.labelStrong, color = ink) }
         }
     }
 }

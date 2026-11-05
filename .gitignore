@@ -21,3 +21,6 @@ keystore.properties
 
 # Built APKs to share
 /dist
+
+# Local BYOK working notes
+BYOK_IMPLEMENTATION_STEPS.md

@@ -1,10 +1,12 @@
 # SpendWise Android — Project Guide for Claude Code
 
-Native Android rewrite of the SpendWise web app (vanilla JS + Firebase, hosted on GitHub Pages, with a Cloudflare Worker for AI and push). The web app stays live and shares the same Firebase project, so both clients must read and write the same Firestore data without breaking each other. v1 talks only to Firebase, never to the Worker.
+Native Android rewrite of the SpendWise web app (vanilla JS + Firebase, hosted on GitHub Pages, with a Cloudflare Worker for AI and push). The web app stays live and shares the same Firebase project, so both clients must read and write the same Firestore data without breaking each other. The original v1 talked only to Firebase; `ROADMAP.md` Phase C since added Worker calls for AI and push. The Worker's contract is fixed: Android never changes it.
 
 ## Source of truth
 
 - `ANDROID_SPEC.md` describes every screen, flow, and Firestore schema. Follow it. If code and spec disagree, stop and ask; don't silently diverge.
+- `ROADMAP.md` covers the work after v1 (phases and decisions D1–D6). Where it decides something the spec's v1 scope excluded, the roadmap wins.
+- `BYOK_IMPLEMENTATION_PLAN.md` is the spec for bring-your-own-key AI (decision D6).
 - The web app repo is reference only. Never modify it from this project.
 
 ## Stack
@@ -55,7 +57,7 @@ app/src/main/java/com/spendwise/app/
 ## v1 scope
 
 - In v1: entry and read screens for every collection. That covers expenses, income, debts (with sharing, claims and part-payments), history with CSV export, non-AI insights, investments, budgets, goals, repeating bills and EMIs, split, the local reminder, and account deletion.
-- Later: AI (coach, Ask, budget suggestion), voice/receipt/SMS entry, CSV import, backup and restore, app lock (biometric), notification bell, server push.
+- After v1 (see `ROADMAP.md` for what has shipped): AI (coach, Ask, budget suggestion) through the Worker, with BYOK providers per decision D6; voice/receipt/SMS entry, CSV import, backup and restore, app lock (biometric), notification bell, server push.
 - Phone only for v1.
 
 ## Design rules (strict)

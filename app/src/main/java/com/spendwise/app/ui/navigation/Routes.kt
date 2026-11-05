@@ -27,5 +27,6 @@ import kotlinx.serialization.Serializable
 @Serializable data object Debts
 @Serializable data object Settings
 @Serializable data object CsvImport
+@Serializable data object AiProvider
 @Serializable data class EditExpense(val id: String)
 @Serializable data class EditIncome(val id: String)

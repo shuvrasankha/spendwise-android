@@ -1,14 +1,5 @@
 package com.spendwise.app.ui.insights
 
-import com.spendwise.app.data.worker.AiAllowance
-import com.spendwise.app.domain.AiFeature
-import com.spendwise.app.data.worker.AiConsent
-import com.spendwise.app.data.worker.WorkerClient
-import com.spendwise.app.data.worker.aiContent
-import com.spendwise.app.data.worker.aiRequest
-import com.spendwise.app.domain.ASK_AI_MODEL
-import com.spendwise.app.domain.askPrompt
-import com.spendwise.app.domain.readSpec
 import com.spendwise.app.domain.todayStr
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.asStateFlow

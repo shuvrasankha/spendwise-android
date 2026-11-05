@@ -9,21 +9,21 @@ import com.spendwise.app.data.EntryBatch
 import com.spendwise.app.data.SyncStatus
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.prefs.DevicePrefs
-import com.spendwise.app.data.worker.WorkerClient
-import com.spendwise.app.data.worker.aiContent
-import com.spendwise.app.data.worker.aiRequestOf
+import com.spendwise.app.data.ai.AiCall
+import com.spendwise.app.data.ai.AiGateway
+import com.spendwise.app.data.ai.AiResult
+import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.byokErrorText
 import com.spendwise.app.data.ReceiptPhotos
 import android.net.Uri
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
-import com.spendwise.app.domain.RECEIPT_AI_MODEL
 import com.spendwise.app.domain.RECEIPT_BAD_PHOTO
 import com.spendwise.app.domain.RECEIPT_BUSY
 import com.spendwise.app.domain.RECEIPT_NONE
 import com.spendwise.app.domain.receiptEntries
 import com.spendwise.app.domain.receiptMessages
 import com.spendwise.app.domain.Currency
-import com.spendwise.app.domain.VOICE_AI_MODEL
 import com.spendwise.app.domain.VOICE_BUSY
 import com.spendwise.app.domain.VOICE_EMPTY
 import com.spendwise.app.domain.VOICE_FAILED
@@ -78,7 +78,7 @@ data class VoiceState(
 /** Speak or type entries (spec §7.4): read on the device (a bank SMS) or by the AI, reviewed, then saved together. */
 @HiltViewModel
 class VoiceViewModel @Inject constructor(
-    private val worker: WorkerClient,
+    private val ai: AiGateway,
     private val batch: EntryBatch,
     private val auth: AuthRepository,
     private val allowance: AiAllowance,
@@ -104,7 +104,7 @@ class VoiceViewModel @Inject constructor(
         if (!online.value) return _state.update { it.copy(message = FormMessage(VOICE_OFFLINE)) }
         val today = LocalDate.now()
         val messages = listOf("system" to voicePrompt(today, _state.value.language), "user" to text)
-        viewModelScope.launch { read(VOICE_AI_MODEL, messages.map { (r, c) -> r to JsonPrimitive(c) }, VOICE_BUSY, VOICE_NONE) { it } }
+        viewModelScope.launch { read(AiTask.VOICE, messages.map { (r, c) -> r to JsonPrimitive(c) }, VOICE_BUSY, VOICE_NONE) { it } }
     }
 
     /** Where the camera saves the next receipt photo. */
@@ -130,22 +130,26 @@ class VoiceViewModel @Inject constructor(
             }
             if (image == null) return@launch _state.update { it.copy(reading = false, message = FormMessage(RECEIPT_BAD_PHOTO)) }
             val today = todayStr()
-            read(RECEIPT_AI_MODEL, receiptMessages(today, image), RECEIPT_BUSY, RECEIPT_NONE) { receiptEntries(it, today) }
+            read(AiTask.RECEIPT, receiptMessages(today, image), RECEIPT_BUSY, RECEIPT_NONE) { receiptEntries(it, today) }
         }
     }
 
     /** parseWithAI: sends the messages and opens the review cards with what comes back; nothing is saved yet. */
-    private suspend fun read(model: String, messages: List<Pair<String, JsonElement>>, busy: String, none: String, fix: (List<VoiceEntry>) -> List<VoiceEntry>) {
-        if (!allowance.left(AiFeature.VOICE)) return _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
+    private suspend fun read(task: AiTask, messages: List<Pair<String, JsonElement>>, busy: String, none: String, fix: (List<VoiceEntry>) -> List<VoiceEntry>) {
+        val byok = ai.byok()
+        if (!byok && !allowance.left(AiFeature.VOICE)) return _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
         _state.update { it.copy(reading = true, message = FormMessage(busy, success = true)) }
         val failure = try {
-            val res = worker.post("/", aiRequestOf(model, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
+            val res = ai.complete(AiCall(task, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
+            val failed = res as? AiResult.Failed
+            val status = failed?.status
             when {
-                res.status == 429 -> VOICE_RATE_LIMITED
-                res.status == 503 -> VOICE_MODEL_LOADING
+                byok && failed != null -> byokErrorText(failed.error)
+                status == 429 -> VOICE_RATE_LIMITED
+                status == 503 -> VOICE_MODEL_LOADING
                 else -> {
-                    val content = (if (res.ok) aiContent(res.body) else null) ?: throw IOException("AI ${res.status}")
-                    allowance.used(AiFeature.VOICE)
+                    val content = (res as? AiResult.Ok)?.content ?: throw IOException("AI $status")
+                    if (!byok) allowance.used(AiFeature.VOICE)
                     val entries = fix(readEntries(content).mapNotNull { cleanEntry(it, todayStr()) })
                     if (entries.isEmpty()) none else return show(entries, foundText(entries.size))
                 }
