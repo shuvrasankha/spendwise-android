@@ -30,10 +30,10 @@
 
 ## Security and privacy (do before launch: it's a finance app)
 
-- [ ] **Backup rules**: `allowBackup="true"`, but `data_extraction_rules.xml` is still the Android template,
-      so Google backup can copy the Firestore offline cache and the DataStore prefs (including app-lock state)
-      to a new phone. Exclude the Firestore cache and the app-lock and AI-consent keys (and the same in
-      `backup_rules.xml` for API < 31), or set `allowBackup="false"`.
+- [x] **Backup rules**: `allowBackup="false"`, and both rule files exclude every domain (cloud backup and
+      device transfer, which `allowBackup="false"` alone doesn't stop on API 31+). All prefs share one
+      DataStore file, so single keys can't be excluded; entries come back from Firestore on sign-in.
+      Checked: `bmgr backupnow` reports "Backup is not allowed".
 - [ ] **Hide content in Recents**: when app lock is on, call `setRecentsScreenshotEnabled(false)` (API 33+)
       and use `FLAG_SECURE` below that, so the app switcher doesn't show balances. Decide whether it should
       also apply when app lock is off.
