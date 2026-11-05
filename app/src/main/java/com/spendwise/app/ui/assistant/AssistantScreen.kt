@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -87,7 +87,8 @@ fun AssistantScreen(onBack: () -> Unit, onOpenHistory: (AskHistory) -> Unit, vm:
         ) {
             if (state.loadFailed) item { Text("Couldn't load your data. Check your connection and try again.", style = SwType.body, color = c.negative) }
             else if (state.rows.isEmpty() && !state.busy) item { Starters(vm::send) }
-            items(state.rows) { r ->
+            // A chat only grows at the end (New chat clears it), so a row's place is its identity
+            itemsIndexed(state.rows, key = { i, _ -> "row-$i" }, contentType = { _, r -> r::class }) { _, r ->
                 when (r) {
                     is AssistantRow.Question -> UserMessage(r.text)
                     is AssistantRow.Calculated -> CardView(r.card, onOpenHistory)

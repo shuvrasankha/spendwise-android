@@ -55,10 +55,13 @@ fun SheetHeader(title: String, onClose: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
-/** A `surface` bottom sheet with a grabber and [SheetHeader]. Used for New entry, Filters and the Settings pickers. */
+/**
+ * A `surface` bottom sheet with a grabber and [SheetHeader]. Used for New entry, Filters and the Settings pickers.
+ * [scroll] false: the content scrolls itself (a LazyColumn with `weight(1f, fill = false)`), for long lists.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SwSheet(title: String, onDismiss: () -> Unit, footer: (@Composable ColumnScope.() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun SwSheet(title: String, onDismiss: () -> Unit, footer: (@Composable ColumnScope.() -> Unit)? = null, scroll: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     val c = SpendWiseTheme.colors
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -69,7 +72,7 @@ fun SwSheet(title: String, onDismiss: () -> Unit, footer: (@Composable ColumnSco
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             SheetHeader(title, onDismiss)
             // The footer stays put under the scrolling fields, so the primary button is always in reach
-            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+            Column(Modifier.weight(1f, fill = false).then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
             if (footer != null) Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = footer)
         }
     }

@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -270,11 +272,11 @@ private fun CurrencySheet(current: String, onPick: (String) -> Unit, onDismiss: 
         val q = query.trim()
         if (q.isEmpty()) CURRENCIES else CURRENCIES.filter { it.code.contains(q, true) || it.name.contains(q, true) || it.symbol.contains(q, true) }
     }
-    SwSheet("Currency", onDismiss) {
+    SwSheet("Currency", onDismiss, scroll = false) {
         Box(Modifier.padding(horizontal = Spacing.gutter)) { SwField(query, { query = it }, "Search currency", leading = SwIcons.Search) }
         if (shown.isEmpty()) Text("No currency matches.", style = SwType.body, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
-        Column {
-            shown.forEach { currency -> OptionRow(currency.name, currency.code == current, sub = currency.code, lead = currency.symbol) { onPick(currency.code); onDismiss() } }
+        LazyColumn(Modifier.weight(1f, fill = false)) {
+            items(shown, key = { it.code }) { currency -> OptionRow(currency.name, currency.code == current, sub = currency.code, lead = currency.symbol) { onPick(currency.code); onDismiss() } }
         }
     }
 }

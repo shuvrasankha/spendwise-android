@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.assistant
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -94,11 +95,16 @@ data class SavedOption(val label: String, val question: String)
 @Serializable
 data class SavedAssistant(val uid: String, val savedAt: Long, val turns: List<AssistantTurn>)
 
+@Immutable
 sealed interface AssistantRow {
+    @Immutable
     data class Question(val text: String) : AssistantRow
+    @Immutable
     data class Calculated(val card: FinCard) : AssistantRow
     /** [text] null: the AI didn't answer, and only the figures are shown. */
+    @Immutable
     data class Advice(val card: FinCard?, val text: String?) : AssistantRow
+    @Immutable
     data class Clarify(val text: String, val options: List<ClarifyOption>) : AssistantRow
 }
 

@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "spendwise-android"
 include(":app")
+include(":baselineprofile")

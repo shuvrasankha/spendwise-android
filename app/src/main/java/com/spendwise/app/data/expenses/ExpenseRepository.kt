@@ -7,6 +7,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.forUser
 import com.spendwise.app.data.live
+import com.spendwise.app.data.SharedLive
+import com.spendwise.app.data.traceFirst
+import com.spendwise.app.di.AppScope
+import kotlinx.coroutines.CoroutineScope
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.ExpenseInput
 import com.spendwise.app.data.editedEntryFields
@@ -38,14 +42,19 @@ class ExpenseRepository @Inject constructor(
     private val db: FirebaseFirestore,
     private val auth: AuthRepository,
     private val push: WorkerPush,
+    @AppScope scope: CoroutineScope,
 ) {
     private val collection get() = db.collection("expenses")
+
+    private val shared = SharedLive(scope, read(serverOnly = false).traceFirst("expenses_first_load") { it.size })
 
     /**
      * The signed-in user's expenses, live, in the web's order: newest date first, then Firestore's document
      * order. Ties matter to the repeating-bill helpers. One where on uid, as the rules require (spec §4.3).
      */
-    fun expenses(serverOnly: Boolean = false): Flow<List<Expense>> = auth.forUser(emptyList()) { user ->
+    fun expenses(serverOnly: Boolean = false): Flow<List<Expense>> = if (serverOnly) read(serverOnly = true) else shared.observe()
+
+    private fun read(serverOnly: Boolean): Flow<List<Expense>> = auth.forUser(emptyList()) { user ->
         // serverOnly: skips snapshots read from the local cache, which may be missing entries (dashboard.js › syncPush)
         collection.whereEqualTo("uid", user.uid).live().filter { !serverOnly || !it.metadata.isFromCache }.map { snapshot ->
             snapshot.documents

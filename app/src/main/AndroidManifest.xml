@@ -20,6 +20,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Spendwiseandroid">
         <meta-data android:name="firebase_crashlytics_collection_enabled" android:value="${crashlytics}" />
+        <meta-data android:name="firebase_performance_collection_enabled" android:value="${perf}" />
 
         <activity
             android:name=".MainActivity"

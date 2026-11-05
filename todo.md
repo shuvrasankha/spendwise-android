@@ -44,22 +44,25 @@
 
 ## Performance
 
-- [ ] **Shared live flows**: Dashboard, Insights, Plans, Invest, History and Assistant each call
-      `ExpenseRepository.observe()` and map the full snapshot again. Expose one `shareIn` flow (app scope,
-      `WhileSubscribed(5_000)`, replay 1, restarted on user change) from the repository. Do the same in
-      `FinanceRepositories.kt`.
-- [ ] **Paginate History**: every list listens to the whole collection with no `limit()`. Use
-      `orderBy("date", DESC).limit(n)` with load-more on scroll. Search, filters and CSV export must still see
-      all matching entries. Needs a composite index (`uid` + `date`) in the shared Firebase project. Consider
-      a current-month range for Dashboard (check the spec first).
-- [ ] **Skeleton loading**: replace the centered spinner in History and Dashboard with flat skeleton rows in
-      the surface colour (no shimmer).
-- [ ] **List hygiene**: stable `key`s on every `items()` call (`AssistantScreen` has none); move
-      variable-length lists out of `verticalScroll` Columns; mark list-row models `@Immutable` where it stops
-      recomposition.
-- [ ] **Baseline profile**: a `baselineprofile` module covering cold start, Dashboard, History scroll and Add
-      expense.
-- [ ] **Firebase Performance Monitoring**: real-user speed data alongside Crashlytics.
+- [x] **Shared live flows**: expenses, income, debts, holdings and settings each map their snapshot once
+      and share it (`SharedLive` in `data/Live.kt`: app scope, `WhileSubscribed(5_000)`, replay 1, cache
+      dropped on stop, restarted on user change, next collector after an error retries). The `serverOnly`
+      expenses read (budget alerts, push sync) stays its own listener.
+- [x] **Paginate History**: the next 50 rows load automatically as the list nears its end (no button).
+      The Firestore read stays one full `uid` listener: counts, totals, chips, search and CSV export need
+      every entry, and spec §0.6 rules out composite indexes. Filtering runs off the main thread.
+- [x] **Skeleton loading**: History and Dashboard show flat skeleton rows in the surface colour while
+      loading (`SkeletonBar`, `SkeletonRows` in `ui/components/Display.kt`; no shimmer).
+- [x] **List hygiene**: every `items()` has a stable `key` (Assistant and CSV import added); the currency
+      picker is a `LazyColumn` (`SwSheet(scroll = false)`); `HistoryItem`, `HistoryView` and `AssistantRow`
+      are `@Immutable`, and `domain/` models are stable through `compose_stability.conf`.
+- [x] **Baseline profile**: `:baselineprofile` module (cold start, Dashboard, History scroll, Add expense;
+      it never saves). Sign in on the emulator, then `./gradlew :app:generateBaselineProfile`; re-run after
+      big UI changes. `StartupBenchmark` compares cold start with and without it. Still to do: generate it
+      (use a hardware-graphics emulator) and commit `app/src/release/generated/baselineProfiles/`.
+- [x] **Firebase Performance Monitoring**: release builds only (`perf` placeholder, no instrumentation in
+      debug). Custom traces: `expenses_first_load`, `history_filter`. Still to do: mention it in the privacy
+      policy and the Data safety form (app performance data), and turn it on in the Firebase console.
 - [ ] Later, needs the Worker (web repo): stream AI replies token by token instead of `readText()`; send
       receipt photos as WebP instead of JPEG, if the AI endpoint accepts it.
 

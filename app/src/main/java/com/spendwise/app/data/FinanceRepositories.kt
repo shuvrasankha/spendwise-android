@@ -22,20 +22,26 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import com.spendwise.app.di.AppScope
+import kotlinx.coroutines.CoroutineScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
 // Live reads of income, debts, holdings and settings, and the writes of all but settings (its slice adds them).
 
 @Singleton
-class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, private val push: WorkerPush) {
+class IncomeRepository @Inject constructor(
+    private val db: FirebaseFirestore, private val auth: AuthRepository, private val push: WorkerPush, @AppScope scope: CoroutineScope,
+) {
     private val collection get() = db.collection("income")
 
-    fun income(): Flow<List<Income>> = auth.forUser(emptyList()) { user ->
+    private val shared = SharedLive(scope, auth.forUser(emptyList()) { user ->
         collection.whereEqualTo("uid", user.uid).live().map { s ->
             s.documents.map { incomeFrom(it.id, it.data.orEmpty(), it.metadata.hasPendingWrites()) }.sortedByDescending { it.date }
         }
-    }
+    })
+
+    fun income(): Flow<List<Income>> = shared.observe()
 
     suspend fun income(id: String): Income? {
         val doc = collection.document(id).get().await()
@@ -54,11 +60,15 @@ class IncomeRepository @Inject constructor(private val db: FirebaseFirestore, pr
 }
 
 @Singleton
-class DebtRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, private val push: WorkerPush) {
+class DebtRepository @Inject constructor(
+    private val db: FirebaseFirestore, private val auth: AuthRepository, private val push: WorkerPush, @AppScope scope: CoroutineScope,
+) {
     private val collection get() = db.collection("debts")
 
     /** Your own debts plus those shared with your verified email, from your side (split.js › fetchSharedDebts). */
-    fun debts(): Flow<List<Debt>> = auth.forUser(emptyList()) { user ->
+    fun debts(): Flow<List<Debt>> = ownAndShared.observe()
+
+    private val ownAndShared = SharedLive(scope, auth.forUser(emptyList()) { user ->
         val own = collection.whereEqualTo("uid", user.uid).live()
             .map { s -> s.documents.map { ownDebtFrom(it.id, it.data.orEmpty(), it.metadata.hasPendingWrites()) } }
         // A second where, on withEmail, as the rules require; the web treats a failure as no shared debts
@@ -67,7 +77,7 @@ class DebtRepository @Inject constructor(private val db: FirebaseFirestore, priv
                 .map { s -> s.documents.map { sharedDebtFrom(it.id, it.data.orEmpty(), it.metadata.hasPendingWrites()) } }
                 .catch { emit(emptyList()) }
         combine(own, shared) { a, b -> (a + b).sortedByDescending { it.date } }
-    }
+    })
 
     /** Shared when [DebtInput.email] is set; the caller only offers that to a verified account. */
     fun add(input: DebtInput): PendingWrite {
@@ -102,14 +112,16 @@ class DebtRepository @Inject constructor(private val db: FirebaseFirestore, priv
 }
 
 @Singleton
-class HoldingRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
+class HoldingRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, @AppScope scope: CoroutineScope) {
     private val collection get() = db.collection("holdings")
 
-    /** Throws on a failed read; the Dashboard shows nothing then (dashboard.js › loadHoldings), Investments says why. */
-    fun holdings(): Flow<List<Holding>> = auth.forUser(emptyList()) { user ->
+    private val shared = SharedLive(scope, auth.forUser(emptyList()) { user ->
         collection.whereEqualTo("uid", user.uid).live()
             .map { s -> s.documents.map { holdingFrom(it.id, it.data.orEmpty()) } }
-    }
+    })
+
+    /** Throws on a failed read; the Dashboard shows nothing then (dashboard.js › loadHoldings), Investments says why. */
+    fun holdings(): Flow<List<Holding>> = shared.observe()
 
     fun add(fields: HoldingFields): PendingWrite {
         val uid = checkNotNull(auth.currentUid) { "Not signed in" }
@@ -126,11 +138,13 @@ class HoldingRepository @Inject constructor(private val db: FirebaseFirestore, p
 }
 
 @Singleton
-class SettingsRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository) {
-    /** `settings/{uid}`: budget and goals. A missing doc means neither is set. */
-    fun settings(): Flow<UserSettings> = auth.forUser(UserSettings()) { user ->
+class SettingsRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, @AppScope scope: CoroutineScope) {
+    private val shared = SharedLive(scope, auth.forUser(UserSettings()) { user ->
         db.collection("settings").document(user.uid).live().map { settingsFrom(it.data) }
-    }
+    })
+
+    /** `settings/{uid}`: budget and goals. A missing doc means neither is set. */
+    fun settings(): Flow<UserSettings> = shared.observe()
 
     fun saveBudget(budget: Budget): PendingWrite = save(budgetFields(budget))
 

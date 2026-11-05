@@ -137,7 +137,8 @@ private fun Preview(p: CsvPhase.Preview, currency: Currency, vm: CsvImportViewMo
                 Text("Select all", style = SwType.bodyStrong, color = c.text)
             }
         }
-        itemsIndexed(p.rows) { i, tx -> TxRow(tx, i in p.selected, currency) { vm.toggle(i) } }
+        // Selection is by row number in the parsed file, so that is the row's identity too
+        itemsIndexed(p.rows, key = { i, _ -> "tx-$i" }) { i, tx -> TxRow(tx, i in p.selected, currency) { vm.toggle(i) } }
         item {
             Column(Modifier.padding(horizontal = Spacing.gutter, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 p.note?.let { Text(it, style = SwType.label, color = c.negative) }

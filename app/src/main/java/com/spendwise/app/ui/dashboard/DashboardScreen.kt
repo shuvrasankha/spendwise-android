@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import com.spendwise.app.ui.theme.Radius
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Scaffold
@@ -38,7 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import com.spendwise.app.ui.components.SkeletonBar
+import com.spendwise.app.ui.components.SkeletonRows
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.domain.BudgetLevel
@@ -142,11 +146,7 @@ fun DashboardScreen(
         LazyColumn(Modifier.fillMaxSize().padding(padding), state = list, contentPadding = PaddingValues(bottom = Spacing.section)) {
             item { topBar() }
             when (val s = state) {
-                DashboardState.Loading -> item {
-                    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = SpendWiseTheme.colors.text)
-                    }
-                }
+                DashboardState.Loading -> item(key = "skeleton") { DashboardSkeleton() }
                 is DashboardState.Failed -> item {
                     Column(Modifier.padding(Spacing.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(s.message, style = SwType.body, color = SpendWiseTheme.colors.negative)
@@ -169,6 +169,25 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+}
+
+/** Flat placeholders in the shape of the hero, the tiles and a list, so the page doesn't jump when it loads. */
+@Composable
+private fun DashboardSkeleton() {
+    val gutter = Modifier.padding(horizontal = Spacing.gutter)
+    Column(Modifier.padding(top = 12.dp).clearAndSetSemantics { contentDescription = "Loading" }) {
+        Column(gutter, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SkeletonBar(96.dp, 12.dp)
+            SkeletonBar(200.dp, 40.dp)
+            SkeletonBar(Dp.Unspecified, 8.dp, Modifier.fillMaxWidth())
+        }
+        Row(gutter.padding(top = Spacing.section), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SkeletonBar(Dp.Unspecified, 72.dp, Modifier.weight(1f))
+            SkeletonBar(Dp.Unspecified, 72.dp, Modifier.weight(1f))
+        }
+        SkeletonBar(120.dp, 14.dp, gutter.padding(top = Spacing.section, bottom = 4.dp))
+        SkeletonRows(4)
     }
 }
 

@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.firebase.perf)
+    alias(libs.plugins.baselineprofile)
 }
 
 // The upload key stays off git: keystore.properties and *.jks are gitignored (see README › Release)
@@ -30,6 +32,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Crash reports come from release builds only, so testing doesn't fill the Crashlytics console
         manifestPlaceholders["crashlytics"] = false
+        // Performance Monitoring too: release builds only
+        manifestPlaceholders["perf"] = false
     }
 
     signingConfigs {
@@ -42,10 +46,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // No Performance Monitoring bytecode in debug builds: faster builds, and nothing to report anyway
+            configure<com.google.firebase.perf.plugin.FirebasePerfExtension> { setInstrumentationEnabled(false) }
+        }
         release {
             // Falls back to debug signing when keystore.properties is missing so the APK can be installed
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             manifestPlaceholders["crashlytics"] = true
+            manifestPlaceholders["perf"] = true
             // R8 over the whole app; Firestore is read as maps, so no model class needs keeping
             optimization {
                 enable = true
@@ -61,7 +70,15 @@ android {
     }
 }
 
+composeCompiler {
+    // Domain models are plain Kotlin, so they're marked stable here rather than with @Immutable
+    stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose_stability.conf"))
+}
+
 dependencies {
+    // Installs the baseline profile from :baselineprofile on sideloaded builds too (Play installs it itself)
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -84,6 +101,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.perf)
     implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.hilt.android)
