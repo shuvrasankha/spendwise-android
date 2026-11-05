@@ -6,8 +6,10 @@
       stored in Firebase; numbers and questions (never names or notes) sent to the AI on Cloudflare; crash logs
       (Crashlytics).
 - [x] **Account-deletion web page**: live at https://shuvrasankha.github.io/spendwise-android/delete-account.html. Still to do: enter its URL in the Play Console's Data safety form.
-- [ ] **Release key**: create `upload.jks` and `keystore.properties` (README › Release), back the key up, then
-      run `./gradlew bundleRelease`. Turn on Play App Signing when you upload.
+- [x] **Release key**: `upload.jks` and `keystore.properties` exist (gitignored, mode 600); release builds are
+      signed `CN=Shuvrasankha Paul`. Still to do: back the key up; add its SHA-1/SHA-256 in Firebase; add the
+      GitHub secrets (README › GitHub release); turn on Play App Signing on the first upload. GitHub users of
+      v1.6.6 (debug-signed) must reinstall once.
 - [ ] **versionCode**: check Play Console. If `com.spendwise.app` was ever uploaded, raise `versionCode` in
       `app/build.gradle.kts` above that build (it's 13 now, as of 1.6.5).
 - [ ] **Play Console forms**: Data safety (account info, financial info, crash logs, encrypted in transit,

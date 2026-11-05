@@ -94,3 +94,32 @@ The release build is signed with an upload key that never goes into git.
    ```
 
 Turn on Play App Signing when you upload the first bundle, so Google holds the app signing key.
+
+### GitHub release (automatic)
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`: it builds the signed APK and bundle, checks the
+APK isn't debug-signed, and publishes a GitHub release with `SpendWise.apk` (what the in-app updater
+downloads). The bundle for Play is kept as an artifact on the run.
+
+One-time setup (run in Terminal; `gh secret set` asks for the password without echoing it):
+
+```sh
+base64 -i upload.jks | gh secret set UPLOAD_KEYSTORE_BASE64
+gh secret set UPLOAD_KEYSTORE_PASSWORD
+base64 -i app/google-services.json | gh secret set GOOGLE_SERVICES_JSON_BASE64
+```
+
+`UPLOAD_KEY_PASSWORD` is only needed if the key's password differs from the keystore's.
+
+Each release:
+
+1. Raise `versionCode` and set `versionName` in `app/build.gradle.kts` (the tag must be `v` + versionName),
+   commit and push to `main`.
+2. Write the notes in a file and tag with them (`--cleanup=verbatim` keeps `##` headings):
+
+   ```sh
+   git tag -a v1.6.7 --cleanup=verbatim -F notes.md
+   git push origin v1.6.7
+   ```
+
+   A tag without a message gets GitHub's generated notes.
