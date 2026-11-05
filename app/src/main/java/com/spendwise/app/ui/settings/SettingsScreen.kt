@@ -164,7 +164,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
             if (remember { canLock(activity) }) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsGroup("Security") {
-                        SettingsRow("App lock", trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
+                        SettingsRow("App lock", icon = SwIcons.Lock, trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
                     }
                     Text(
                         "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
@@ -176,8 +176,8 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
             // The note under the group appears and goes, so let the block grow instead of jumping
             Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("About") {
-                    SettingsRow("App tour", onClick = viewModel::replayTour)
-                    SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
+                    SettingsRow("App tour", icon = SwIcons.Smartphone, onClick = viewModel::replayTour)
+                    SettingsRow("Privacy policy", icon = SwIcons.Shield, divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
                     SettingsRow(
                         "Check for updates", icon = SwIcons.Download, divider = true, onClick = viewModel::checkForUpdates,
                         trailing = Trailing.Value(if (update == UpdateCheck.Checking) "Checking…" else viewModel.installedVersion),
