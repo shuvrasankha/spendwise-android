@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -157,6 +159,35 @@ fun ListRow(
                     Text(amount, style = SwType.bodyStrong, color = amountColor.takeOrElse { c.text })
                     if (sub != null) Text(sub, style = SwType.caption, color = c.textMuted)
                 }
+            }
+        }
+    }
+}
+
+/** A flat placeholder bar in the surface colour: no shimmer, no animation. */
+@Composable
+fun SkeletonBar(width: Dp, height: Dp, modifier: Modifier = Modifier) =
+    Box(modifier.width(width).height(height).clip(Radius.segment).background(SpendWiseTheme.colors.surface))
+
+/** [count] placeholder rows with [ListRow]'s geometry, so the real rows land in place. TalkBack hears "Loading". */
+@Composable
+fun SkeletonRows(count: Int, modifier: Modifier = Modifier) {
+    val c = SpendWiseTheme.colors
+    Column(modifier.fillMaxWidth().clearAndSetSemantics { contentDescription = "Loading" }) {
+        repeat(count) { i ->
+            if (i > 0) HorizontalDivider(Modifier.padding(horizontal = Spacing.gutter), color = c.line)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter, vertical = Spacing.rowV),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(Modifier.size(36.dp).clip(Radius.tile).background(c.surface))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Varied widths so the block reads as a list, not a grid
+                    SkeletonBar(if (i % 2 == 0) 140.dp else 110.dp, 12.dp)
+                    SkeletonBar(if (i % 3 == 0) 90.dp else 70.dp, 10.dp)
+                }
+                SkeletonBar(56.dp, 12.dp)
             }
         }
     }

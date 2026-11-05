@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,9 +48,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.Entry
 import com.spendwise.app.domain.HistoryRange
@@ -56,6 +61,8 @@ import com.spendwise.app.domain.HistorySort
 import com.spendwise.app.domain.meta
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DayHeader
+import com.spendwise.app.ui.components.SkeletonBar
+import com.spendwise.app.ui.components.SkeletonRows
 import com.spendwise.app.ui.components.DateField
 import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.IconAction
@@ -106,16 +113,33 @@ fun HistoryScreen(
         snackbar.show(text)
     }
 
+    val list = rememberLazyListState()
+    // Load the next 50 rows as the list nears its end, in place of the web's "Show 50 more" button.
+    // Keyed on the row count, so a page that still leaves the end in view loads the next one too.
+    val ready = (state as? HistoryState.Ready)?.view
+    LaunchedEffect(list, ready?.items?.size, (ready?.left ?: 0) > 0) {
+        if ((ready?.left ?: 0) <= 0) return@LaunchedEffect
+        snapshotFlow {
+            val info = list.layoutInfo
+            (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - LOAD_AHEAD
+        }.filter { it }.first()
+        history.showMore()
+    }
+
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }, contentWindowInsets = WindowInsets(0), containerColor = c.bg) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding).imePadding(), contentPadding = PaddingValues(bottom = Spacing.section)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding).imePadding(), state = list, contentPadding = PaddingValues(bottom = Spacing.section)) {
             item {
                 TabTopBar("History") {
                     if (state is HistoryState.Ready) IconAction(SwIcons.Download, "Export", history::openExport)
                 }
             }
             when (val s = state) {
-                HistoryState.Loading -> item {
-                    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = c.text) }
+                HistoryState.Loading -> item(key = "skeleton") {
+                    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Where the search box and summary will be
+                        SkeletonBar(Dp.Unspecified, 48.dp, Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter))
+                        SkeletonRows(8)
+                    }
                 }
                 is HistoryState.Failed -> item {
                     Column(Modifier.padding(Spacing.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -156,9 +180,9 @@ fun HistoryScreen(
                             }
                         }
                     }
-                    if (v.left > 0) item {
-                        Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 16.dp)) {
-                            SwButton("Show ${minOf(v.left, HISTORY_STEP)} more", history::showMore, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary)
+                    if (v.left > 0) item(key = "more") {
+                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(24.dp), color = c.textMuted, strokeWidth = 2.dp)
                         }
                     }
                 }
@@ -168,6 +192,9 @@ fun HistoryScreen(
     if (sheet) (state as? HistoryState.Ready)?.let { FiltersSheet(it.view, history) { sheet = false } }
     ExportSheet(history, currency)
 }
+
+/** Rows from the end of the list at which the next page loads. */
+private const val LOAD_AHEAD = 10
 
 /** Expenses/Income, search, then Filters and the active chips. */
 @Composable

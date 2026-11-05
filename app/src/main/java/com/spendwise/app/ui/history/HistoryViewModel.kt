@@ -1,6 +1,7 @@
 package com.spendwise.app.ui.history
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +29,7 @@ import com.spendwise.app.domain.searchTag
 import com.spendwise.app.domain.tagsInUse
 import com.spendwise.app.domain.totalsBy
 import com.spendwise.app.ui.navigation.History
+import com.google.firebase.perf.trace
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -79,12 +81,16 @@ fun linkFilters(route: History): HistoryFilters {
     return if (from == null && to == null) base else base.copy(range = HistoryRange.CUSTOM, customFrom = from.orEmpty(), customTo = to.orEmpty())
 }
 
+@Immutable
 sealed interface HistoryItem {
+    @Immutable
     data class Day(val date: String, val label: String, val total: Double) : HistoryItem
     /** [showDate]: sorted by amount, so the row carries its date instead of a day heading. */
+    @Immutable
     data class Row(val entry: Entry, val showDate: Boolean) : HistoryItem
 }
 
+@Immutable
 data class HistoryView(
     val filters: HistoryFilters,
     /** Every entry in the tab, before filters. 0 means the tab is empty, not filtered empty. */
@@ -166,7 +172,10 @@ class HistoryViewModel @Inject constructor(
         when {
             r == null -> HistoryState.Loading
             r.isFailure -> HistoryState.Failed("Couldn't load your history. Check your connection and try again.")
-            else -> HistoryState.Ready(view(r.getOrThrow(), f, q))
+            // Timed in release builds: filtering every entry on each change is History's main cost
+            else -> trace("history_filter") {
+                HistoryState.Ready(view(r.getOrThrow(), f, q)).also { putMetric("entries", it.view.allCount.toLong()) }
+            }
         }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryState.Loading)
 
@@ -177,7 +186,7 @@ class HistoryViewModel @Inject constructor(
     val export: StateFlow<ExportSummary?> = combine(_export, data, filters, _query) { dialog, d, f, q ->
         val loaded = d?.getOrNull()
         if (dialog == null || loaded == null) null else exportSummary(dialog, loaded, f, q)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** A file ready for the share sheet; the screen clears it once shown. */
     private val _share = MutableStateFlow<SharedFile?>(null)
