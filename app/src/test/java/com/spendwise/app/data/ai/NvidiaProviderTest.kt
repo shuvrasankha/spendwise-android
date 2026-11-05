@@ -72,6 +72,7 @@ class NvidiaProviderTest {
         assertEquals(AiResult.Failed(AiError.Unauthorized, 401), status(401))
         assertEquals(AiResult.Failed(AiError.Unauthorized, 403), status(403))
         assertEquals(AiResult.Failed(AiError.ModelNotFound, 404), status(404))
+        assertEquals(AiResult.Failed(AiError.ModelNotFound, 410), status(410, """{"title":"Gone","detail":"The model has reached its end of life"}"""))
         assertEquals(AiResult.Failed(AiError.ModelNotFound, 400), status(400, """{"detail":"Model 'x' not found"}"""))
         assertEquals(AiResult.Failed(AiError.Http(400), 400), status(400, """{"detail":"bad max_tokens"}"""))
         assertEquals(AiResult.Failed(AiError.RateLimited, 429), status(429))
@@ -96,10 +97,12 @@ class NvidiaProviderTest {
         assertEquals(AiResult.Failed(AiError.Unauthorized, 401), runBlocking { NvidiaProvider(FakeHttp { HttpReply(401, "") }).testConnection(KEY, "m") })
     }
 
-    @Test fun `defaults per task, and none for receipt`() {
-        assertEquals(listOf("meta/llama-3.3-70b-instruct", "meta/llama-3.3-70b-instruct", "meta/llama-3.3-70b-instruct"), listOf(AiTask.ASK, AiTask.COACH, AiTask.BUDGET).map(::nvidiaDefaultModel))
-        assertEquals(listOf("qwen/qwen2.5-coder-32b-instruct", "qwen/qwen2.5-coder-32b-instruct"), listOf(AiTask.VOICE, AiTask.CSV).map(::nvidiaDefaultModel))
-        assertEquals(null, nvidiaDefaultModel(AiTask.RECEIPT))
+    @Test fun `one default for every task, receipt included`() =
+        assertEquals(setOf("nvidia/nemotron-3.5-super-vl-120b-a12b"), AiTask.entries.map(::nvidiaDefaultModel).toSet())
+
+    @Test fun `thinking is off for the default model only`() {
+        assertTrue(nvidiaBody(NVIDIA_DEFAULT_MODEL, ask).toString().endsWith(""""temperature":0.0,"chat_template_kwargs":{"enable_thinking":false}}"""))
+        assertFalse(nvidiaBody("someone/else", ask).toString().contains("chat_template_kwargs"))
     }
 }
 
