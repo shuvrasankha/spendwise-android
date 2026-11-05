@@ -10,6 +10,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -106,6 +111,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
     val aiLabel by viewModel.aiLabel.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
     val c = SpendWiseTheme.colors
@@ -164,7 +170,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
             if (remember { canLock(activity) }) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsGroup("Security") {
-                        SettingsRow("App lock", trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
+                        SettingsRow("App lock", icon = SwIcons.Lock, trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
                     }
                     Text(
                         "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
@@ -176,8 +182,14 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
             // The note under the group appears and goes, so let the block grow instead of jumping
             Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("About") {
-                    SettingsRow("App tour", onClick = viewModel::replayTour)
-                    SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
+                    SettingsRow("App tour", icon = SwIcons.Smartphone, onClick = viewModel::replayTour)
+                    SettingsRow("Privacy policy", icon = SwIcons.Shield, divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
+                    SettingsRow("Send feedback", icon = SwIcons.Mail, divider = true, onClick = { context.sendFeedback(viewModel.installedVersion) })
+                    SettingsRow("Rate on Play Store", icon = SwIcons.Star, divider = true, onClick = {
+                        // No Play Store app (a GitHub install on a de-Googled phone): the web listing instead
+                        try { uriHandler.openUri("market://details?id=${context.packageName}") } catch (_: Exception) { uriHandler.openUri(PLAY_URL + context.packageName) }
+                    })
+                    SettingsRow("Open-source licences", icon = SwIcons.FileText, divider = true, onClick = { picking = "licences" })
                     SettingsRow(
                         "Check for updates", icon = SwIcons.Download, divider = true, onClick = viewModel::checkForUpdates,
                         trailing = Trailing.Value(if (update == UpdateCheck.Checking) "Checking…" else viewModel.installedVersion),
@@ -204,6 +216,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
         "icon" -> AppIconSheet(appIcon, viewModel::setAppIcon) { picking = null }
         "currency" -> CurrencySheet(state.currency.code, viewModel::setCurrency) { picking = null }
         "payment" -> OptionSheet("Default payment", PAYMENT_METHODS.map { it to it }, defaultPayment, viewModel::setDefaultPayment) { picking = null }
+        "licences" -> LicencesSheet(uriHandler::openUri) { picking = null }
         "time" -> TimeDialog(state.reminderAt, viewModel::setReminderTime) { picking = null }
     }
     DeletionDialog(deletion, viewModel)
@@ -257,6 +270,45 @@ private fun ChangePasswordSheet(form: PasswordChange, vm: SettingsViewModel) {
 }
 
 /** The page in docs/, served by GitHub Pages. */
+private const val PLAY_URL = "https://play.google.com/store/apps/details?id="
+
+// The contact address from the privacy policy (docs/privacy-policy.html)
+private const val FEEDBACK_EMAIL = "contact.spend.wise.app@gmail.com"
+
+/** Opens the email app addressed to us, with the version and device filled in so reports say what they ran on. */
+private fun Context.sendFeedback(version: String) {
+    val body = "\n\n—\nSpendWise $version · Android ${Build.VERSION.RELEASE} · ${Build.MANUFACTURER} ${Build.MODEL}"
+    val mail = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+        .putExtra(Intent.EXTRA_EMAIL, arrayOf(FEEDBACK_EMAIL))
+        .putExtra(Intent.EXTRA_SUBJECT, "SpendWise feedback ($version)")
+        .putExtra(Intent.EXTRA_TEXT, body)
+    try { startActivity(mail) } catch (_: ActivityNotFoundException) { Toast.makeText(this, "No email app found. Write to $FEEDBACK_EMAIL", Toast.LENGTH_LONG).show() }
+}
+
+/** What the app is built on, by whom, under which licence; tapping one opens the licence text. */
+private val LICENCES = listOf(
+    Triple("AndroidX and Jetpack Compose", "Google · Apache 2.0", APACHE),
+    Triple("Material 3 for Compose", "Google · Apache 2.0", APACHE),
+    Triple("Kotlin, kotlinx.coroutines, kotlinx.serialization", "JetBrains · Apache 2.0", APACHE),
+    Triple("Firebase Android SDK", "Google · Apache 2.0", APACHE),
+    Triple("Dagger Hilt", "Google · Apache 2.0", APACHE),
+    Triple("Play In-App Updates, Sign in with Google", "Google · Google APIs Terms of Service", "https://developers.google.com/terms"),
+    Triple("Inter typeface", "Rasmus Andersson · SIL Open Font License 1.1", "https://openfontlicense.org/open-font-license-official-text/"),
+    Triple("Lucide icons", "Lucide contributors · ISC License", "https://lucide.dev/license"),
+)
+private const val APACHE = "https://www.apache.org/licenses/LICENSE-2.0"
+
+@Composable
+private fun LicencesSheet(open: (String) -> Unit, onDismiss: () -> Unit) = SwSheet("Open-source licences", onDismiss) {
+    val c = SpendWiseTheme.colors
+    LICENCES.forEach { (name, by, url) ->
+        Column(Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "Open licence") { open(url) }.padding(horizontal = Spacing.gutter, vertical = 10.dp)) {
+            Text(name, style = SwType.body, color = c.text)
+            Text(by, style = SwType.label, color = c.textMuted)
+        }
+    }
+}
+
 private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise-android/privacy-policy.html"
 
 /** One choice per row, a tick on the current one; picking closes the sheet. */

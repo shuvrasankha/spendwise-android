@@ -64,6 +64,7 @@ import com.spendwise.app.ui.components.DayHeader
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.MenuChip
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SegmentedControl
 import com.spendwise.app.ui.components.Stat
@@ -112,6 +113,7 @@ fun DashboardScreen(
     onAddExpense: () -> Unit,
     onEditExpense: (String) -> Unit,
     onOpenIncome: () -> Unit,
+    onAddIncome: () -> Unit,
     onOpenDebts: () -> Unit,
     onOpenInvest: () -> Unit,
     /** The period shown, as dates; null for both when History should show everything. */
@@ -164,7 +166,7 @@ fun DashboardScreen(
                     item { Section { Categories(s.home, s.firstTime, money) } }
                     item { Section { Trend(s.overTime, currency, dashboard) } }
                     item { Section { Recent(s.overTime, currency, onOpenHistory, onEditExpense) } }
-                    item { Section { Score(s.home) } }
+                    item { Section { Score(s.home, onAddIncome) } }
                     item { Section { Goals(s.home, money, plans, onOpenInvest) } }
                 }
             }
@@ -206,11 +208,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Counts up from 0 on first show, then from the old value on a change; the exact figure is shown once it lands.
-        val count = remember { Animatable(0f) }
-        LaunchedEffect(h.spent) { count.animateTo(h.spent.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
-        val shown = if (count.value == h.spent.toFloat()) h.spent else count.value.toDouble()
-        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(shown, currency), icon = SwIcons.Calendar)
+        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(countUp(h.spent), currency), icon = SwIcons.Calendar)
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
@@ -294,7 +292,7 @@ private fun ExpenseRow(e: Expense, money: (Double) -> String, divider: Boolean, 
 private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money: (Double) -> String, onAddExpense: () -> Unit, onEdit: (String) -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Today", value = if (h.todays.isNotEmpty()) money(h.todaySpent) else null)
+        SectionHeader("Today", icon = SwIcons.Clock, value = if (h.todays.isNotEmpty()) money(h.todaySpent) else null)
         if (h.todays.isNotEmpty()) Caption(plural(h.todays.size, "entry", "entries"))
         val cmp = h.todayCompare
         if (cmp != null) {
@@ -322,7 +320,7 @@ private fun Emis(plans: List<EmiPlan>, currency: Currency) {
     val whole = { n: Double -> formatAmount(n, currency) }
     val today = LocalDate.now()
     Column {
-        SectionHeader("EMIs")
+        SectionHeader("EMIs", icon = SwIcons.Landmark)
         Caption(emiHeader(plans, whole))
         plans.forEachIndexed { i, p ->
             Column {
@@ -337,7 +335,7 @@ private fun Emis(plans: List<EmiPlan>, currency: Currency) {
 private fun Categories(h: HomeFigures, firstTime: Boolean, money: (Double) -> String) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Categories")
+        SectionHeader("Categories", icon = SwIcons.Bag)
         if (h.categories.isEmpty()) {
             Caption(if (firstTime) "Your top categories show here once you add expenses." else "No expenses this month yet.")
             return@Column
@@ -370,7 +368,7 @@ private val TABS = listOf(TimeTab.DAILY to "Day", TimeTab.WEEKLY to "Week", Time
 private fun Trend(o: OverTime, currency: Currency, vm: DashboardViewModel) {
     val c = SpendWiseTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader("Spending trend")
+        SectionHeader("Spending trend", icon = SwIcons.Insights)
         Box(Modifier.padding(horizontal = Spacing.gutter)) {
             SegmentedControl(TABS.map { it.second }, TABS.indexOfFirst { it.first == o.view.tab }, { vm.selectTab(TABS[it].first) })
         }
@@ -389,7 +387,7 @@ private fun Trend(o: OverTime, currency: Currency, vm: DashboardViewModel) {
                 TimeTab.MONTHLY -> (o.view.period.month?.toInt() ?: LocalDate.now().monthValue) - 1
                 else -> o.trend.values.lastIndex
             }
-            Box(Modifier.padding(horizontal = Spacing.gutter)) { WeekBars(o.trend.values.map { it.toFloat() }, o.trend.labels, current) }
+            Box(Modifier.padding(horizontal = Spacing.gutter)) { WeekBars(o.trend.values.map { it.toFloat() }, o.trend.labels, current, valueLabel = { formatAmount(o.trend.values[it], currency) }) }
         }
         val s = o.summary
         Caption(
@@ -405,7 +403,7 @@ private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, Str
     val range = o.view.period.dateRange()
     Column {
         // The rest are in History, which can search and filter them
-        SectionHeader("Recent", action = if (o.rows.size > LATEST_ROWS) "Show more" else null, onAction = { onOpenHistory(range?.first, range?.second) })
+        SectionHeader("Recent", icon = SwIcons.History, action = if (o.rows.size > LATEST_ROWS) "Show more" else null, onAction = { onOpenHistory(range?.first, range?.second) })
         if (o.rows.isEmpty()) Caption("No expenses in this period.")
         o.rows.take(LATEST_ROWS).groupBy { it.date }.forEach { (date, rows) ->
             DayHeader(formatDate(date), money(rows.sumOf { it.amount }))
@@ -417,14 +415,15 @@ private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, Str
 private const val LATEST_ROWS = 5
 
 @Composable
-private fun Score(h: HomeFigures) {
+private fun Score(h: HomeFigures, onAddIncome: () -> Unit) {
     val c = SpendWiseTheme.colors
     var open by rememberSaveable { mutableStateOf(false) }
     val s = h.score
     Column {
-        SectionHeader("Money score", action = if (s != null) (if (open) "Hide" else "Details") else null, onAction = { open = !open })
+        SectionHeader("Money score", icon = SwIcons.Gauge, action = if (s != null) (if (open) "Hide" else "Details") else null, onAction = { open = !open })
         if (s == null) {
             Caption("No score yet. Add this month's income to see your score.")
+            Box(Modifier.padding(horizontal = 8.dp)) { SwButton("Add income", onAddIncome, style = ButtonStyle.Text, compact = true) }
             return@Column
         }
         Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -454,7 +453,7 @@ private fun SpendingCalendar(expenses: List<Expense>, money: (Double) -> String,
     val cal = remember(expenses, month) { spendingCalendar(expenses, month) }
     val ym = YearMonth.parse(month)
     Column {
-        SectionHeader("Spending calendar")
+        SectionHeader("Spending calendar", icon = SwIcons.Calendar)
         Column(
             Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, top = 12.dp).fillMaxWidth()
                 .clip(Radius.block).background(c.surface).border(1.dp, c.line, Radius.block)

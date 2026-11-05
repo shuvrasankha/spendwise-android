@@ -68,6 +68,7 @@ import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.IconAction
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.PickDateDialog
 import com.spendwise.app.ui.components.SegmentedControl
 import com.spendwise.app.ui.components.SettingsGroup
@@ -170,14 +171,14 @@ fun HistoryScreen(
                     v.items.forEachIndexed { i, item ->
                         when (item) {
                             is HistoryItem.Day -> stickyHeader(key = "day-" + item.date) { DayHeader(item.label, formatAmount(item.total, currency)) }
-                            is HistoryItem.Row -> item(key = (if (item.entry is Entry.Earned) "inc-" else "exp-") + item.entry.id) {
+                            is HistoryItem.Row -> item(key = (if (item.entry is Entry.Earned) "inc-" else "exp-") + item.entry.id) { Box(Modifier.animateItem()) {
                                 HistoryRow(item, currency, divider = i > 0 && v.items[i - 1] is HistoryItem.Row) {
                                     when (val e = item.entry) {
                                         is Entry.Spent -> onEditExpense(e.id)
                                         is Entry.Earned -> onEditIncome(e.id)
                                     }
                                 }
-                            }
+                            }}
                         }
                     }
                     if (v.left > 0) item(key = "more") {
@@ -227,7 +228,7 @@ private fun Summary(v: HistoryView, currency: Currency, vm: HistoryViewModel) {
     val c = SpendWiseTheme.colors
     val tab = v.filters.tab
     Column(Modifier.padding(top = Spacing.section, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Metric(plural(v.count, tab.one, tab.many), currency.symbol, formatNumber(v.total, currency), positive = tab == HistoryTab.INCOME)
+        Metric(plural(v.count, tab.one, tab.many), currency.symbol, formatNumber(countUp(v.total), currency), positive = tab == HistoryTab.INCOME, icon = if (tab == HistoryTab.INCOME) SwIcons.MoneyIn else SwIcons.Receipt)
         if (v.split.isNotEmpty()) {
             Text(
                 v.split.joinToString(" · ") { (k, amount) -> "$k ${formatAmount(amount, currency)}" },

@@ -26,8 +26,8 @@ android {
         applicationId = "com.spendwise.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 16
-        versionName = "1.7.0"
+        versionCode = 17
+        versionName = "1.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Crash reports come from release builds only, so testing doesn't fill the Crashlytics console
@@ -51,8 +51,8 @@ android {
             configure<com.google.firebase.perf.plugin.FirebasePerfExtension> { setInstrumentationEnabled(false) }
         }
         release {
-            // Falls back to debug signing when keystore.properties is missing so the APK can be installed
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // No keystore.properties: an unsigned APK that can't be installed, never one signed with the public debug key
+            signingConfig = signingConfigs.findByName("release")
             manifestPlaceholders["crashlytics"] = true
             manifestPlaceholders["perf"] = true
             // R8 over the whole app; Firestore is read as maps, so no model class needs keeping

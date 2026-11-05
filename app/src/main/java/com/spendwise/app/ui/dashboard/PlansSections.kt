@@ -37,7 +37,7 @@ import java.time.LocalDate
 internal fun DueThisMonth(due: List<DueBill>, money: (Double) -> String, plans: PlansViewModel) {
     val today = LocalDate.now()
     Column {
-        SectionHeader("Due this month")
+        SectionHeader("Due this month", icon = SwIcons.Bell)
         Text(money(due.sumOf { it.template.amount }) + " to add", style = SwType.label, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
         due.forEachIndexed { i, d ->
             ListRow(billTitle(d.template), meta = d.meta(today), amount = money(d.template.amount), icon = SwIcons.Receipt, divider = i > 0)
@@ -56,7 +56,7 @@ internal fun DueThisMonth(due: List<DueBill>, money: (Double) -> String, plans: 
 internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewModel, onOpenInvest: () -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Savings goals", action = "New goal", onAction = plans::newGoal, actionIcon = SwIcons.Plus)
+        SectionHeader("Savings goals", icon = SwIcons.Wallet, action = "New goal", onAction = plans::newGoal, actionIcon = SwIcons.Plus)
         goalsNeed(h.goals, h.saved, money)?.let {
             Text(it, style = SwType.label, color = if (it.endsWith("covered")) c.positive else c.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
         }
@@ -69,9 +69,11 @@ internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewMo
         h.goals.forEachIndexed { i, row ->
             val g = row.goal
             val done = row.pace.level == GoalLevel.DONE
+            val late = row.pace.level == GoalLevel.LATE
             ListRow(
-                g.name, meta = row.meta(money), metaColor = if (row.pace.level == GoalLevel.LATE) c.negative else Color.Unspecified,
-                amount = if (done) "Done" else "${row.percent}%", amountColor = if (done) c.positive else Color.Unspecified,
+                g.name, meta = row.meta(money),
+                amount = if (done) "Done" else if (late) "Overdue" else "${row.percent}%",
+                amountColor = if (done) c.positive else if (late) c.negative else Color.Unspecified,
                 sub = row.amounts(money), icon = SwIcons.Target, divider = i > 0, metaLines = 2,
             )
             Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 4.dp)) { BudgetBar(row.percent / 100f) }

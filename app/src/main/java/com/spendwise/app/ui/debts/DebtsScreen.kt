@@ -19,6 +19,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.spendwise.app.ui.components.IconAction
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +54,7 @@ import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DateChips
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.StackedBar
 import com.spendwise.app.ui.components.Stat
@@ -94,8 +98,8 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
             item {
                 val s = ready?.summary
                 Metric(
-                    "Net balance", currency.symbol, if (s == null) "—" else formatNumber(Math.abs(s.net), currency),
-                    sub = s?.let { "${it.netWord} · ${it.sub}" }, positive = s != null && s.net > 0, negative = s != null && s.net < 0,
+                    "Net balance", currency.symbol, if (s == null) "—" else formatNumber(countUp(Math.abs(s.net)), currency),
+                    sub = s?.let { "${it.netWord} · ${it.sub}" }, positive = s != null && s.net > 0, negative = s != null && s.net < 0, icon = SwIcons.People,
                 )
             }
             item {
@@ -109,7 +113,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                     )
                 }
             }
-            item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add debt", onAdd, Modifier.fillMaxWidth(), leading = SwIcons.Plus) } }
+            item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add debt", onAdd, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.Plus) } }
             when (val p = page) {
                 DebtsPage.Loading -> item {
                     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = c.text) }
@@ -125,7 +129,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                     if (p.showPeople) {
                         item { SectionHeader("By person") }
                         p.people.forEachIndexed { i, pr ->
-                            item(key = "p:" + pr.key) {
+                            item(key = "p:" + pr.key) { Box(Modifier.animateItem()) {
                                 val on = pr.key == person?.key
                                 ListRow(
                                     pr.name, meta = pr.sub(fmt), amount = fmt(Math.abs(pr.net)),
@@ -134,7 +138,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                                     // The person the Open list is narrowed to shows a tick
                                     icon = if (on) SwIcons.Check else SwIcons.People, divider = i > 0, onClick = { vm.toggleFilter(pr.key) },
                                 )
-                            }
+                            }}
                         }
                     }
                     item(key = "open-header") {
@@ -145,7 +149,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                     if (open.isEmpty()) item {
                         Text("No open debts. Add one when someone borrows or lends.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
-                    open.forEachIndexed { i, d -> item(key = "o:" + d.id) { DebtItem(d, openMeta(d, today, fmt), fmt, divider = i > 0) { OpenActions(d, vm) } } }
+                    open.forEachIndexed { i, d -> item(key = "o:" + d.id) { Box(Modifier.animateItem()) { DebtItem(d, openMeta(d, today, fmt), fmt, divider = i > 0) { OpenActions(d, vm) } } } }
                     if (p.settled.isNotEmpty()) {
                         item(key = "settled-header") {
                             Box(Modifier.padding(top = Spacing.section)) {
@@ -153,11 +157,11 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                             }
                         }
                         if (showSettled) p.settled.forEachIndexed { i, d ->
-                            item(key = "s:" + d.id) {
+                            item(key = "s:" + d.id) { Box(Modifier.animateItem()) {
                                 DebtItem(d, settledMeta(d, today), fmt, divider = i > 0) {
                                     if (!d.shared && !d.pending) SwButton("Reopen", { vm.askReopen(d.id) }, style = ButtonStyle.Text, compact = true)
                                 }
-                            }
+                            }}
                         }
                     }
                 }
@@ -208,7 +212,14 @@ private fun OpenActions(d: Debt, vm: DebtsViewModel) {
         }
         else -> {
             SwButton("Mark as paid", { vm.openPay(d.id) }, style = ButtonStyle.Secondary, compact = true)
-            SwButton("Delete", { vm.askDelete(d.id) }, style = ButtonStyle.Danger, compact = true)
+            // Delete is rare and destructive, so it sits behind the menu instead of beside every row
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                IconAction(SwIcons.More, "More actions for ${d.person}", { menu = true })
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Delete", color = SpendWiseTheme.colors.negative) }, onClick = { menu = false; vm.askDelete(d.id) })
+                }
+            }
         }
     }
 }

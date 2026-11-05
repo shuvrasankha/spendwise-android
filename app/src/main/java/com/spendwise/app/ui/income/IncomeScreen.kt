@@ -23,6 +23,7 @@ import com.spendwise.app.domain.recentMeta
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SubPageTopBar
 import com.spendwise.app.ui.components.SwButton
@@ -58,9 +59,9 @@ fun IncomeScreen(
                 val month = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.US)
                 val s = ready?.summary
                 Metric(
-                    "$month so far", currency.symbol, if (s == null) "—" else formatNumber(s.monthTotal, currency),
+                    "$month so far", currency.symbol, if (s == null) "—" else formatNumber(countUp(s.monthTotal), currency),
                     sub = s?.let { "${plural(it.monthCount, "entry", "entries")} · ${formatAmount(it.yearTotal, currency)} this year" },
-                    positive = true,
+                    positive = true, icon = SwIcons.MoneyIn,
                 )
             }
             item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add income", onAdd, Modifier.fillMaxWidth(), leading = SwIcons.Plus) } }
@@ -80,7 +81,7 @@ fun IncomeScreen(
                         Text("No income yet. Add your first one.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
                     p.recent.forEachIndexed { i, inc ->
-                        item(key = inc.id) {
+                        item(key = inc.id) { Box(Modifier.animateItem()) {
                             ListRow(
                                 inc.source.ifEmpty { "Income" },
                                 meta = listOf(recentMeta(inc, LocalDate.now()), inc.notes).filter { it.isNotEmpty() }.joinToString("\n"), metaLines = 3,
@@ -89,7 +90,7 @@ fun IncomeScreen(
                                 // An entry waiting to sync has no server record yet, so it can't be edited
                                 onClick = if (inc.pending) null else ({ onEdit(inc.id) }),
                             )
-                        }
+                        }}
                     }
                 }
             }

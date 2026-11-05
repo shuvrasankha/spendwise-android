@@ -36,6 +36,9 @@ class ShareInbox @Inject constructor() {
     }
 }
 
-/** ACTION_SEND with text: what Messages and most apps send from Share. */
+/** ACTION_SEND with text: what Messages and most apps send from Share. Cut to [SHARE_LIMIT] so a huge share can't stall the SMS parser. */
 fun Intent.sharedText(): String? =
-    if (action == Intent.ACTION_SEND && type?.startsWith("text/") == true) getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() } else null
+    if (action == Intent.ACTION_SEND && type?.startsWith("text/") == true) getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }?.take(SHARE_LIMIT) else null
+
+/** Far longer than any bank SMS (a long one is a few hundred characters). */
+const val SHARE_LIMIT = 2000
