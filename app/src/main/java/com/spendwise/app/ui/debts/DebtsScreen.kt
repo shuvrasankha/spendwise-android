@@ -19,6 +19,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.spendwise.app.ui.components.IconAction
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -110,7 +113,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                     )
                 }
             }
-            item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add debt", onAdd, Modifier.fillMaxWidth(), leading = SwIcons.Plus) } }
+            item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add debt", onAdd, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.Plus) } }
             when (val p = page) {
                 DebtsPage.Loading -> item {
                     Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = c.text) }
@@ -209,7 +212,14 @@ private fun OpenActions(d: Debt, vm: DebtsViewModel) {
         }
         else -> {
             SwButton("Mark as paid", { vm.openPay(d.id) }, style = ButtonStyle.Secondary, compact = true)
-            SwButton("Delete", { vm.askDelete(d.id) }, style = ButtonStyle.Danger, compact = true)
+            // Delete is rare and destructive, so it sits behind the menu instead of beside every row
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                IconAction(SwIcons.More, "More actions for ${d.person}", { menu = true })
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Delete", color = SpendWiseTheme.colors.negative) }, onClick = { menu = false; vm.askDelete(d.id) })
+                }
+            }
         }
     }
 }
