@@ -104,12 +104,12 @@ fun InvestScreen(onBack: () -> Unit, onAdd: () -> Unit, onAllHistory: () -> Unit
                         Text("A SIP, an FD, your PPF: add each one as a holding to see what it's worth.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
                     p.portfolio.rows.forEachIndexed { i, r ->
-                        item(key = "h:" + r.holding.id) {
+                        item(key = "h:" + r.holding.id) { Box(Modifier.animateItem()) {
                             ListRow(
                                 r.holding.name, meta = r.sub(p.goals, money), amount = money(r.value), sub = r.gainText(money),
                                 icon = SwIcons.TrendingUp, divider = i > 0, onClick = { vm.editHolding(r.holding.id) },
                             )
-                        }
+                        }}
                     }
                     if (p.portfolio.other.isNotEmpty()) item {
                         // Entries from before holdings, or from the expense form, that match no holding
@@ -125,12 +125,12 @@ fun InvestScreen(onBack: () -> Unit, onAdd: () -> Unit, onAllHistory: () -> Unit
                         Text("Nothing put in yet. Add a holding, then put the first amount in.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
                     p.entries.take(INVEST_RECENT_COUNT).forEachIndexed { i, e ->
-                        item(key = "e:" + e.id) {
+                        item(key = "e:" + e.id) { Box(Modifier.animateItem()) {
                             ListRow(
                                 entryTitle(e, p.holdings), meta = entryMeta(e, p.holdings, today), amount = money(e.amount), icon = SwIcons.Wallet, divider = i > 0,
                                 onClick = if (e.pending) null else ({ vm.openEntry(e.id) }),
                             )
-                        }
+                        }}
                     }
                 }
             }

@@ -171,14 +171,14 @@ fun HistoryScreen(
                     v.items.forEachIndexed { i, item ->
                         when (item) {
                             is HistoryItem.Day -> stickyHeader(key = "day-" + item.date) { DayHeader(item.label, formatAmount(item.total, currency)) }
-                            is HistoryItem.Row -> item(key = (if (item.entry is Entry.Earned) "inc-" else "exp-") + item.entry.id) {
+                            is HistoryItem.Row -> item(key = (if (item.entry is Entry.Earned) "inc-" else "exp-") + item.entry.id) { Box(Modifier.animateItem()) {
                                 HistoryRow(item, currency, divider = i > 0 && v.items[i - 1] is HistoryItem.Row) {
                                     when (val e = item.entry) {
                                         is Entry.Spent -> onEditExpense(e.id)
                                         is Entry.Earned -> onEditIncome(e.id)
                                     }
                                 }
-                            }
+                            }}
                         }
                     }
                     if (v.left > 0) item(key = "more") {

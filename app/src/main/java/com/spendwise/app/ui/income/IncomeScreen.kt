@@ -81,7 +81,7 @@ fun IncomeScreen(
                         Text("No income yet. Add your first one.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
                     p.recent.forEachIndexed { i, inc ->
-                        item(key = inc.id) {
+                        item(key = inc.id) { Box(Modifier.animateItem()) {
                             ListRow(
                                 inc.source.ifEmpty { "Income" },
                                 meta = listOf(recentMeta(inc, LocalDate.now()), inc.notes).filter { it.isNotEmpty() }.joinToString("\n"), metaLines = 3,
@@ -90,7 +90,7 @@ fun IncomeScreen(
                                 // An entry waiting to sync has no server record yet, so it can't be edited
                                 onClick = if (inc.pending) null else ({ onEdit(inc.id) }),
                             )
-                        }
+                        }}
                     }
                 }
             }

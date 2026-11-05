@@ -129,7 +129,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                     if (p.showPeople) {
                         item { SectionHeader("By person") }
                         p.people.forEachIndexed { i, pr ->
-                            item(key = "p:" + pr.key) {
+                            item(key = "p:" + pr.key) { Box(Modifier.animateItem()) {
                                 val on = pr.key == person?.key
                                 ListRow(
                                     pr.name, meta = pr.sub(fmt), amount = fmt(Math.abs(pr.net)),
@@ -138,7 +138,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                                     // The person the Open list is narrowed to shows a tick
                                     icon = if (on) SwIcons.Check else SwIcons.People, divider = i > 0, onClick = { vm.toggleFilter(pr.key) },
                                 )
-                            }
+                            }}
                         }
                     }
                     item(key = "open-header") {
@@ -149,7 +149,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                     if (open.isEmpty()) item {
                         Text("No open debts. Add one when someone borrows or lends.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
-                    open.forEachIndexed { i, d -> item(key = "o:" + d.id) { DebtItem(d, openMeta(d, today, fmt), fmt, divider = i > 0) { OpenActions(d, vm) } } }
+                    open.forEachIndexed { i, d -> item(key = "o:" + d.id) { Box(Modifier.animateItem()) { DebtItem(d, openMeta(d, today, fmt), fmt, divider = i > 0) { OpenActions(d, vm) } } } }
                     if (p.settled.isNotEmpty()) {
                         item(key = "settled-header") {
                             Box(Modifier.padding(top = Spacing.section)) {
@@ -157,11 +157,11 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                             }
                         }
                         if (showSettled) p.settled.forEachIndexed { i, d ->
-                            item(key = "s:" + d.id) {
+                            item(key = "s:" + d.id) { Box(Modifier.animateItem()) {
                                 DebtItem(d, settledMeta(d, today), fmt, divider = i > 0) {
                                     if (!d.shared && !d.pending) SwButton("Reopen", { vm.askReopen(d.id) }, style = ButtonStyle.Text, compact = true)
                                 }
-                            }
+                            }}
                         }
                     }
                 }
