@@ -130,6 +130,7 @@ class SettingsViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     val hapticOn: StateFlow<Boolean> = prefs.hapticEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+    val aiMode: StateFlow<String> = prefs.aiMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "worker")
 
     fun setHaptic(on: Boolean) {
         viewModelScope.launch { prefs.setHapticEnabled(on) }

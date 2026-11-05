@@ -94,7 +94,7 @@ import com.spendwise.app.ui.theme.SwType
 
 /** Settings (spec §1.9): Display, Notifications, Security and About, then Log out; plus Delete account (§8.2). */
 @Composable
-fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val deletion by viewModel.deletion.collectAsStateWithLifecycle()
     val passwordChange by viewModel.password.collectAsStateWithLifecycle()
@@ -102,6 +102,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val appIcon by viewModel.appIcon.collectAsStateWithLifecycle()
     val hapticOn by viewModel.hapticOn.collectAsStateWithLifecycle()
+    val aiMode by viewModel.aiMode.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
@@ -137,6 +138,10 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 SettingsRow("Currency", icon = SwIcons.Banknote, trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
                 SettingsRow("Default payment", icon = SwIcons.CreditCard, trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
                 SettingsRow("Haptic feedback", icon = SwIcons.Vibrate, trailing = Trailing.Switch(hapticOn) { viewModel.setHaptic(it) }, divider = true)
+            }
+
+            SettingsGroup("AI") {
+                SettingsRow("AI provider", icon = SwIcons.Sparkles, trailing = Trailing.Value(if (aiMode == "byok") "NVIDIA (your key)" else "SpendWise AI"), onClick = onAiProvider)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -253,7 +258,7 @@ private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise
 
 /** One choice per row, a tick on the current one; picking closes the sheet. */
 @Composable
-private fun OptionRow(
+internal fun OptionRow(
     title: String, selected: Boolean, sub: String? = null, lead: String? = null, icon: ImageVector? = null,
     leading: (@Composable () -> Unit)? = null, onClick: () -> Unit,
 ) {

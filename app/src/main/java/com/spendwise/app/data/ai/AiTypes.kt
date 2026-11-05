@@ -39,3 +39,19 @@ sealed interface AiResult {
 
 /** Plain-text (role, content) messages, as most tasks send them. */
 fun textMessages(messages: List<Pair<String, String>>): List<Pair<String, JsonElement>> = messages.map { (role, content) -> role to JsonPrimitive(content) }
+
+/** BYOK plan §8: what the user reads when their own provider fails. Never the provider's body or headers. */
+fun byokErrorText(e: AiError): String = when (e) {
+    AiError.Unauthorized -> "API key rejected. Check the key."
+    AiError.RateLimited -> "Provider limit reached. Check your provider account or try later."
+    AiError.ModelNotFound -> "Model unavailable. Check the model ID."
+    AiError.Busy -> "Provider is busy. Try again shortly."
+    AiError.Network -> "Could not connect. Check your internet."
+    AiError.Timeout -> "Provider took too long. Try again."
+    AiError.BadReply -> "Provider returned an unsupported response."
+    AiError.Blocked -> "Provider could not complete this request."
+    AiError.KeyUnreadable -> "Your saved key couldn't be read, so it was removed. SpendWise AI is in use again; add your key to switch back."
+    AiError.NoVisionModel -> "Receipt scan needs a vision model; set one in Settings."
+    AiError.NoConsent -> "Agree to send requests to your provider first, in Settings › AI provider."
+    is AiError.Http -> "Provider error (${e.status}). Try again later."
+}
