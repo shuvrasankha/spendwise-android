@@ -33,6 +33,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -347,21 +351,33 @@ fun StackedBar(segments: List<BarSegment>, modifier: Modifier = Modifier) {
     }
 }
 
-/** One bar per label; the current one is accent, the rest `line`. */
+/** One bar per label; the current one is accent, the rest `line`. With [valueLabel], tapping a bar shows its label and amount above the chart. */
 @Composable
-fun WeekBars(values: List<Float>, labels: List<String>, currentIndex: Int, modifier: Modifier = Modifier) {
+fun WeekBars(values: List<Float>, labels: List<String>, currentIndex: Int, modifier: Modifier = Modifier, valueLabel: ((Int) -> String)? = null) {
     val c = SpendWiseTheme.colors
     val max = values.maxOrNull()?.takeIf { it > 0f } ?: 1f
-    Row(modifier.fillMaxWidth().height(120.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+    var picked by remember(values) { mutableStateOf<Int?>(null) }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (valueLabel != null) {
+        val i = picked ?: currentIndex
+        AnimatedContent(i, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "barValue") {
+            Text("${labels.getOrElse(it) { "" }} · ${valueLabel(it)}", style = SwType.labelStrong, color = c.text)
+        }
+    }
+    Row(Modifier.fillMaxWidth().height(120.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
         values.forEachIndexed { i, v ->
-            Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+            val tap = if (valueLabel == null) Modifier else Modifier.clickable(role = Role.Button, onClickLabel = "Show amount") { picked = i }
+            Column(Modifier.weight(1f).fillMaxHeight().then(tap), horizontalAlignment = Alignment.CenterHorizontally) {
+                // A tapped past bar lifts to muted so it reads as picked; the current one keeps the accent
+                val fill by animateColorAsState(if (i == currentIndex) c.accent else if (i == picked) c.textMuted else c.line, label = "bar")
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
-                    Box(Modifier.fillMaxWidth().fillMaxHeight(growTo((v / max).coerceIn(0.03f, 1f))).clip(Radius.segment).background(if (i == currentIndex) c.accent else c.line))
+                    Box(Modifier.fillMaxWidth().fillMaxHeight(growTo((v / max).coerceIn(0.03f, 1f))).clip(Radius.segment).background(fill))
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(labels.getOrElse(i) { "" }, style = SwType.micro, color = if (i == currentIndex) c.text else c.textFaint, textAlign = TextAlign.Center, maxLines = 1)
             }
         }
+    }
     }
 }
 

@@ -387,7 +387,7 @@ private fun Trend(o: OverTime, currency: Currency, vm: DashboardViewModel) {
                 TimeTab.MONTHLY -> (o.view.period.month?.toInt() ?: LocalDate.now().monthValue) - 1
                 else -> o.trend.values.lastIndex
             }
-            Box(Modifier.padding(horizontal = Spacing.gutter)) { WeekBars(o.trend.values.map { it.toFloat() }, o.trend.labels, current) }
+            Box(Modifier.padding(horizontal = Spacing.gutter)) { WeekBars(o.trend.values.map { it.toFloat() }, o.trend.labels, current, valueLabel = { formatAmount(o.trend.values[it], currency) }) }
         }
         val s = o.summary
         Caption(

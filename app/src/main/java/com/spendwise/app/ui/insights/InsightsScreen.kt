@@ -370,7 +370,7 @@ private fun WeekdaySection(s: InsightSummary, w: WeekdayCard, money: (Double) ->
             Modifier.padding(horizontal = Spacing.gutter).semantics {
                 contentDescription = "Spending by weekday: " + s.weekdays.joinToString(", ") { "${it.day} ${money(it.amount)}" }
             },
-        ) { WeekBars(s.weekdays.map { it.amount.toFloat() }, s.weekdays.map { it.day.take(3) }, s.weekdays.indexOf(w.top)) }
+        ) { WeekBars(s.weekdays.map { it.amount.toFloat() }, s.weekdays.map { it.day.take(3) }, s.weekdays.indexOf(w.top), valueLabel = { money(s.weekdays[it].amount) }) }
     }
 }
 
