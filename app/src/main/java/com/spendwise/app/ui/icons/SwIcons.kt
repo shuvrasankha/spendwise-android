@@ -89,6 +89,8 @@ object SwIcons {
         "camera", "M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z",
         "M12 10a3 3 0 1 0 0 6a3 3 0 1 0 0-6",
     )
+    val ArrowUpDown = lucide("arrowUpDown", "m21 16-4 4-4-4", "M17 20V4", "m3 8 4-4 4 4", "M7 4v16")
+    val Gauge = lucide("gauge", "m12 14 4-4", "M3.34 19a10 10 0 1 1 17.32 0")
     val Target = lucide("target", "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20", "M12 6a6 6 0 1 0 0 12a6 6 0 1 0 0-12", "M12 10a2 2 0 1 0 0 4a2 2 0 1 0 0-4")
     val Wallet = lucide(
         "wallet", "M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1",

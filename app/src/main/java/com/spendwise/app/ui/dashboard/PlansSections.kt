@@ -56,7 +56,7 @@ internal fun DueThisMonth(due: List<DueBill>, money: (Double) -> String, plans: 
 internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewModel, onOpenInvest: () -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Savings goals", action = "New goal", onAction = plans::newGoal, actionIcon = SwIcons.Plus)
+        SectionHeader("Savings goals", icon = SwIcons.Wallet, action = "New goal", onAction = plans::newGoal, actionIcon = SwIcons.Plus)
         goalsNeed(h.goals, h.saved, money)?.let {
             Text(it, style = SwType.label, color = if (it.endsWith("covered")) c.positive else c.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
         }

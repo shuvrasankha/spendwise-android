@@ -150,6 +150,7 @@ private fun Hero(p: InvestPage.Ready, debts: List<Debt>, currency: Currency, mon
         Metric(
             "All investments · worth now", currency.symbol, formatNumber(if (empty) 0.0 else pf.value, currency),
             sub = if (empty) "Add a holding, then the money you put in." else listOf(pf.worthSub(money), pf.monthSub(month, money)).joinToString("\n"),
+            icon = SwIcons.TrendingUp,
         )
         if (!empty) {
             val a = afterDebts(pf.value, debts)

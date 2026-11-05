@@ -422,7 +422,7 @@ private fun Score(h: HomeFigures) {
     var open by rememberSaveable { mutableStateOf(false) }
     val s = h.score
     Column {
-        SectionHeader("Money score", action = if (s != null) (if (open) "Hide" else "Details") else null, onAction = { open = !open })
+        SectionHeader("Money score", icon = SwIcons.Gauge, action = if (s != null) (if (open) "Hide" else "Details") else null, onAction = { open = !open })
         if (s == null) {
             Caption("No score yet. Add this month's income to see your score.")
             return@Column

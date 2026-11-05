@@ -63,7 +63,7 @@ fun Metric(label: String, symbol: String, amount: String, modifier: Modifier = M
     Column(modifier.fillMaxWidth().padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (icon != null) Icon(icon, null, Modifier.size(16.dp), tint = c.textMuted)
-            Text(label, style = SwType.label, color = c.textMuted)
+            Text(label.uppercase(), style = SwType.overline, color = c.textMuted)
         }
         Row(verticalAlignment = Alignment.Bottom) {
             Text(symbol, style = SwType.title, color = color, modifier = Modifier.padding(bottom = 6.dp, end = 2.dp))

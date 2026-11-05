@@ -95,7 +95,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                 val s = ready?.summary
                 Metric(
                     "Net balance", currency.symbol, if (s == null) "—" else formatNumber(Math.abs(s.net), currency),
-                    sub = s?.let { "${it.netWord} · ${it.sub}" }, positive = s != null && s.net > 0, negative = s != null && s.net < 0,
+                    sub = s?.let { "${it.netWord} · ${it.sub}" }, positive = s != null && s.net > 0, negative = s != null && s.net < 0, icon = SwIcons.People,
                 )
             }
             item {

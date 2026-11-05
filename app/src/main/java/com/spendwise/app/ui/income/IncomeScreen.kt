@@ -60,7 +60,7 @@ fun IncomeScreen(
                 Metric(
                     "$month so far", currency.symbol, if (s == null) "—" else formatNumber(s.monthTotal, currency),
                     sub = s?.let { "${plural(it.monthCount, "entry", "entries")} · ${formatAmount(it.yearTotal, currency)} this year" },
-                    positive = true,
+                    positive = true, icon = SwIcons.MoneyIn,
                 )
             }
             item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Add income", onAdd, Modifier.fillMaxWidth(), leading = SwIcons.Plus) } }

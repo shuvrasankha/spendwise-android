@@ -20,6 +20,16 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -163,7 +173,12 @@ fun InsightsScreen(
 // ── Shared pieces ──
 
 @Composable
-private fun Section(content: @Composable () -> Unit) = Box(Modifier.padding(top = Spacing.section)) { content() }
+private fun Section(content: @Composable () -> Unit) {
+    // Each card fades and lifts in as it first appears, so the page reveals itself while scrolling
+    val shown = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { shown.animateTo(1f, tween(400, easing = FastOutSlowInEasing)) }
+    Box(Modifier.padding(top = Spacing.section).graphicsLayer { alpha = shown.value; translationY = (1f - shown.value) * 24.dp.toPx() }) { content() }
+}
 
 @Composable
 private fun Note(text: String, color: Color = Color.Unspecified) =
@@ -171,7 +186,10 @@ private fun Note(text: String, color: Color = Color.Unspecified) =
 
 @Composable
 private fun BigFigure(f: InsightFigure) = Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-    Text(f.amount, style = SwType.title, color = SpendWiseTheme.colors.text)
+    // A new period rolls the figure over instead of swapping it in place
+    AnimatedContent(f.amount, transitionSpec = { (fadeIn() + slideInVertically { it / 2 }) togetherWith (fadeOut() + slideOutVertically { -it / 2 }) }, label = "figure") {
+        Text(it, style = SwType.title, color = SpendWiseTheme.colors.text)
+    }
     Text(f.unit, style = SwType.label, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(bottom = 4.dp))
 }
 
@@ -241,8 +259,8 @@ private fun ForecastSection(f: Forecast, money: (Double) -> String) {
     val c = SpendWiseTheme.colors
     val colors = shades(card.parts.size)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionHeader("Forecast", icon = SwIcons.TrendingUp)
         Column(Modifier.padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Forecast", style = SwType.heading, color = c.text)
             Text(card.figure.amount, style = SwType.display, color = c.text)
             Text(card.figure.unit, style = SwType.label, color = c.textMuted)
         }
@@ -268,7 +286,7 @@ private fun ForecastSection(f: Forecast, money: (Double) -> String) {
 private fun CompareSection(s: InsightSummary, g: Glance, money: (Double) -> String) {
     val card = compareCard(s, g.range, money)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader(card.title)
+        SectionHeader(card.title, icon = SwIcons.Calendar)
         card.none?.let { Note(it) }
         card.figure?.let { BigFigure(it) }
         card.change?.let { ChangeLine(it) }
@@ -280,7 +298,7 @@ private fun CompareSection(s: InsightSummary, g: Glance, money: (Double) -> Stri
 private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudget: () -> Unit) {
     val c = SpendWiseTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("Against your budget")
+        SectionHeader("Against your budget", icon = SwIcons.Target)
         if (rep == null) {
             Note("See how each month goes against a plan.")
             Box(Modifier.padding(horizontal = 8.dp)) { SwButton("Set a monthly budget", onBudget, style = ButtonStyle.Text, compact = true) }
@@ -302,7 +320,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
         }
         val cats = rep.catRows(money)
         if (cats.isNotEmpty()) {
-            SectionHeader("Category limits")
+            SectionHeader("Category limits", icon = SwIcons.Gauge)
             cats.forEachIndexed { i, r ->
                 ListRow(r.category, meta = r.sub, amount = r.value, amountColor = if (r.over) c.negative else Color.Unspecified, icon = SwIcons.forCategory(r.category), divider = i > 0)
             }
@@ -315,7 +333,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
 private fun PieSection(slices: List<PieSlice>, spent: Double, money: (Double) -> String) {
     val colors = shades(slices.size)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader("Where it went")
+        SectionHeader("Where it went", icon = SwIcons.Wallet)
         Note("${money(spent)} spent, by category")
         Box(
             Modifier.padding(horizontal = Spacing.gutter).semantics {
@@ -328,7 +346,7 @@ private fun PieSection(slices: List<PieSlice>, spent: Double, money: (Double) ->
 
 @Composable
 private fun ChangedSection(s: InsightSummary, money: (Double) -> String) = Column {
-    SectionHeader("What changed")
+    SectionHeader("What changed", icon = SwIcons.ArrowUpDown)
     s.movers.forEachIndexed { i, m ->
         ListRow(
             m.category, meta = m.sub(money), amount = m.value(money), amountColor = if (m.diff > 0) SpendWiseTheme.colors.negative else Color.Unspecified,
@@ -339,14 +357,14 @@ private fun ChangedSection(s: InsightSummary, money: (Double) -> String) = Colum
 
 @Composable
 private fun BiggestSection(s: InsightSummary, money: (Double) -> String) = Column {
-    SectionHeader("Biggest expenses")
+    SectionHeader("Biggest expenses", icon = SwIcons.Receipt)
     s.biggest.forEachIndexed { i, b -> ListRow(b.title(), meta = b.meta(), amount = money(b.amount), icon = SwIcons.forCategory(b.category), divider = i > 0) }
 }
 
 @Composable
 private fun WeekdaySection(s: InsightSummary, w: WeekdayCard, money: (Double) -> String) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader("When you spend")
+        SectionHeader("When you spend", icon = SwIcons.Clock)
         Note(w.lead)
         Box(
             Modifier.padding(horizontal = Spacing.gutter).semantics {
@@ -368,7 +386,7 @@ private fun paymentIcon(method: String) = when (method) {
 private fun PaymentSection(rows: List<Pair<PaymentShare, String>>) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("How you pay")
+        SectionHeader("How you pay", icon = SwIcons.CreditCard)
         rows.forEachIndexed { i, (p, text) ->
             Column {
                 ListRow(p.name, amount = text, icon = paymentIcon(p.name), divider = i > 0)
@@ -384,7 +402,7 @@ private fun PaymentSection(rows: List<Pair<PaymentShare, String>>) {
 private fun FixedSection(f: FixedCard) {
     val c = SpendWiseTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionHeader("Fixed and flexible")
+        SectionHeader("Fixed and flexible", icon = SwIcons.Lock)
         Box(Modifier.padding(horizontal = Spacing.gutter).semantics { contentDescription = "${f.share.toInt()}% fixed, ${100 - f.share.toInt()}% flexible" }) {
             StackedBar(listOf(BarSegment((f.share / 100).toFloat(), c.text), BarSegment((1 - f.share / 100).toFloat(), c.textFaint)))
         }
