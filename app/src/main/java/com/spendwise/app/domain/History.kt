@@ -203,7 +203,7 @@ fun buildCsv(entries: List<Entry>, currencyCode: String, total: Boolean): String
         if (hasEarned) lines += line("Total income", earned)
         if (hasSpent && hasEarned) lines += line("Net", earned - spent)
     }
-    return "﻿" + lines.joinToString("\r\n") + "\r\n"
+    return "\uFEFF" + lines.joinToString("\r\n") + "\r\n"
 }
 
 /** "SpendWise_Expenses_2026-10-01_to_2026-10-24.csv", or "…_all-time_<today>.csv" with no dates. */

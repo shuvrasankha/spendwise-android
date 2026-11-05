@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The top of the 4x2 and 4x4 widgets: the month, its total, + for Add expense, and the budget -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UseAppTint"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">

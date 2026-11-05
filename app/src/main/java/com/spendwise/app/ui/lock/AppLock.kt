@@ -1,6 +1,7 @@
 package com.spendwise.app.ui.lock
 
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -93,10 +94,20 @@ fun FragmentActivity.confirmIdentity(onResult: (Boolean) -> Unit) {
     BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback).authenticate(info)
 }
 
+/** The activity behind a Compose context, which can be a wrapper around it. */
+fun Context.findActivity(): FragmentActivity {
+    var c = this
+    while (c is ContextWrapper) {
+        if (c is FragmentActivity) return c
+        c = c.baseContext
+    }
+    error("No FragmentActivity behind this context")
+}
+
 /** app-lock.js › showLock: asks straight away, with Unlock to ask again. */
 @Composable
 fun LockScreen(onUnlocked: () -> Unit, onSignOut: () -> Unit) {
-    val activity = LocalContext.current as FragmentActivity
+    val activity = LocalContext.current.findActivity()
     var failed by rememberSaveable { mutableStateOf(false) }
     val ask = { activity.confirmIdentity { ok -> if (ok) onUnlocked() else failed = true } }
     LaunchedEffect(Unit) { ask() }

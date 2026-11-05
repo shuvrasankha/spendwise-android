@@ -68,8 +68,10 @@
 
 ## Quality
 
-- [ ] **CI**: `.github/workflows/android.yml` running `./gradlew assembleDebug testDebugUnitTest lint` on
-      push and PR, with Gradle caching. Check how the build behaves without `google-services.json`.
+- [x] **CI**: `.github/workflows/android.yml` runs `assembleDebug testDebugUnitTest lint` on pushes to main
+      and on PRs (JDK 21, Gradle cache via `gradle/actions/setup-gradle`, reports uploaded). The build uses
+      `.github/ci/google-services.placeholder.json` (fake ids, right shape), so no secret is needed. Lint
+      now passes with 0 errors; the 47 warnings are left for later.
 - [ ] **Accessibility**: Canvas charts are silent in TalkBack. Add a `semantics { contentDescription }`
       summary to each. Fix meaningful icons with `contentDescription = null`, check 48dp touch targets and
       200% font scale.

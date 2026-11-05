@@ -86,7 +86,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -464,7 +464,7 @@ private fun SpendingCalendar(expenses: List<Expense>, money: (Double) -> String,
                 IconAction(SwIcons.Back, "Previous month", { month = addMonths(month, -1) })
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        "${ym.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${ym.year}",
+                        "${ym.month.getDisplayName(TextStyle.FULL, LocalConfiguration.current.locales[0])} ${ym.year}",
                         style = SwType.bodyStrong, color = c.text,
                     )
                     Text(money(cal.total), style = SwType.caption, color = c.accent)
