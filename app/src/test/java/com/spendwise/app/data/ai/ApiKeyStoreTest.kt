@@ -35,11 +35,12 @@ class ApiKeyStoreTest {
     private lateinit var prefsFile: java.io.File
     private lateinit var keys: java.io.File
     private lateinit var store: ApiKeyStore
+    private lateinit var prefs: DevicePrefs
 
     @Before fun setUp() {
         prefsFile = tmp.newFile("device_prefs.preferences_pb").also { it.delete() }
         keys = tmp.newFolder("no_backup")
-        val prefs = DevicePrefs(PreferenceDataStoreFactory.create(scope = scope) { prefsFile })
+        prefs = DevicePrefs(PreferenceDataStoreFactory.create(scope = scope) { prefsFile })
         store = ApiKeyStore(cipher, keys, prefs)
     }
 
@@ -86,6 +87,18 @@ class ApiKeyStoreTest {
         val onDisk = String(prefsFile.readBytes(), Charsets.ISO_8859_1)
         assertFalse(onDisk.contains("TESTSECRET"))
         assertTrue(onDisk.contains("1234"))
+    }
+
+    @Test fun `log-out forgets the key, the consent and the mode`() = runBlocking {
+        save("nvapi-TESTSECRET1234")
+        prefs.setByokConsent("nvidia", true)
+        prefs.setAiMode("byok")
+        store.forgetAll()
+        assertEquals("worker", prefs.aiMode.first())
+        assertFalse(prefs.byokConsent("nvidia").first())
+        assertFalse(store.hasKey("nvidia").first())
+        assertTrue(keys.list()!!.isEmpty())
+        assertEquals(1, cipher.destroyed)
     }
 
     @Test fun `a short or spaced key is refused and not saved`() = runBlocking {

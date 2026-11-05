@@ -1,5 +1,6 @@
 package com.spendwise.app.data.account
 
+import com.spendwise.app.data.ai.ApiKeyStore
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
 import com.spendwise.app.data.auth.AuthRepository
@@ -48,6 +49,7 @@ class AccountDeleter @Inject constructor(
     private val auth: AuthRepository,
     private val prefs: DevicePrefs,
     private val reminder: ReminderScheduler,
+    private val keys: ApiKeyStore,
 ) {
     /** [progress] gets each step's label and number (1-based) out of the plan's size + 1 for the account. */
     suspend fun deleteEverything(progress: (label: String, step: Int, of: Int) -> Unit) {
@@ -72,6 +74,7 @@ class AccountDeleter @Inject constructor(
         progress("account", of, of)
         auth.deleteUser()
         reminder.cancel()
+        keys.forgetAll() // the encrypted key file and its Keystore entry aren't in DataStore
         prefs.clear()
     }
 

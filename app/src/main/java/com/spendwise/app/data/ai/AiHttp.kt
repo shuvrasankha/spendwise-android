@@ -39,6 +39,7 @@ class UrlConnectionHttp @Inject constructor() : AiHttp {
                 c.connectTimeout = CONNECT_TIMEOUT_MS
                 c.readTimeout = readTimeoutMs
                 c.doOutput = true
+                c.instanceFollowRedirects = false // a redirect would resend the Authorization header to wherever it points
                 headers.forEach { (k, v) -> c.setRequestProperty(k, v) }
                 c.outputStream.use { it.write(body.toByteArray()) }
                 val status = c.responseCode

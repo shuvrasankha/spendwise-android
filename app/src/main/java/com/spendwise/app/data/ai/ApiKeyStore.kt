@@ -14,6 +14,9 @@ import java.nio.file.StandardCopyOption
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Every provider a key can be saved for. */
+val BYOK_PROVIDERS = listOf("nvidia")
+
 /** The saved key couldn't be decrypted (Keystore reset, restore to a new phone); it has been removed. */
 class KeyUnreadableException : Exception("KEY_UNREADABLE")
 
@@ -72,6 +75,15 @@ class ApiKeyStore @Inject constructor(
             if (dir.listFiles { f -> f.name.startsWith("byok_") && f.name.endsWith(".bin") }.isNullOrEmpty()) runCatching { cipher.destroy() }
         }
         prefs.setByokKeyMask(provider, null)
+    }
+
+    /**
+     * Log-out and account deletion: the key and the consent belong to the person, not the phone, so
+     * the next account here starts on SpendWise AI and never sends its data to someone else's key.
+     */
+    suspend fun forgetAll() {
+        prefs.setAiMode("worker")
+        BYOK_PROVIDERS.forEach { remove(it); prefs.setByokConsent(it, false) }
     }
 
     /** From DataStore, never from decrypting. */
