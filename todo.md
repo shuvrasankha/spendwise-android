@@ -34,9 +34,9 @@
       device transfer, which `allowBackup="false"` alone doesn't stop on API 31+). All prefs share one
       DataStore file, so single keys can't be excluded; entries come back from Firestore on sign-in.
       Checked: `bmgr backupnow` reports "Backup is not allowed".
-- [ ] **Hide content in Recents**: when app lock is on, call `setRecentsScreenshotEnabled(false)` (API 33+)
-      and use `FLAG_SECURE` below that, so the app switcher doesn't show balances. Decide whether it should
-      also apply when app lock is off.
+- [x] **Hide content in Recents**: only while app lock is on (`MainActivity.hideInRecents`). API 33+
+      uses `setRecentsScreenshotEnabled(false)` (blank thumbnail, screenshots still work); below that
+      `FLAG_SECURE`, which also blocks screenshots. With the lock off, Recents and screenshots behave as normal.
 - [ ] **Firebase App Check**: Play Integrity provider (debug provider for debug builds). Start in monitor
       mode only. The web app shares the project and needs reCAPTCHA Enterprise before enforcement. Have
       `WorkerClient` send the App Check token so the Worker can verify it later (Worker change is in the web
