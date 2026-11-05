@@ -5,6 +5,8 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+import com.spendwise.app.data.AppIcon
+import com.spendwise.app.data.AppIconSwitcher
 import com.spendwise.app.data.SettingsRepository
 import com.spendwise.app.data.account.AccountDeleter
 import com.spendwise.app.data.auth.AuthRepository
@@ -104,6 +106,7 @@ class SettingsViewModel @Inject constructor(
     private val deleter: AccountDeleter,
     private val updater: GithubUpdater,
     private val lock: AppLock,
+    private val icons: AppIconSwitcher,
 ) : ViewModel() {
 
     /** A note from the last tap (blocked, failed), shown instead of the usual one until the next change. */
@@ -147,6 +150,15 @@ class SettingsViewModel @Inject constructor(
     /** The tour shows again at once: the app is gated on this flag. */
     fun replayTour() {
         viewModelScope.launch { prefs.setTourSeen(false) }
+    }
+
+    private val _appIcon = MutableStateFlow(icons.current())
+    val appIcon: StateFlow<AppIcon> = _appIcon.asStateFlow()
+
+    fun setAppIcon(icon: AppIcon) {
+        if (icon == _appIcon.value) return
+        _appIcon.value = icon
+        icons.set(icon)
     }
 
     fun setThemeMode(mode: ThemeMode) {

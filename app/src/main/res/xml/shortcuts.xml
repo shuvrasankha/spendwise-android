@@ -9,7 +9,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="spendwise://add"
-            android:targetClass="com.spendwise.app.MainActivity"
+            android:targetClass="com.spendwise.app.SpendWiseActivity"
             android:targetPackage="com.spendwise.app" />
     </shortcut>
     <shortcut
@@ -20,7 +20,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:data="spendwise://history"
-            android:targetClass="com.spendwise.app.MainActivity"
+            android:targetClass="com.spendwise.app.SpendWiseActivity"
             android:targetPackage="com.spendwise.app" />
     </shortcut>
 </shortcuts>

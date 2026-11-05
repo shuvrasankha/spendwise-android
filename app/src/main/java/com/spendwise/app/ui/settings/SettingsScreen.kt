@@ -1,5 +1,14 @@
 package com.spendwise.app.ui.settings
 
+import com.spendwise.app.data.AppIcon
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -91,6 +100,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
     val passwordChange by viewModel.password.collectAsStateWithLifecycle()
     val defaultPayment by viewModel.defaultPayment.collectAsStateWithLifecycle()
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
+    val appIcon by viewModel.appIcon.collectAsStateWithLifecycle()
     val hapticOn by viewModel.hapticOn.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
@@ -122,6 +132,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
 
             SettingsGroup("Display") {
                 SettingsRow("Appearance", icon = state.themeMode.icon, trailing = Trailing.Value(state.themeMode.label), onClick = { picking = "theme" })
+                SettingsRow("App icon", icon = SwIcons.Image, trailing = Trailing.Value(appIcon.label), divider = true, onClick = { picking = "icon" })
                 SettingsRow("Widget transparency", icon = SwIcons.Blend, trailing = Trailing.Value("$transparency%"), divider = true, onClick = { picking = "widget" })
                 SettingsRow("Currency", icon = SwIcons.Banknote, trailing = Trailing.Value("${state.currency.symbol} ${state.currency.code}"), divider = true, onClick = { picking = "currency" })
                 SettingsRow("Default payment", icon = SwIcons.CreditCard, trailing = Trailing.Value(defaultPayment), divider = true, onClick = { picking = "payment" })
@@ -182,6 +193,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             "Widget transparency", WIDGET_TRANSPARENCY_LEVELS.map { it.toString() to "$it%" }, transparency.toString(),
             { viewModel.setWidgetTransparency(it.toInt()) },
         ) { picking = null }
+        "icon" -> AppIconSheet(appIcon, viewModel::setAppIcon) { picking = null }
         "currency" -> CurrencySheet(state.currency.code, viewModel::setCurrency) { picking = null }
         "payment" -> OptionSheet("Default payment", PAYMENT_METHODS.map { it to it }, defaultPayment, viewModel::setDefaultPayment) { picking = null }
         "time" -> TimeDialog(state.reminderAt, viewModel::setReminderTime) { picking = null }
@@ -241,13 +253,17 @@ private const val PRIVACY_POLICY_URL = "https://shuvrasankha.github.io/spendwise
 
 /** One choice per row, a tick on the current one; picking closes the sheet. */
 @Composable
-private fun OptionRow(title: String, selected: Boolean, sub: String? = null, lead: String? = null, icon: ImageVector? = null, onClick: () -> Unit) {
+private fun OptionRow(
+    title: String, selected: Boolean, sub: String? = null, lead: String? = null, icon: ImageVector? = null,
+    leading: (@Composable () -> Unit)? = null, onClick: () -> Unit,
+) {
     val c = SpendWiseTheme.colors
     Row(
         Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.RadioButton, onClick = onClick).padding(horizontal = Spacing.gutter),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (icon != null) Icon(icon, null, Modifier.size(22.dp), tint = c.text)
+        leading?.invoke()
         if (lead != null) Text(lead, style = SwType.heading, color = c.text, modifier = Modifier.width(36.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = SwType.body, color = c.text)
@@ -262,6 +278,31 @@ private fun OptionSheet(title: String, options: List<Pair<String, String>>, curr
     SwSheet(title, onDismiss) {
         Column {
             options.forEach { (id, label) -> OptionRow(label, id == current, icon = icon(id)) { onPick(id); onDismiss() } }
+        }
+    }
+
+/** The launcher icons, each previewed as a launcher draws it: the 108dp layer masked to its inner 72dp. */
+@Composable
+private fun AppIconSheet(current: AppIcon, onPick: (AppIcon) -> Unit, onDismiss: () -> Unit) =
+    SwSheet("App icon", onDismiss) {
+        Column {
+            AppIcon.entries.forEach { icon ->
+                OptionRow(
+                    icon.label, icon == current, sub = if (icon == AppIcon.DARK) "Default" else null,
+                    leading = {
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape).background(Color(icon.tile))
+                                .border(1.dp, SpendWiseTheme.colors.line, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) { Image(painterResource(icon.mark), null, Modifier.requiredSize(60.dp)) }
+                    },
+                ) { onPick(icon); onDismiss() }
+            }
+            Text(
+                "The new icon shows once you leave SpendWise. Your home screen may drop the old one; add it back from the app list.",
+                style = SwType.label, color = SpendWiseTheme.colors.textMuted,
+                modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = 8.dp),
+            )
         }
     }
 

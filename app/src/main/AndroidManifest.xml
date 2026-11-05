@@ -26,17 +26,12 @@
         <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_accent" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".SpendWiseActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:label="@string/app_name"
             android:theme="@style/Theme.Spendwiseandroid"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <!-- spendwise://add, history, insights, debts, dashboard (spec §1.0 deep links) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -54,10 +49,63 @@
 
                 <data android:mimeType="text/plain" />
             </intent-filter>
+        </activity>
+        <!-- Launcher entries, one per app icon (Settings › App icon, AppIcon.kt); exactly one is enabled.
+             The default keeps the old ".MainActivity" name, so home-screen icons survive the update. -->
+        <!-- Orange on dark (default) -->
+        <activity-alias
+            android:name=".MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:targetActivity=".SpendWiseActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
-        </activity>
+        </activity-alias>
+        <!-- Dark on light -->
+        <activity-alias
+            android:name=".IconLight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_light"
+            android:roundIcon="@mipmap/ic_launcher_light"
+            android:label="@string/app_name"
+            android:targetActivity=".SpendWiseActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
+        <!-- Dark on orange -->
+        <activity-alias
+            android:name=".IconOrange"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_orange"
+            android:roundIcon="@mipmap/ic_launcher_orange"
+            android:label="@string/app_name"
+            android:targetActivity=".SpendWiseActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity-alias>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark mark (docs/brand/variants: dark-on-light, dark-on-orange). The 1024 icon fills the 72dp visible circle of the 108dp layer, so the viewport is 1536 with the mark moved in by 256. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="1536" android:viewportHeight="1536">
+    <!-- The SVG's translate(511.25 512) scale(1.95) translate(-256 -240), plus 256 -->
+    <group android:scaleX="1.95" android:scaleY="1.95" android:translateX="268.05" android:translateY="300">
+        <path android:pathData="M150,168H282" android:strokeColor="#1C1C1E" android:strokeWidth="27" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M150,130H270A50,50 0,0 1,270 230H210L250,350L280,280L310,350L361.3,227.9" android:strokeColor="#1C1C1E" android:strokeWidth="27" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+        <path android:pathData="M308.8,252.6L361.3,227.9L380.4,282.7" android:strokeColor="#1C1C1E" android:strokeWidth="27" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    </group>
+</vector>

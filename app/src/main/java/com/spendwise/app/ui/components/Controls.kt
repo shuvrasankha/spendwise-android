@@ -50,7 +50,7 @@ import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 
 /** Selected is always inverted: `text` fill, `bg` content. */
-/** [onClick] preceded by a light tick; the tick is dropped when the user turned haptics off (see MainActivity). */
+/** [onClick] preceded by a light tick; the tick is dropped when the user turned haptics off (see SpendWiseActivity). */
 @Composable
 fun hapticClick(onClick: () -> Unit): () -> Unit {
     val haptic = LocalHapticFeedback.current

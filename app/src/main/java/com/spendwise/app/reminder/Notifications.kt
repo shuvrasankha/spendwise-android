@@ -9,7 +9,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
-import com.spendwise.app.MainActivity
+import com.spendwise.app.SpendWiseActivity
 import com.spendwise.app.R
 import com.spendwise.app.domain.REMINDER_TEXT
 import com.spendwise.app.domain.REMINDER_TITLE
@@ -43,7 +43,7 @@ object Notifications {
         createChannels(context)
         val open = PendingIntent.getActivity(
             context, (tag ?: page).hashCode(),
-            Intent(Intent.ACTION_VIEW, "$LINK_SCHEME://$page".toUri(), context, MainActivity::class.java)
+            Intent(Intent.ACTION_VIEW, "$LINK_SCHEME://$page".toUri(), context, SpendWiseActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )

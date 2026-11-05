@@ -26,7 +26,7 @@ import androidx.work.WorkerParameters
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Source
-import com.spendwise.app.MainActivity
+import com.spendwise.app.SpendWiseActivity
 import com.spendwise.app.R
 import com.spendwise.app.data.SettingsRepository
 import com.spendwise.app.data.settingsFrom
@@ -314,7 +314,7 @@ private object TodayWidgetView {
 
     private fun open(context: Context, page: String) = PendingIntent.getActivity(
         context, page.hashCode(),
-        Intent(Intent.ACTION_VIEW, "$LINK_SCHEME://$page".toUri(), context, MainActivity::class.java)
+        Intent(Intent.ACTION_VIEW, "$LINK_SCHEME://$page".toUri(), context, SpendWiseActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
