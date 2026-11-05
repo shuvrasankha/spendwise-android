@@ -1,5 +1,13 @@
 package com.spendwise.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +31,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -251,13 +261,15 @@ fun SettingsRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = c.textMuted)
+            if (icon != null) Crossfade(icon, label = "rowIcon") { Icon(it, null, Modifier.size(20.dp), tint = c.textMuted) }
             Text(title, style = SwType.body, color = c.text, modifier = Modifier.weight(1f))
             when (trailing) {
                 Trailing.Chevron -> Icon(SwIcons.ChevronRight, null, Modifier.size(18.dp), tint = c.textFaint)
                 Trailing.None -> Unit
                 is Trailing.Value -> {
-                    Text(trailing.text, style = SwType.label, color = c.textMuted)
+                    AnimatedContent(trailing.text, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "rowValue") {
+                        Text(it, style = SwType.label, color = c.textMuted)
+                    }
                     Icon(SwIcons.ChevronRight, null, Modifier.size(18.dp), tint = c.textFaint)
                 }
                 is Trailing.Switch -> SwSwitch(trailing.checked, trailing.onChange)
@@ -288,6 +300,14 @@ fun budgetTierColor(ratio: Float): Color {
     }
 }
 
+/** A fraction that grows from 0 when first shown and eases to each new [target], so bars fill instead of snapping. */
+@Composable
+private fun growTo(target: Float): Float {
+    val a = remember { Animatable(0f) }
+    LaunchedEffect(target) { a.animateTo(target, tween(600, easing = FastOutSlowInEasing)) }
+    return a.value
+}
+
 /** Progress is accent (or, with [tiered], green to red by how much of the budget is used); [over] (past the limit by default) turns it negative. [pace] (0..1) marks how far through the period we are. */
 @Composable
 fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null, over: Boolean = progress > 1f, tiered: Boolean = false) {
@@ -295,7 +315,7 @@ fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = nul
     val fill = if (tiered) budgetTierColor(if (over) maxOf(progress, 1.01f) else progress) else if (over) c.negative else c.accent
     BoxWithConstraints(modifier.fillMaxWidth().height(12.dp), contentAlignment = Alignment.CenterStart) {
         Box(Modifier.fillMaxWidth().height(6.dp).clip(Radius.pill).background(c.line))
-        Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(6.dp).clip(Radius.pill).background(fill))
+        Box(Modifier.fillMaxWidth(growTo(progress.coerceIn(0f, 1f))).height(6.dp).clip(Radius.pill).background(fill))
         if (pace != null) Box(Modifier.offset(x = maxWidth * pace.coerceIn(0f, 1f) - 1.dp).width(2.dp).height(12.dp).background(c.text))
     }
 }
@@ -314,7 +334,7 @@ data class BarSegment(val weight: Float, val color: Color)
 
 @Composable
 fun StackedBar(segments: List<BarSegment>, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().height(8.dp).clip(Radius.pill).background(SpendWiseTheme.colors.line), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(modifier.fillMaxWidth(growTo(1f)).height(8.dp).clip(Radius.pill).background(SpendWiseTheme.colors.line), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         segments.filter { it.weight > 0f }.forEach { Box(Modifier.weight(it.weight).fillMaxHeight().background(it.color)) }
     }
 }
@@ -328,7 +348,7 @@ fun WeekBars(values: List<Float>, labels: List<String>, currentIndex: Int, modif
         values.forEachIndexed { i, v ->
             Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
-                    Box(Modifier.fillMaxWidth().fillMaxHeight((v / max).coerceIn(0.03f, 1f)).clip(Radius.segment).background(if (i == currentIndex) c.accent else c.line))
+                    Box(Modifier.fillMaxWidth().fillMaxHeight(growTo((v / max).coerceIn(0.03f, 1f))).clip(Radius.segment).background(if (i == currentIndex) c.accent else c.line))
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(labels.getOrElse(i) { "" }, style = SwType.micro, color = if (i == currentIndex) c.text else c.textFaint, textAlign = TextAlign.Center, maxLines = 1)

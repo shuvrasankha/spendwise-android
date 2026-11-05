@@ -1,6 +1,11 @@
 package com.spendwise.app.ui.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -159,7 +164,14 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
         },
     ) { padding ->
         // Consumed so a screen's imePadding doesn't add the keyboard on top of the bottom bar's padding
-        NavHost(nav, startDestination = Dashboard, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
+        NavHost(
+            nav, startDestination = Dashboard, modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+            // Short fade with a small lift: enough to show where you went, quiet enough for the minimalist look
+            enterTransition = { fadeIn(tween(220, delayMillis = 60)) + slideInVertically(tween(280)) { it / 24 } },
+            exitTransition = { fadeOut(tween(120)) },
+            popEnterTransition = { fadeIn(tween(220, delayMillis = 60)) },
+            popExitTransition = { fadeOut(tween(120)) + slideOutVertically(tween(200)) { it / 24 } },
+        ) {
             composable<Dashboard> {
                 DashboardScreen(
                     topBar = {

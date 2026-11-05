@@ -1,5 +1,14 @@
 package com.spendwise.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -102,12 +112,14 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
             @Composable
             fun item(tab: BottomTab) {
                 val on = tab == selected
-                val tint = if (on) c.text else c.textMuted
+                val tint by animateColorAsState(if (on) c.text else c.textMuted, label = "tab")
                 Column(
                     Modifier.weight(1f).height(64.dp).clickable(role = Role.Tab) { tick(); onSelect(tab) }.semantics { this.selected = on },
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                 ) {
-                    Icon(tab.icon, null, Modifier.size(22.dp), tint = tint)
+                    // Selected icon pops up a little with a soft bounce
+                    val scale by animateFloatAsState(if (on) 1.15f else 1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "tab")
+                    Icon(tab.icon, null, Modifier.size(22.dp).graphicsLayer { scaleX = scale; scaleY = scale }, tint = tint)
                     Spacer(Modifier.height(4.dp))
                     Text(tab.label, style = SwType.micro, color = tint)
                 }
@@ -115,8 +127,12 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
             item(BottomTab.Home)
             item(BottomTab.History)
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                val press = remember { MutableInteractionSource() }
+                val pressed by press.collectIsPressedAsState()
+                val addScale by animateFloatAsState(if (pressed) 0.88f else 1f, spring(Spring.DampingRatioMediumBouncy), label = "add")
                 Box(
-                    Modifier.size(52.dp).clip(CircleShape).background(c.accent).clickable(role = Role.Button, onClick = hapticClick(onAdd))
+                    Modifier.size(52.dp).graphicsLayer { scaleX = addScale; scaleY = addScale }.clip(CircleShape).background(c.accent)
+                        .clickable(interactionSource = press, indication = LocalIndication.current, role = Role.Button, onClick = hapticClick(onAdd))
                         .semantics { contentDescription = "New entry" },
                     contentAlignment = Alignment.Center,
                 ) { Icon(SwIcons.Plus, null, Modifier.size(24.dp), tint = c.onAccent) }

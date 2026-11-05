@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -144,7 +145,8 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                 SettingsRow("AI provider", icon = SwIcons.Sparkles, trailing = Trailing.Value(aiLabel), onClick = onAiProvider)
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The note under the group appears and goes, so let the block grow instead of jumping
+            Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("Notifications") {
                     SettingsRow("Daily reminder", icon = SwIcons.Bell, trailing = Trailing.Switch(state.reminderOn) { on ->
                         when {
@@ -171,7 +173,8 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The note under the group appears and goes, so let the block grow instead of jumping
+            Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SettingsGroup("About") {
                     SettingsRow("App tour", onClick = viewModel::replayTour)
                     SettingsRow("Privacy policy", divider = true, onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) })
