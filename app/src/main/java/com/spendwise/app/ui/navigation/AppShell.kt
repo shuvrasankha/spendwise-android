@@ -183,6 +183,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     onAddExpense = { entry = EntryType.Expense },
                     onEditExpense = { nav.navigate(EditExpense(it)) },
                     onOpenIncome = { nav.switchTo(Income) },
+                    onAddIncome = { entry = EntryType.Income },
                     onOpenDebts = { nav.switchTo(Debts) },
                     onOpenInvest = { nav.navigate(Investments) },
                     onOpenHistory = { from, to -> nav.navigate(History(from = from, to = to)) },

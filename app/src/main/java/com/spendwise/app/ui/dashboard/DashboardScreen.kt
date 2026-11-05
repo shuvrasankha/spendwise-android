@@ -113,6 +113,7 @@ fun DashboardScreen(
     onAddExpense: () -> Unit,
     onEditExpense: (String) -> Unit,
     onOpenIncome: () -> Unit,
+    onAddIncome: () -> Unit,
     onOpenDebts: () -> Unit,
     onOpenInvest: () -> Unit,
     /** The period shown, as dates; null for both when History should show everything. */
@@ -165,7 +166,7 @@ fun DashboardScreen(
                     item { Section { Categories(s.home, s.firstTime, money) } }
                     item { Section { Trend(s.overTime, currency, dashboard) } }
                     item { Section { Recent(s.overTime, currency, onOpenHistory, onEditExpense) } }
-                    item { Section { Score(s.home) } }
+                    item { Section { Score(s.home, onAddIncome) } }
                     item { Section { Goals(s.home, money, plans, onOpenInvest) } }
                 }
             }
@@ -414,7 +415,7 @@ private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, Str
 private const val LATEST_ROWS = 5
 
 @Composable
-private fun Score(h: HomeFigures) {
+private fun Score(h: HomeFigures, onAddIncome: () -> Unit) {
     val c = SpendWiseTheme.colors
     var open by rememberSaveable { mutableStateOf(false) }
     val s = h.score
@@ -422,6 +423,7 @@ private fun Score(h: HomeFigures) {
         SectionHeader("Money score", icon = SwIcons.Gauge, action = if (s != null) (if (open) "Hide" else "Details") else null, onAction = { open = !open })
         if (s == null) {
             Caption("No score yet. Add this month's income to see your score.")
+            Box(Modifier.padding(horizontal = 8.dp)) { SwButton("Add income", onAddIncome, style = ButtonStyle.Text, compact = true) }
             return@Column
         }
         Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
