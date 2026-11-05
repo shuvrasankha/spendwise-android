@@ -7,4 +7,6 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- The light accent, tinting notification small icons (Notifications.kt uses the same value) -->
+    <color name="notification_accent">#FFE0A11B</color>
 </resources>

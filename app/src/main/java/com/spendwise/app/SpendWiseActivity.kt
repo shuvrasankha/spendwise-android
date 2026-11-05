@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.spendwise.app.data.AppIconSwitcher
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.auth.AuthState
 import com.spendwise.app.data.prefs.DevicePrefs
@@ -45,12 +46,13 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 // A FragmentActivity so BiometricPrompt can show over it
-class MainActivity : FragmentActivity() {
+class SpendWiseActivity : FragmentActivity() {
 
     @Inject lateinit var prefs: DevicePrefs
     @Inject lateinit var auth: AuthRepository
     @Inject lateinit var inbox: ShareInbox
     @Inject lateinit var lock: AppLock
+    @Inject lateinit var icons: AppIconSwitcher
 
     /** A link waiting to open; it survives sign-in and is cleared once the shell has opened it. */
     private var link by mutableStateOf<Any?>(null)
@@ -110,7 +112,11 @@ class MainActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         // A rotation isn't time away
-        if (!isChangingConfigurations) lock.left()
+        if (!isChangingConfigurations) {
+            lock.left()
+            // Off screen now, so switching the launcher entry can't close the task in front of the user
+            icons.applyPending()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
