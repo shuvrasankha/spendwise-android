@@ -30,13 +30,13 @@
 
 ## Security and privacy (do before launch: it's a finance app)
 
-- [ ] **Backup rules**: `allowBackup="true"`, but `data_extraction_rules.xml` is still the Android template,
-      so Google backup can copy the Firestore offline cache and the DataStore prefs (including app-lock state)
-      to a new phone. Exclude the Firestore cache and the app-lock and AI-consent keys (and the same in
-      `backup_rules.xml` for API < 31), or set `allowBackup="false"`.
-- [ ] **Hide content in Recents**: when app lock is on, call `setRecentsScreenshotEnabled(false)` (API 33+)
-      and use `FLAG_SECURE` below that, so the app switcher doesn't show balances. Decide whether it should
-      also apply when app lock is off.
+- [x] **Backup rules**: `allowBackup="false"`, and both rule files exclude every domain (cloud backup and
+      device transfer, which `allowBackup="false"` alone doesn't stop on API 31+). All prefs share one
+      DataStore file, so single keys can't be excluded; entries come back from Firestore on sign-in.
+      Checked: `bmgr backupnow` reports "Backup is not allowed".
+- [x] **Hide content in Recents**: only while app lock is on (`MainActivity.hideInRecents`). API 33+
+      uses `setRecentsScreenshotEnabled(false)` (blank thumbnail, screenshots still work); below that
+      `FLAG_SECURE`, which also blocks screenshots. With the lock off, Recents and screenshots behave as normal.
 - [ ] **Firebase App Check**: Play Integrity provider (debug provider for debug builds). Start in monitor
       mode only. The web app shares the project and needs reCAPTCHA Enterprise before enforcement. Have
       `WorkerClient` send the App Check token so the Worker can verify it later (Worker change is in the web
@@ -68,8 +68,10 @@
 
 ## Quality
 
-- [ ] **CI**: `.github/workflows/android.yml` running `./gradlew assembleDebug testDebugUnitTest lint` on
-      push and PR, with Gradle caching. Check how the build behaves without `google-services.json`.
+- [x] **CI**: `.github/workflows/android.yml` runs `assembleDebug testDebugUnitTest lint` on pushes to main
+      and on PRs (JDK 21, Gradle cache via `gradle/actions/setup-gradle`, reports uploaded). The build uses
+      `.github/ci/google-services.placeholder.json` (fake ids, right shape), so no secret is needed. Lint
+      now passes with 0 errors; the 47 warnings are left for later.
 - [ ] **Accessibility**: Canvas charts are silent in TalkBack. Add a `semantics { contentDescription }`
       summary to each. Fix meaningful icons with `contentDescription = null`, check 48dp touch targets and
       200% font scale.

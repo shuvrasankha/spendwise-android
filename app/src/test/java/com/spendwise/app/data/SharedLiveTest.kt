@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -74,7 +75,9 @@ class SharedLiveTest {
             assertEquals("first user", live.observe().first())
             stopped.first { it } // 5 s after the last collector leaves
             source.value = "second user"
-            assertEquals("second user", live.observe().first())
+            // onCompletion runs as the upstream is cancelled, a moment before shareIn drops the cache (on
+            // another thread), so ask again until it's gone. A cache that's never dropped times out here.
+            while (live.observe().first() != "second user") delay(10)
         }
         scope.cancel()
     }

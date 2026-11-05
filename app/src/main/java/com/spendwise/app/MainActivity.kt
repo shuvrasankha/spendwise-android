@@ -2,7 +2,9 @@ package com.spendwise.app
 
 import android.graphics.Color
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.auth.AuthState
 import com.spendwise.app.data.prefs.DevicePrefs
@@ -57,6 +60,7 @@ class MainActivity : FragmentActivity() {
         // Only a fresh start: after a rotation the link has already been opened
         if (savedInstanceState == null) link = intent.route()
         enableEdgeToEdge()
+        lifecycleScope.launch { prefs.appLock.collect(::hideInRecents) }
         setContent {
             val themeMode by prefs.themeMode.collectAsStateWithLifecycle(ThemeMode.SYSTEM)
             val dark = when (themeMode) {
@@ -112,6 +116,20 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intent.route()?.let { link = it }
+    }
+
+    /**
+     * With app lock on, the app switcher mustn't show balances. API 33+ blanks only the Recents
+     * thumbnail; below that FLAG_SECURE is the only way, and it blocks screenshots too.
+     */
+    private fun hideInRecents(hide: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            setRecentsScreenshotEnabled(!hide)
+        } else if (hide) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
     }
 
     private fun Intent.route(): Any? = sharedText()?.let(inbox::receive) ?: linkRoute()

@@ -60,7 +60,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.data.prefs.ThemeMode
@@ -78,6 +77,7 @@ import com.spendwise.app.ui.components.SwSheet
 import com.spendwise.app.ui.components.Trailing
 import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.lock.canLock
+import com.spendwise.app.ui.lock.findActivity
 import com.spendwise.app.ui.lock.confirmIdentity
 import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
@@ -142,7 +142,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 state.reminderNote?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
             }
 
-            val activity = LocalContext.current as FragmentActivity
+            val activity = LocalContext.current.findActivity()
             if (remember { canLock(activity) }) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsGroup("Security") {

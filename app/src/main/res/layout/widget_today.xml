@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- 2x2: today's spending. @android:id/background lets Android 12+ clip the widget to the launcher's corner radius -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UseAppTint"
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
