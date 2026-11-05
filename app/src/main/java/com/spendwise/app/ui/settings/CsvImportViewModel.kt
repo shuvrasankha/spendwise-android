@@ -10,10 +10,12 @@ import com.spendwise.app.data.CsvImporter
 import com.spendwise.app.data.SyncStatus
 import com.spendwise.app.data.export.ExportFiles
 import com.spendwise.app.data.prefs.DevicePrefs
-import com.spendwise.app.data.worker.WorkerClient
-import com.spendwise.app.data.worker.aiContent
-import com.spendwise.app.data.worker.aiRequest
-import com.spendwise.app.domain.CSV_AI_MODEL
+import com.spendwise.app.data.ai.AiCall
+import com.spendwise.app.data.ai.AiError
+import com.spendwise.app.data.ai.AiGateway
+import com.spendwise.app.data.ai.AiResult
+import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.domain.CSV_MAX_BYTES
 import com.spendwise.app.domain.CSV_READ_TIMEOUT_MS
 import com.spendwise.app.domain.CSV_SAVE_FAILED
@@ -58,7 +60,7 @@ sealed interface CsvPhase {
 @HiltViewModel
 class CsvImportViewModel @Inject constructor(
     private val files: ExportFiles,
-    private val worker: WorkerClient,
+    private val ai: AiGateway,
     private val importer: CsvImporter,
     private val prefs: DevicePrefs,
     private val allowance: AiAllowance,
@@ -117,11 +119,14 @@ class CsvImportViewModel @Inject constructor(
     /** callAIModel for one piece of the file. */
     private suspend fun extract(csv: String): List<CsvTx> {
         val (system, user) = csvPrompt(csv)
-        val res = worker.post("/", aiRequest(CSV_AI_MODEL, listOf("system" to system, "user" to user), maxTokens = 4096, temperature = 0.1, topP = 0.9), CSV_READ_TIMEOUT_MS)
-        if (res.status == 429) throw CsvImportError("RATE_LIMITED")
-        if (res.status == 503) throw CsvImportError("MODEL_LOADING")
-        if (!res.ok) throw CsvImportError("API_ERROR")
-        return readCsvReply(aiContent(res.body), todayStr())
+        val res = ai.complete(AiCall(AiTask.CSV, textMessages(listOf("system" to system, "user" to user)), maxTokens = 4096, temperature = 0.1, topP = 0.9, readTimeoutMs = CSV_READ_TIMEOUT_MS))
+        if (res is AiResult.Failed) {
+            if (res.status == 429) throw CsvImportError("RATE_LIMITED")
+            if (res.status == 503) throw CsvImportError("MODEL_LOADING")
+            if (res.error == AiError.Network) throw IOException("AI unreachable")
+            if (res.error != AiError.BadReply) throw CsvImportError("API_ERROR") // a reply without content reads as EMPTY_RESPONSE below
+        }
+        return readCsvReply((res as? AiResult.Ok)?.content, todayStr())
     }
 
     fun toggle(i: Int) = _phase.update { p ->

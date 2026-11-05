@@ -10,20 +10,21 @@ import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.expenses.ExpenseRepository
 import com.spendwise.app.data.prefs.DevicePrefs
+import com.spendwise.app.data.ai.AiCall
+import com.spendwise.app.data.ai.AiError
+import com.spendwise.app.data.ai.AiGateway
+import com.spendwise.app.data.ai.AiResult
+import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.data.worker.AiAllowance
 import com.spendwise.app.data.worker.AiConsent
 import com.spendwise.app.data.worker.NotSignedIn
-import com.spendwise.app.data.worker.WorkerClient
-import com.spendwise.app.data.worker.aiContent
-import com.spendwise.app.data.worker.aiRequest
-import com.spendwise.app.domain.ASK_AI_MODEL
 import com.spendwise.app.domain.ASK_MAX
 import com.spendwise.app.domain.ASSISTANT_NO_CONSENT
 import com.spendwise.app.domain.AiFailure
 import com.spendwise.app.domain.AiFeature
 import com.spendwise.app.domain.AssistantContext
 import com.spendwise.app.domain.AssistantRoute
-import com.spendwise.app.domain.COACH_AI_MODEL
 import com.spendwise.app.domain.COACH_MAX_TURNS
 import com.spendwise.app.domain.COACH_NO_DATA
 import com.spendwise.app.domain.COACH_SAVED_MS
@@ -126,7 +127,7 @@ class AssistantViewModel @Inject constructor(
     incomeRepo: IncomeRepository,
     debtRepo: DebtRepository,
     private val prefs: DevicePrefs,
-    private val worker: WorkerClient,
+    private val ai: AiGateway,
     private val consent: AiConsent,
     private val allowance: AiAllowance,
     private val auth: AuthRepository,
@@ -224,9 +225,10 @@ class AssistantViewModel @Inject constructor(
     private suspend fun readWithAi(question: String, local: FinQuery, today: String): FinQuery {
         if (!consent.ensure() || !allowance.left(AiFeature.ASK)) return local
         return try {
-            val res = worker.post("/", aiRequest(ASK_AI_MODEL, listOf("system" to askPrompt(today), "user" to question), maxTokens = 200, temperature = 0.0))
-            if (res.ok) allowance.used(AiFeature.ASK)
-            if (res.ok) readSpec(aiContent(res.body).orEmpty())?.let { mergeAiSpec(local, it) } ?: local else local
+            val res = ai.complete(AiCall(AiTask.ASK, textMessages(listOf("system" to askPrompt(today), "user" to question)), maxTokens = 200, temperature = 0.0))
+            if (res !is AiResult.Ok) return local
+            allowance.used(AiFeature.ASK)
+            readSpec(res.content)?.let { mergeAiSpec(local, it) } ?: local
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -254,10 +256,11 @@ class AssistantViewModel @Inject constructor(
             val currency = prefs.currency.first()
             val facts = adviceFacts(summary, range) { formatWhole(it, currency).replaceFirst(' ', ' ') }
             val messages = listOf("system" to coachSystemPrompt(route.topic, facts, currency)) + aiHistory(r, currency, question)
-            val res = worker.post("/", aiRequest(COACH_AI_MODEL, messages, maxTokens = 700, temperature = 0.4))
-            val content = if (res.ok) aiContent(res.body)?.trim()?.takeIf { it.isNotEmpty() } else null
+            val res = ai.complete(AiCall(AiTask.COACH, textMessages(messages), maxTokens = 700, temperature = 0.4))
+            val content = (res as? AiResult.Ok)?.content?.trim()?.takeIf { it.isNotEmpty() }
             when {
-                res.status == 429 -> AiFailure.RATE_LIMITED
+                res is AiResult.Failed && res.status == 429 -> AiFailure.RATE_LIMITED
+                res is AiResult.Failed && res.error == AiError.Network -> AiFailure.OFFLINE
                 content == null -> AiFailure.OTHER
                 else -> {
                     allowance.used(AiFeature.COACH)
