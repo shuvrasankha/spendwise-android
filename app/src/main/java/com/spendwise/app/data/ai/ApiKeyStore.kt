@@ -15,7 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Every provider a key can be saved for. */
-val BYOK_PROVIDERS = listOf("nvidia")
+val BYOK_PROVIDERS = BYOK_PROVIDER_LIST.map { it.id }
 
 /** The saved key couldn't be decrypted (Keystore reset, restore to a new phone); it has been removed. */
 class KeyUnreadableException : Exception("KEY_UNREADABLE")

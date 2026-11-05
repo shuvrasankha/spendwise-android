@@ -15,7 +15,7 @@ class AiGateway @Inject constructor(
     private val prefs: DevicePrefs,
     private val keys: ApiKeyStore,
     private val worker: WorkerAiProvider,
-    private val nvidia: NvidiaProvider,
+    private val byokClient: ByokClient,
 ) {
     /** Whether AI goes to the user's own provider; the Worker's daily allowance applies only when false. */
     suspend fun byok(): Boolean = prefs.aiMode.first() == "byok"
@@ -23,7 +23,8 @@ class AiGateway @Inject constructor(
     suspend fun complete(call: AiCall): AiResult {
         // Read once: a call in progress keeps its provider if the mode changes
         if (!byok()) return worker.complete(workerModel(call.task), call)
-        val provider = prefs.byokProvider.first() ?: "nvidia"
+        val p = byokProvider(prefs.byokProvider.first())
+        val provider = p.id
         if (!prefs.byokConsent(provider).first()) return AiResult.Failed(AiError.NoConsent)
         val key = try {
             keys.read(provider)
@@ -35,8 +36,8 @@ class AiGateway @Inject constructor(
             return AiResult.Failed(AiError.KeyUnreadable)
         }
         val kind = if (call.task.needsVision) "vision" else "text"
-        val model = prefs.byokModel(kind, provider).first().ifBlank { nvidiaDefaultModel(call.task) }
-        return nvidia.complete(key, model, call)
+        val model = prefs.byokModel(kind, provider).first().ifBlank { p.defaultModel }
+        return byokClient.complete(p, key, model, call)
     }
 }
 

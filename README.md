@@ -16,7 +16,7 @@ web app. Both apps share one Firebase project, so whatever you add on one shows 
 - **Investments**: holdings and the money you've put in
 - **Budgets and goals**, with an AI budget suggestion (one a month per account)
 - **CSV import**, read with AI
-- **AI your way**: SpendWise AI by default, or your own NVIDIA API key (see below)
+- **AI your way**: SpendWise AI by default, or your own API key for NVIDIA, OpenAI, Google Gemini or Anthropic (see below)
 - **App lock** with your fingerprint, face or screen lock
 - **Home-screen widget** showing today's spending, with a + button to add an expense
 - **Daily reminder**, notifications, and Play Store in-app updates
@@ -25,24 +25,26 @@ web app. Both apps share one Firebase project, so whatever you add on one shows 
 ## Your own AI key (BYOK)
 
 By default, Ask, the coach, voice and receipt entry, CSV import and the budget suggestion use
-SpendWise AI, which has daily limits. You can use your own NVIDIA API key instead:
+SpendWise AI, which has daily limits. You can use your own API key instead:
 
-1. Get a key at [build.nvidia.com](https://build.nvidia.com/).
-2. In the app, open **Settings › AI provider**, paste the key and tap **Save key**.
-3. Tap **Test connection**, then choose **My own API key** and agree to send requests to NVIDIA.
+1. Get a key from [NVIDIA](https://build.nvidia.com/), [OpenAI](https://platform.openai.com/),
+   [Google AI Studio](https://aistudio.google.com/) or [Anthropic](https://platform.claude.com/).
+2. In the app, open **Settings › AI provider**, pick the provider, paste the key and tap **Save key**.
+3. Tap **Test connection**, then choose **My own API key** and agree to send requests to that provider.
 
-**What goes where:** with your own key, each AI request goes straight from your phone to NVIDIA,
-under NVIDIA's terms. That means what you type or say, receipt photos, CSV rows, and the spending
-and income figures the feature needs. Nothing goes to SpendWise's servers, and if NVIDIA returns an
+**What goes where:** with your own key, each AI request goes straight from your phone to the provider,
+under the provider's terms. That means what you type or say, receipt photos, CSV rows, and the spending
+and income figures the feature needs. Nothing goes to SpendWise's servers, and if the provider returns an
 error the app never falls back to SpendWise AI.
 
 **The key:** it's encrypted with an Android Keystore key and stored on this phone only. It's never
 backed up or synced, and it's deleted when you log out or delete your account.
 
-**Limits and cost:** NVIDIA sets the rate limits, quotas, pricing and which models are available,
-and these can change at any time. SpendWise can't see your usage or balance. The default model is
-`nvidia/nemotron-3.5-super-vl-120b-a12b`; you can set a different text or vision model in the same
-screen.
+**Limits and cost:** the provider sets the rate limits, quotas, pricing and which models are available,
+and these can change at any time. SpendWise can't see your usage or balance. The default models are
+`nvidia/nemotron-3.5-super-vl-120b-a12b`, `gpt-6-luna`, `gemini-3.8-flash` and `claude-opus-5-5`;
+you can set a different text or vision model in the same screen. Each provider keeps its own key,
+models and consent.
 
 ## Tech stack
 

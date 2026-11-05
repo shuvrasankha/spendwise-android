@@ -28,12 +28,12 @@ private class FakeHttp(private val reply: () -> HttpReply) : AiHttp {
     }
 }
 
-class NvidiaProviderTest {
+class ByokProvidersTest {
     private val ask = AiCall(AiTask.ASK, textMessages(listOf("system" to "s", "user" to "u")), maxTokens = 200, temperature = 0.0)
 
     private fun send(call: AiCall = ask, reply: () -> HttpReply): Pair<AiResult, FakeHttp> {
         val http = FakeHttp(reply)
-        return runBlocking { NvidiaProvider(http).complete(KEY, "meta/llama-3.3-70b-instruct", call) } to http
+        return runBlocking { ByokClient(http).complete(NVIDIA, KEY, "meta/llama-3.3-70b-instruct", call) } to http
     }
 
     private fun status(code: Int, body: String = "{}") = send { HttpReply(code, body) }.first
@@ -92,13 +92,71 @@ class NvidiaProviderTest {
 
     @Test fun `connection test passes on any 2xx, even with no text`() {
         val http = FakeHttp { HttpReply(200, """{"choices":[{"message":{"content":""}}]}""") }
-        assertEquals(AiResult.Ok(""), runBlocking { NvidiaProvider(http).testConnection(KEY, "m") })
+        assertEquals(AiResult.Ok(""), runBlocking { ByokClient(http).testConnection(NVIDIA, KEY, "m") })
         assertTrue(http.body.contains(""""max_tokens":1"""))
-        assertEquals(AiResult.Failed(AiError.Unauthorized, 401), runBlocking { NvidiaProvider(FakeHttp { HttpReply(401, "") }).testConnection(KEY, "m") })
+        assertEquals(AiResult.Failed(AiError.Unauthorized, 401), runBlocking { ByokClient(FakeHttp { HttpReply(401, "") }).testConnection(NVIDIA, KEY, "m") })
     }
 
-    @Test fun `one default for every task, receipt included`() =
-        assertEquals(setOf("nvidia/nemotron-3.5-super-vl-120b-a12b"), AiTask.entries.map(::nvidiaDefaultModel).toSet())
+    @Test fun `every provider has a distinct id and an https url`() {
+        assertEquals(BYOK_PROVIDER_LIST.size, BYOK_PROVIDER_LIST.map { it.id }.toSet().size)
+        assertTrue(BYOK_PROVIDER_LIST.all { it.url.startsWith("https://") })
+        assertEquals(NVIDIA, byokProvider(null))
+        assertEquals(NVIDIA, byokProvider("gone"))
+        assertEquals(ANTHROPIC, byokProvider("anthropic"))
+    }
+
+    private fun other(p: ByokProvider, model: String = p.defaultModel, call: AiCall = ask, reply: String = "{}"): Pair<AiResult, FakeHttp> {
+        val http = FakeHttp { HttpReply(200, reply) }
+        return runBlocking { ByokClient(http).complete(p, KEY, model, call) } to http
+    }
+
+    @Test fun `openai sends max_completion_tokens with room to reason, and no sampling fields`() {
+        val (res, http) = other(OPENAI, reply = """{"choices":[{"message":{"content":"hi"}}]}""")
+        assertEquals(AiResult.Ok("hi"), res)
+        assertEquals(OPENAI.url, http.url)
+        assertEquals("Bearer $KEY", http.headers["Authorization"])
+        assertEquals(
+            """{"model":"gpt-6-luna","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"max_completion_tokens":2248,"reasoning_effort":"none"}""",
+            http.body,
+        )
+        assertFalse(other(OPENAI, model = "gpt-6-astra").second.body.contains("reasoning_effort"))
+    }
+
+    @Test fun `gemini uses its openai endpoint, and a bad key's 400 is Unauthorized`() {
+        val http = other(GEMINI).second
+        assertEquals("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", http.url)
+        assertTrue(http.body.contains(""""max_tokens":2248,"temperature":0.0,"reasoning_effort":"low""""))
+        assertEquals(AiError.Unauthorized, mapProviderError(400, """[{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}]"""))
+    }
+
+    @Test fun `anthropic uses the messages api, top-level system, and its own headers`() {
+        val (res, http) = other(ANTHROPIC, reply = """{"content":[{"type":"thinking","thinking":""},{"type":"text","text":"h"},{"type":"text","text":"i"}],"stop_reason":"end_turn"}""")
+        assertEquals(AiResult.Ok("hi"), res)
+        assertEquals("https://api.anthropic.com/v1/messages", http.url)
+        assertEquals(KEY, http.headers["x-api-key"])
+        assertEquals("2026-10-21", http.headers["anthropic-version"])
+        assertEquals("server-side-fallback-2026-07-01", http.headers["anthropic-beta"])
+        assertFalse(http.headers.containsKey("Authorization"))
+        assertEquals(
+            """{"model":"claude-opus-5-5","max_tokens":2248,"system":"s","messages":[{"role":"user","content":"u"}],"output_config":{"effort":"low"},"fallbacks":"default"}""",
+            http.body,
+        )
+        val haiku = other(ANTHROPIC, model = "claude-haiku-4-5").second
+        assertFalse(haiku.body.contains("effort") || haiku.body.contains("fallbacks") || haiku.headers.containsKey("anthropic-beta"))
+    }
+
+    @Test fun `anthropic gets the receipt as a base64 image block`() {
+        val call = AiCall(AiTask.RECEIPT, receiptMessages("2026-11-05", "data:image/jpeg;base64,AAAA"), maxTokens = 1500, temperature = 0.1, topP = 0.95)
+        val body = other(ANTHROPIC, call = call).second.body
+        assertTrue(body.contains("""{"type":"text","text":"Read this receipt."},{"type":"image","source":{"type":"base64","media_type":"image/jpeg","data":"AAAA"}}"""))
+        assertFalse(body.contains("temperature") || body.contains("top_p") || body.contains("image_url"))
+    }
+
+    @Test fun `anthropic refusal is Blocked, no text is BadReply, 529 is Busy`() {
+        assertEquals(AiResult.Failed(AiError.Blocked, 200), other(ANTHROPIC, reply = """{"content":[],"stop_reason":"refusal"}""").first)
+        assertEquals(AiResult.Failed(AiError.BadReply, 200), other(ANTHROPIC, reply = """{"content":[{"type":"thinking","thinking":""}],"stop_reason":"max_tokens"}""").first)
+        assertEquals(AiError.Busy, mapProviderError(529, "{}"))
+    }
 
     @Test fun `thinking is off for the default model only`() {
         assertTrue(nvidiaBody(NVIDIA_DEFAULT_MODEL, ask).toString().endsWith(""""temperature":0.0,"chat_template_kwargs":{"enable_thinking":false}}"""))

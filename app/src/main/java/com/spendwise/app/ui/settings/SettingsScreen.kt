@@ -102,7 +102,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
     val transparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val appIcon by viewModel.appIcon.collectAsStateWithLifecycle()
     val hapticOn by viewModel.hapticOn.collectAsStateWithLifecycle()
-    val aiMode by viewModel.aiMode.collectAsStateWithLifecycle()
+    val aiLabel by viewModel.aiLabel.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
@@ -141,7 +141,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
             }
 
             SettingsGroup("AI") {
-                SettingsRow("AI provider", icon = SwIcons.Sparkles, trailing = Trailing.Value(if (aiMode == "byok") "NVIDIA (your key)" else "SpendWise AI"), onClick = onAiProvider)
+                SettingsRow("AI provider", icon = SwIcons.Sparkles, trailing = Trailing.Value(aiLabel), onClick = onAiProvider)
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

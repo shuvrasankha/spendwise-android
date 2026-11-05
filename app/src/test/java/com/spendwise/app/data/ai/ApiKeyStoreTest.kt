@@ -98,7 +98,7 @@ class ApiKeyStoreTest {
         assertFalse(prefs.byokConsent("nvidia").first())
         assertFalse(store.hasKey("nvidia").first())
         assertTrue(keys.list()!!.isEmpty())
-        assertEquals(1, cipher.destroyed)
+        assertTrue(cipher.destroyed > 0) // once per provider; destroying a gone alias is a no-op
     }
 
     @Test fun `a short or spaced key is refused and not saved`() = runBlocking {

@@ -36,6 +36,7 @@ class AiGatewayTest {
     }
     private var workerCalls = 0
     private val nvidiaBodies = mutableListOf<String>()
+    private val urls = mutableListOf<String>()
     private var nvidiaReply = HttpReply(200, OK_BODY)
     private var duringNvidia: suspend () -> Unit = {}
 
@@ -46,12 +47,13 @@ class AiGatewayTest {
         val worker = WorkerAiProvider { _, _ -> workerCalls++; WorkerResponse(200, OK_BODY) }
         val http = object : AiHttp {
             override suspend fun post(url: String, headers: Map<String, String>, body: String, readTimeoutMs: Int): HttpReply {
+                urls += url
                 nvidiaBodies += body
                 duringNvidia()
                 return nvidiaReply
             }
         }
-        gateway = AiGateway(prefs, keys, worker, NvidiaProvider(http))
+        gateway = AiGateway(prefs, keys, worker, ByokClient(http))
     }
 
     @After fun tearDown() = scope.cancel()
@@ -111,6 +113,22 @@ class AiGatewayTest {
         complete(AiTask.CSV)
         complete(AiTask.RECEIPT)
         assertEquals(listOf("acme/text-1", "acme/vision-1"), nvidiaBodies.map(::model))
+    }
+
+    @Test fun `the chosen provider gets the call, with its own key and default model`() {
+        runBlocking {
+            keys.save("anthropic", "sk-ant-TESTSECRET1234".toCharArray())
+            prefs.setByokProvider("anthropic")
+            prefs.setByokConsent("anthropic", true)
+            prefs.setAiMode("byok")
+        }
+        nvidiaReply = HttpReply(200, """{"content":[{"type":"text","text":"hi"}]}""")
+        assertEquals(AiResult.Ok("hi"), complete())
+        assertEquals(listOf(ANTHROPIC.url), urls)
+        assertEquals(ANTHROPIC.defaultModel, model(nvidiaBodies.single()))
+        runBlocking { prefs.setByokConsent("nvidia", true) } // consent for another provider doesn't count
+        runBlocking { prefs.setByokConsent("anthropic", false) }
+        assertEquals(AiResult.Failed(AiError.NoConsent), complete())
     }
 
     @Test fun `a call keeps its provider when the mode changes mid-call`() {
