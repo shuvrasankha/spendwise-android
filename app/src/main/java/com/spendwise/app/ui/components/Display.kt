@@ -359,9 +359,11 @@ fun WeekBars(values: List<Float>, labels: List<String>, currentIndex: Int, modif
     var picked by remember(values) { mutableStateOf<Int?>(null) }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     if (valueLabel != null) {
+        // Animate the finished text, not the index: the outgoing frame must never index into a new, shorter list
         val i = picked ?: currentIndex
-        AnimatedContent(i, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "barValue") {
-            Text("${labels.getOrElse(it) { "" }} · ${valueLabel(it)}", style = SwType.labelStrong, color = c.text)
+        val text = if (i in values.indices) "${labels.getOrElse(i) { "" }} · ${valueLabel(i)}" else ""
+        AnimatedContent(text, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "barValue") {
+            Text(it, style = SwType.labelStrong, color = c.text)
         }
     }
     Row(Modifier.fillMaxWidth().height(120.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
