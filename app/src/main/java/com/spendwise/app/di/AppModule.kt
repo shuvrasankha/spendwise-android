@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.google.firebase.auth.FirebaseAuth
+import com.spendwise.app.data.ai.AiHttp
 import com.spendwise.app.data.ai.KeystoreCipher
+import com.spendwise.app.data.ai.UrlConnectionHttp
 import com.spendwise.app.data.ai.SecretCipher
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
@@ -60,4 +62,7 @@ object AppModule {
 
     @Provides
     fun secretCipher(cipher: KeystoreCipher): SecretCipher = cipher
+
+    @Provides
+    fun aiHttp(http: UrlConnectionHttp): AiHttp = http
 }

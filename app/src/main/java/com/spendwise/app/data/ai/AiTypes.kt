@@ -37,10 +37,5 @@ sealed interface AiResult {
     data class Failed(val error: AiError, val status: Int? = null) : AiResult
 }
 
-interface AiProvider {
-    val id: String
-    suspend fun complete(model: String, call: AiCall): AiResult
-}
-
 /** Plain-text (role, content) messages, as most tasks send them. */
 fun textMessages(messages: List<Pair<String, String>>): List<Pair<String, JsonElement>> = messages.map { (role, content) -> role to JsonPrimitive(content) }

@@ -1,0 +1,125 @@
+package com.spendwise.app.data.ai
+
+import com.spendwise.app.domain.receiptMessages
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.IOException
+import java.net.ServerSocket
+import java.net.SocketTimeoutException
+import kotlin.concurrent.thread
+
+private const val KEY = "nvapi-TESTSECRET1234"
+
+private class FakeHttp(private val reply: () -> HttpReply) : AiHttp {
+    var url = ""
+    var headers = emptyMap<String, String>()
+    var body = ""
+    var timeout = 0
+    override suspend fun post(url: String, headers: Map<String, String>, body: String, readTimeoutMs: Int): HttpReply {
+        this.url = url; this.headers = headers; this.body = body; timeout = readTimeoutMs
+        return reply()
+    }
+}
+
+class NvidiaProviderTest {
+    private val ask = AiCall(AiTask.ASK, textMessages(listOf("system" to "s", "user" to "u")), maxTokens = 200, temperature = 0.0)
+
+    private fun send(call: AiCall = ask, reply: () -> HttpReply): Pair<AiResult, FakeHttp> {
+        val http = FakeHttp(reply)
+        return runBlocking { NvidiaProvider(http).complete(KEY, "meta/llama-3.3-70b-instruct", call) } to http
+    }
+
+    private fun status(code: Int, body: String = "{}") = send { HttpReply(code, body) }.first
+
+    @Test fun `url, headers and body`() {
+        val (res, http) = send { HttpReply(200, """{"choices":[{"message":{"content":"hi"},"finish_reason":"stop"}]}""") }
+        assertEquals(AiResult.Ok("hi"), res)
+        assertEquals("https://integrate.api.nvidia.com/v1/chat/completions", http.url)
+        assertEquals(mapOf("Authorization" to "Bearer $KEY", "Content-Type" to "application/json", "Accept" to "application/json"), http.headers)
+        assertEquals(
+            """{"model":"meta/llama-3.3-70b-instruct","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"max_tokens":200,"temperature":0.0}""",
+            http.body,
+        )
+        assertEquals(30_000, http.timeout)
+    }
+
+    @Test fun `a receipt sends its image as an image_url part`() {
+        val call = AiCall(AiTask.RECEIPT, receiptMessages("2026-11-05", "data:image/jpeg;base64,AAAA"), maxTokens = 1500, temperature = 0.1, topP = 0.95)
+        val http = send(call) { HttpReply(200, "{}") }.second
+        assertTrue(http.body.contains("""{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,AAAA"}}"""))
+        assertTrue(http.body.endsWith(""""max_tokens":1500,"temperature":0.1,"top_p":0.95}"""))
+    }
+
+    @Test fun `empty choices or non-JSON is BadReply`() {
+        assertEquals(AiResult.Failed(AiError.BadReply, 200), status(200, """{"choices":[]}"""))
+        assertEquals(AiResult.Failed(AiError.BadReply, 200), status(200, "<html>"))
+        assertEquals(AiResult.Failed(AiError.BadReply, 200), status(200, """{"choices":[{"message":{"content":""}}]}"""))
+    }
+
+    @Test fun `content filter is Blocked`() = assertEquals(
+        AiResult.Failed(AiError.Blocked, 200),
+        status(200, """{"choices":[{"message":{"content":""},"finish_reason":"content_filter"}]}"""),
+    )
+
+    @Test fun `error statuses`() {
+        assertEquals(AiResult.Failed(AiError.Unauthorized, 401), status(401))
+        assertEquals(AiResult.Failed(AiError.Unauthorized, 403), status(403))
+        assertEquals(AiResult.Failed(AiError.ModelNotFound, 404), status(404))
+        assertEquals(AiResult.Failed(AiError.ModelNotFound, 400), status(400, """{"detail":"Model 'x' not found"}"""))
+        assertEquals(AiResult.Failed(AiError.Http(400), 400), status(400, """{"detail":"bad max_tokens"}"""))
+        assertEquals(AiResult.Failed(AiError.RateLimited, 429), status(429))
+        assertEquals(AiResult.Failed(AiError.Busy, 503), status(503))
+        assertEquals(AiResult.Failed(AiError.Http(500), 500), status(500))
+    }
+
+    @Test fun `timeout and network`() {
+        assertEquals(AiResult.Failed(AiError.Timeout), send { throw SocketTimeoutException("read timed out") }.first)
+        assertEquals(AiResult.Failed(AiError.Network), send { throw IOException("no route") }.first)
+    }
+
+    @Test fun `no result carries the key, even when the server echoes it`() {
+        val echoed = """{"error":"bad key $KEY"}"""
+        for (code in listOf(200, 400, 401, 429, 500)) assertFalse(status(code, echoed).toString().contains("TESTSECRET"))
+    }
+
+    @Test fun `connection test passes on any 2xx, even with no text`() {
+        val http = FakeHttp { HttpReply(200, """{"choices":[{"message":{"content":""}}]}""") }
+        assertEquals(AiResult.Ok(""), runBlocking { NvidiaProvider(http).testConnection(KEY, "m") })
+        assertTrue(http.body.contains(""""max_tokens":1"""))
+        assertEquals(AiResult.Failed(AiError.Unauthorized, 401), runBlocking { NvidiaProvider(FakeHttp { HttpReply(401, "") }).testConnection(KEY, "m") })
+    }
+
+    @Test fun `defaults per task, and none for receipt`() {
+        assertEquals(listOf("meta/llama-3.3-70b-instruct", "meta/llama-3.3-70b-instruct", "meta/llama-3.3-70b-instruct"), listOf(AiTask.ASK, AiTask.COACH, AiTask.BUDGET).map(::nvidiaDefaultModel))
+        assertEquals(listOf("qwen/qwen2.5-coder-32b-instruct", "qwen/qwen2.5-coder-32b-instruct"), listOf(AiTask.VOICE, AiTask.CSV).map(::nvidiaDefaultModel))
+        assertEquals(null, nvidiaDefaultModel(AiTask.RECEIPT))
+    }
+}
+
+class UrlConnectionHttpTest {
+    @Test(expected = IllegalArgumentException::class)
+    fun `refuses plain http`() {
+        runBlocking { UrlConnectionHttp().post("http://integrate.api.nvidia.com/v1/chat/completions", emptyMap(), "{}", 1000) }
+    }
+
+    /** A server that never answers: only disconnect() can end the read before its 60 s timeout. */
+    @Test fun `cancelling disconnects a hung request`() {
+        ServerSocket(0).use { server ->
+            val held = thread { runCatching { server.accept().use { Thread.sleep(10_000) } } }
+            val url = "https://127.0.0.1:${server.localPort}/v1/chat/completions"
+            runBlocking {
+                val call = async(Dispatchers.IO) { runCatching { UrlConnectionHttp().post(url, emptyMap(), "{}", 60_000) } }
+                delay(300)
+                withTimeout(5_000) { call.cancel(); call.join() }
+            }
+            held.interrupt()
+        }
+    }
+}

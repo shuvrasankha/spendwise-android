@@ -27,14 +27,12 @@ fun workerModel(task: AiTask): String = when (task) {
 
 /** SpendWise AI: the Cloudflare Worker. Its contract never changes; NotSignedIn still reaches the caller. */
 @Singleton
-class WorkerAiProvider(private val post: suspend (body: JsonObject, readTimeoutMs: Int?) -> WorkerResponse) : AiProvider {
+class WorkerAiProvider(private val post: suspend (body: JsonObject, readTimeoutMs: Int?) -> WorkerResponse) {
     @Inject constructor(worker: WorkerClient) : this({ body, timeout ->
         if (timeout != null) worker.post("/", body, timeout) else worker.post("/", body)
     })
 
-    override val id = "worker"
-
-    override suspend fun complete(model: String, call: AiCall): AiResult {
+    suspend fun complete(model: String, call: AiCall): AiResult {
         val res = try {
             post(aiRequestOf(model, call.messages, call.maxTokens, call.temperature, call.topP), call.readTimeoutMs)
         } catch (e: IOException) {
