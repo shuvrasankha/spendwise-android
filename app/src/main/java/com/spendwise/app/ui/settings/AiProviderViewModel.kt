@@ -85,7 +85,14 @@ class AiProviderViewModel @Inject constructor(
     }
 
     /** Each provider keeps its own key, models and consent; switching here changes nothing until activated. */
-    fun pickProvider(p: ByokProvider) = viewModelScope.launch { if (p != draft.value.provider) load(p) }
+    fun pickProvider(p: ByokProvider) = viewModelScope.launch {
+        if (p == draft.value.provider) return@launch
+        load(p)
+        // In BYOK mode the picked row should be the one in use; a provider set up and agreed to before switches at once
+        if (prefs.aiMode.first() != "byok" || byokProvider(prefs.byokProvider.first()) == p) return@launch
+        if (keys.hasKey(p.id).first() && prefs.byokConsent(p.id).first()) activate()
+        else draft.update { it.copy(note = "Save and test your ${p.name} key, then choose My own API key to switch to it.") }
+    }
 
     private suspend fun load(p: ByokProvider) {
         val text = prefs.byokModel("text", p.id).first()
