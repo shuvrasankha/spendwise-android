@@ -300,6 +300,14 @@ fun budgetTierColor(ratio: Float): Color {
     }
 }
 
+/** Counts up from 0 on first show, then from the old value on a change; the exact figure is returned once it lands. */
+@Composable
+fun countUp(value: Double): Double {
+    val count = remember { Animatable(0f) }
+    LaunchedEffect(value) { count.animateTo(value.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
+    return if (count.value == value.toFloat()) value else count.value.toDouble()
+}
+
 /** A fraction that grows from 0 when first shown and eases to each new [target], so bars fill instead of snapping. */
 @Composable
 private fun growTo(target: Float): Float {

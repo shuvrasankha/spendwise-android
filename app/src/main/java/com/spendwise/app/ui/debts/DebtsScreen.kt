@@ -51,6 +51,7 @@ import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DateChips
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.StackedBar
 import com.spendwise.app.ui.components.Stat
@@ -94,7 +95,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
             item {
                 val s = ready?.summary
                 Metric(
-                    "Net balance", currency.symbol, if (s == null) "—" else formatNumber(Math.abs(s.net), currency),
+                    "Net balance", currency.symbol, if (s == null) "—" else formatNumber(countUp(Math.abs(s.net)), currency),
                     sub = s?.let { "${it.netWord} · ${it.sub}" }, positive = s != null && s.net > 0, negative = s != null && s.net < 0, icon = SwIcons.People,
                 )
             }

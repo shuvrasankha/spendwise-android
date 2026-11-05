@@ -23,6 +23,7 @@ import com.spendwise.app.domain.recentMeta
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SubPageTopBar
 import com.spendwise.app.ui.components.SwButton
@@ -58,7 +59,7 @@ fun IncomeScreen(
                 val month = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.US)
                 val s = ready?.summary
                 Metric(
-                    "$month so far", currency.symbol, if (s == null) "—" else formatNumber(s.monthTotal, currency),
+                    "$month so far", currency.symbol, if (s == null) "—" else formatNumber(countUp(s.monthTotal), currency),
                     sub = s?.let { "${plural(it.monthCount, "entry", "entries")} · ${formatAmount(it.yearTotal, currency)} this year" },
                     positive = true, icon = SwIcons.MoneyIn,
                 )

@@ -68,6 +68,7 @@ import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.IconAction
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.PickDateDialog
 import com.spendwise.app.ui.components.SegmentedControl
 import com.spendwise.app.ui.components.SettingsGroup
@@ -227,7 +228,7 @@ private fun Summary(v: HistoryView, currency: Currency, vm: HistoryViewModel) {
     val c = SpendWiseTheme.colors
     val tab = v.filters.tab
     Column(Modifier.padding(top = Spacing.section, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Metric(plural(v.count, tab.one, tab.many), currency.symbol, formatNumber(v.total, currency), positive = tab == HistoryTab.INCOME, icon = if (tab == HistoryTab.INCOME) SwIcons.MoneyIn else SwIcons.Receipt)
+        Metric(plural(v.count, tab.one, tab.many), currency.symbol, formatNumber(countUp(v.total), currency), positive = tab == HistoryTab.INCOME, icon = if (tab == HistoryTab.INCOME) SwIcons.MoneyIn else SwIcons.Receipt)
         if (v.split.isNotEmpty()) {
             Text(
                 v.split.joinToString(" · ") { (k, amount) -> "$k ${formatAmount(amount, currency)}" },

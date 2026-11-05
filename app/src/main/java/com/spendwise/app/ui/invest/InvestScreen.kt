@@ -49,6 +49,7 @@ import com.spendwise.app.ui.components.DateChips
 import com.spendwise.app.ui.components.FieldLabel
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SubPageTopBar
 import com.spendwise.app.ui.components.SwButton
@@ -148,7 +149,7 @@ private fun Hero(p: InvestPage.Ready, debts: List<Debt>, currency: Currency, mon
     val month = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.US)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Metric(
-            "All investments · worth now", currency.symbol, formatNumber(if (empty) 0.0 else pf.value, currency),
+            "All investments · worth now", currency.symbol, formatNumber(countUp(if (empty) 0.0 else pf.value), currency),
             sub = if (empty) "Add a holding, then the money you put in." else listOf(pf.worthSub(money), pf.monthSub(month, money)).joinToString("\n"),
             icon = SwIcons.TrendingUp,
         )

@@ -64,6 +64,7 @@ import com.spendwise.app.ui.components.DayHeader
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.MenuChip
 import com.spendwise.app.ui.components.Metric
+import com.spendwise.app.ui.components.countUp
 import com.spendwise.app.ui.components.SectionHeader
 import com.spendwise.app.ui.components.SegmentedControl
 import com.spendwise.app.ui.components.Stat
@@ -206,11 +207,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Counts up from 0 on first show, then from the old value on a change; the exact figure is shown once it lands.
-        val count = remember { Animatable(0f) }
-        LaunchedEffect(h.spent) { count.animateTo(h.spent.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
-        val shown = if (count.value == h.spent.toFloat()) h.spent else count.value.toDouble()
-        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(shown, currency), icon = SwIcons.Calendar)
+        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(countUp(h.spent), currency), icon = SwIcons.Calendar)
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
