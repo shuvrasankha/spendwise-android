@@ -67,7 +67,7 @@ data class GoalRow(val goal: Goal, val linked: Double, val pace: GoalPace) {
 
     fun meta(whole: (Double) -> String) = when (pace.level) {
         GoalLevel.DONE -> "Reached. Well done!"
-        GoalLevel.LATE -> "${whole(pace.left)} to go · ${monthYear(goal.by)} has passed"
+        GoalLevel.LATE -> "${whole(pace.left)} to go · was due ${monthYear(goal.by)}"
         GoalLevel.ON -> "${whole(pace.monthly)} a month · by ${monthYear(goal.by)}"
     }
 }

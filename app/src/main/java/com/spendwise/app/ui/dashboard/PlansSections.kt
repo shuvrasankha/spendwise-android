@@ -69,9 +69,11 @@ internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewMo
         h.goals.forEachIndexed { i, row ->
             val g = row.goal
             val done = row.pace.level == GoalLevel.DONE
+            val late = row.pace.level == GoalLevel.LATE
             ListRow(
-                g.name, meta = row.meta(money), metaColor = if (row.pace.level == GoalLevel.LATE) c.negative else Color.Unspecified,
-                amount = if (done) "Done" else "${row.percent}%", amountColor = if (done) c.positive else Color.Unspecified,
+                g.name, meta = row.meta(money),
+                amount = if (done) "Done" else if (late) "Overdue" else "${row.percent}%",
+                amountColor = if (done) c.positive else if (late) c.negative else Color.Unspecified,
                 sub = row.amounts(money), icon = SwIcons.Target, divider = i > 0, metaLines = 2,
             )
             Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 4.dp)) { BudgetBar(row.percent / 100f) }

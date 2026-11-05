@@ -219,7 +219,7 @@ class PlansTest {
         assertEquals("₹2667 a month · by Dec 2026", on.meta(whole)) // 8000 over Oct, Nov, Dec
         assertEquals(33, on.percent)
         val late = goalRows(listOf(g1.copy(by = "2026-09")), emptyMap(), today).single()
-        assertEquals("₹9000 to go · Sep 2026 has passed", late.meta(whole))
+        assertEquals("₹9000 to go · was due Sep 2026", late.meta(whole))
         val done = goalRows(listOf(g1.copy(saved = 13000.0)), emptyMap(), today).single()
         assertEquals("Reached. Well done!", done.meta(whole))
         assertEquals(100, done.percent)
