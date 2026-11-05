@@ -37,7 +37,7 @@ import java.time.LocalDate
 internal fun DueThisMonth(due: List<DueBill>, money: (Double) -> String, plans: PlansViewModel) {
     val today = LocalDate.now()
     Column {
-        SectionHeader("Due this month")
+        SectionHeader("Due this month", icon = SwIcons.Bell)
         Text(money(due.sumOf { it.template.amount }) + " to add", style = SwType.label, color = SpendWiseTheme.colors.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
         due.forEachIndexed { i, d ->
             ListRow(billTitle(d.template), meta = d.meta(today), amount = money(d.template.amount), icon = SwIcons.Receipt, divider = i > 0)
