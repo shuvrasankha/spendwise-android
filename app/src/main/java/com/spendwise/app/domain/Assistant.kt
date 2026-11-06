@@ -53,6 +53,9 @@ private val COMPARE = Regex("""\b(compare|compared|comparison|vs|versus|differen
 private val INCREASE = Regex("""\b(increas\w*|grew|grown|gone up|went up|rose|risen)\b""")
 private val SAVED = Regex("""\b(how much (did|have|am) (i|we)( been)? (save|saved|saving)|did i save|have i saved|i saved|what did i save|savings? rate|my saving\b)""")
 private val TOP_CATEGORY = Regex("""\b((biggest|top|highest|largest|most) (\w+ )?categor\w*|categor\w* .*\b(most|biggest|highest|largest)|spen[dt] (the )?most( money)? on|most money on)\b""")
+/** How holdings stand ("how are my investments doing", "mutual fund return"): the portfolio, not a sum of entries. */
+private val INVEST_WORD = Regex("""\b(invest\w*|portfolio|holdings?|mutual funds?|stocks?|shares?|sips?|fds?|fixed deposits?|ppf|nps|epf|gold)\b""")
+private val HOLDING_STATE = Regex("""\b(doing|perform\w*|returns?|gains?|growth|grow\w*|worth|value|diversif\w*|profit\w*|loss\w*|portfolio|holdings?|allocation|risk\w*)\b""")
 private val BREAKDOWN = Regex("""\b(break\s?down|by category|per category|category wise|categorywise|where did (my|the) (money|spending)|where (did|does|is) .*\bgo(ing)?\b)""")
 
 private fun metricIn(q: String, base: AskMeasure): FinMetric = when {
@@ -114,7 +117,7 @@ private fun comparedPeriods(q: String, today: String): Pair<Pair<String, String>
 private fun topicFor(q: String): CoachTopic = when {
     Regex("""\bbudget\b""").hit(q) -> CoachTopic.BUDGET
     Regex("""\b(debts?|owe|owed|loans?|lend|lent|borrow\w*)\b""").hit(q) -> CoachTopic.DEBT
-    Regex("""\b(save|saving|savings)\b""").hit(q) -> CoachTopic.SAVINGS
+    Regex("""\b(save|saving|savings|invest\w*|portfolio|sips?|mutual funds?|stocks?|holdings?)\b""").hit(q) -> CoachTopic.SAVINGS
     Regex("""\b(why|trend\w*|change\w*|compared?|before|on track|will i|next (week|month|year)|more than)\b""").hit(q) -> CoachTopic.TRENDS
     Regex("""\b(reduce|cut|lower|too much|overspend\w*|spend\w*|expens\w*|habits?)\b""").hit(q) -> CoachTopic.SPENDING
     else -> CoachTopic.OVERVIEW
@@ -131,7 +134,7 @@ fun routeQuestion(question: String, today: String, context: AssistantContext = A
     }
     val spec = guessSpec(question, today)
     val advice = ADVICE.hit(q) && !SAVED.hit(q)
-    if (advice) {
+    if (advice || INVEST_WORD.hit(q) && HOLDING_STATE.hit(q)) {
         val (from, to) = datesIn(q.replace(Regex("""\bnext (week|month|year)\b"""), " "), today)
         return AssistantRoute.Advise(topicFor(q), from, to, spec.categories)
     }

@@ -268,3 +268,25 @@ fun checkEntryEdit(amount: String, date: String, holding: Holding?): Checked<Ent
     if (!isoDate.matches(date)) return Checked.Invalid("Pick the date.")
     return Checked.Ok(EntryEdit(n, date, holding))
 }
+
+/**
+ * What the AI coach sees of investments: totals, and each holding by its kind, never its name, so the coach's
+ * promise of no names holds. Worth is the last value given plus what went in since; unvalued holdings count at cost.
+ */
+fun investFacts(p: Portfolio, money: (Double) -> String): String {
+    if (p.rows.isEmpty() && p.other.isEmpty()) return "INVESTMENTS: none recorded"
+    fun pct(v: Double?) = v?.let { "${if (it >= 0) "+" else ""}${jsToFixed(it, 1)}%" } // gainPct is already a percentage
+    val gain = p.gain?.let { ", gain ${money(it)}${pct(p.gainPct)?.let { s -> " ($s)" } ?: ""} on the valued holdings" } ?: ", no current values given"
+    val rows = p.rows.map { r ->
+        val worth = if (r.valued) "worth ${money(r.value)}" else "no current value given"
+        val g = r.gain?.let { ", gain ${money(it)}${pct(r.gainPct)?.let { s -> " ($s)" } ?: ""}" } ?: ""
+        val sip = r.sip?.let { ", SIP ${money(it.amount)} a month" } ?: ""
+        "${kindOf(r.holding.kind).label}: ${money(r.invested)} put in, $worth$g$sip"
+    }
+    return listOfNotNull(
+        "INVESTMENTS: worth ${money(p.value)}, ${money(p.invested)} put in$gain; ${money(p.thisMonth)} put in this month, ${money(p.thisYear)} this year" +
+            if (p.monthly > 0) "; SIPs ${money(p.monthly)} a month" else "",
+        rows.takeIf { it.isNotEmpty() }?.joinToString("; ", "HOLDINGS (by type): "),
+        if (p.otherInvested > 0) "NOT IN A HOLDING: ${money(p.otherInvested)} put in" else null,
+    ).joinToString("\n")
+}

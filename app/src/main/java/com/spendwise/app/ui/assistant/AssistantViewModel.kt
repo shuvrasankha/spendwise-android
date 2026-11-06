@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.spendwise.app.data.HoldingRepository
 import com.spendwise.app.data.DebtRepository
 import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.auth.AuthRepository
@@ -20,6 +21,9 @@ import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.data.worker.AiAllowance
 import com.spendwise.app.data.worker.AiConsent
 import com.spendwise.app.data.worker.NotSignedIn
+import com.spendwise.app.domain.Holding
+import com.spendwise.app.domain.investFacts
+import com.spendwise.app.domain.portfolio
 import com.spendwise.app.domain.ASK_MAX
 import com.spendwise.app.domain.ASSISTANT_NO_CONSENT
 import com.spendwise.app.domain.AiFailure
@@ -64,7 +68,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -145,7 +148,7 @@ data class AssistantUi(
     val loadFailed: Boolean = false,
 )
 
-private data class Records(val expenses: List<Expense>, val income: List<Income>, val debts: List<Debt>)
+private data class Records(val expenses: List<Expense>, val income: List<Income>, val debts: List<Debt>, val holdings: List<Holding>)
 
 /** The one assistant: figures come from the entries on the device, advice from the AI given those figures only. */
 @HiltViewModel
@@ -154,6 +157,7 @@ class AssistantViewModel @Inject constructor(
     expenseRepo: ExpenseRepository,
     incomeRepo: IncomeRepository,
     debtRepo: DebtRepository,
+    holdingRepo: HoldingRepository,
     private val prefs: DevicePrefs,
     private val ai: AiGateway,
     private val consent: AiConsent,
@@ -181,6 +185,7 @@ class AssistantViewModel @Inject constructor(
         expenseRepo.expenses().map { list -> list.sortedBy { it.id } },
         incomeRepo.income(),
         debtRepo.debts().map { list -> list.filter { !it.shared } },
+        holdingRepo.holdings(),
         ::Records,
     )
 
@@ -383,7 +388,9 @@ class AssistantViewModel @Inject constructor(
             val currency = prefs.currency.first()
             val fmt = { n: Double -> formatWhole(n, currency).replaceFirst(' ', ' ') }
             // Debt advice needs each open debt, not only the totals: amounts and age, never names or notes
-            val facts = adviceFacts(summary, range, fmt) + if (route.topic == CoachTopic.DEBT) "\n" + debtFacts(r.debts, today.toString(), fmt) else ""
+            val facts = adviceFacts(summary, range, fmt) + (if (route.topic == CoachTopic.DEBT) "\n" + debtFacts(r.debts, today.toString(), fmt) else "") +
+                // Investments are whole-portfolio figures, not the period's: what's held today
+                "\n" + investFacts(portfolio(r.holdings, r.expenses, today.toString()), fmt)
             val messages = listOf("system" to coachSystemPrompt(route.topic, facts, currency)) + aiHistory(r, currency, question)
             val by = ai.label()
             val res = ai.complete(AiCall(AiTask.COACH, textMessages(messages), maxTokens = 700, temperature = 0.6))

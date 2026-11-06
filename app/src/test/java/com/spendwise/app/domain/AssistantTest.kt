@@ -436,4 +436,11 @@ class AssistantTest {
         // A search word that is in the entries stays a sum
         assertTrue(routeQuestion("uber this month", today, found = { true }) is AssistantRoute.Calculate)
     }
+
+    @Test fun `questions about holdings go to the coach, sums of what was put in stay calculations`() {
+        listOf("how are my investments doing", "is my portfolio diversified", "what is my mutual fund return", "where should I invest more").forEach {
+            assertEquals(it, CoachTopic.SAVINGS, (route(it) as AssistantRoute.Advise).topic)
+        }
+        assertTrue(route("how much did I invest this year") is AssistantRoute.Calculate)
+    }
 }

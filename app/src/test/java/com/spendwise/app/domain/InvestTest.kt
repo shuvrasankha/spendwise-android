@@ -169,4 +169,18 @@ class InvestTest {
         assertEquals(1, f.next.bills)
         assertEquals(18000.0, f.next.fixed, 0.0)
     }
+
+    @Test fun `the coach sees holdings by type, never by name`() {
+        val money = { n: Double -> "₹${n.toLong()}" }
+        assertEquals("INVESTMENTS: none recorded", investFacts(portfolio(emptyList(), emptyList(), "2026-11-06"), money))
+        val h = Holding("h1", "My secret fund", "mf", 12000.0, "2026-10-31", null)
+        val put = listOf("2026-09-05", "2026-10-05", "2026-11-05").map {
+            Expense("e$it", 5000.0, SAVINGS_CATEGORY, it, "UPI", "My secret fund", "", "", emptyList(), holdingId = "h1")
+        } + Expense("x", 2000.0, SAVINGS_CATEGORY, "2026-08-01", "UPI", "Loose SIP", "", "", emptyList())
+        val text = investFacts(portfolio(listOf(h), put, "2026-11-06"), money)
+        assertTrue(text, text.startsWith("INVESTMENTS: worth ₹19000, ₹17000 put in, gain ₹2000 (+13.3%) on the valued holdings; ₹5000 put in this month"))
+        assertTrue(text, text.contains("HOLDINGS (by type): Mutual fund: ₹15000 put in, worth ₹17000, gain ₹2000 (+13.3%)"))
+        assertTrue(text, text.contains("NOT IN A HOLDING: ₹2000 put in"))
+        assertFalse(text.contains("secret") || text.contains("Loose"))
+    }
 }
