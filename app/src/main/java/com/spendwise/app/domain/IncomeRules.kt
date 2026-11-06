@@ -83,13 +83,21 @@ val INCOME_SOURCE_PRESETS = listOf("Salary", "Freelance", "Business", "Interest"
  */
 fun sourceChips(income: List<Income>): List<String> {
     val used = countBy(income.map { it.source }).map { s ->
-        INCOME_SOURCE_PRESETS.firstOrNull { Regex("\\b${it}\\b", RegexOption.IGNORE_CASE).containsMatchIn(s) } ?: s
+        INCOME_SOURCE_PRESETS.firstOrNull { names(s, it) } ?: s
     }.distinct().take(6)
     return used + INCOME_SOURCE_PRESETS.filter { it !in used }
 }
 
-/** Tapping a source chip: the newest entry from that source, whose payment type and bank are likely again. */
-fun lastFromSource(income: List<Income>, source: String): Income? = income.firstOrNull { it.source == source }
+/** Whether [source] names [preset] as a whole word: "Monthly salary" names Salary. */
+private fun names(source: String, preset: String) = Regex("\\b${Regex.escape(preset)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(source)
+
+/**
+ * Tapping a source chip: the newest entry from that source, whose payment type and bank are likely again.
+ * A preset chip that stands for variants ("Salary" for "Monthly salary") falls back to the newest of those.
+ */
+fun lastFromSource(income: List<Income>, source: String): Income? =
+    income.firstOrNull { it.source == source }
+        ?: if (source in INCOME_SOURCE_PRESETS) income.firstOrNull { names(it.source, source) } else null
 
 /** A recent row's second line: the day, Cash or the bank (Online without one), and "Waiting to sync". */
 fun recentMeta(i: Income, today: LocalDate): String =

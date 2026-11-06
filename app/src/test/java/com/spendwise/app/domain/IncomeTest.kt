@@ -38,6 +38,18 @@ class IncomeTest {
         assertEquals(listOf("Salary", "Freelance", "Interest", "Acme Corp", "Business"), sourceChips(variants).take(5))
     }
 
+    @Test fun lastFromSource_presetChipFindsItsVariants() {
+        val list = listOf(
+            all[0].copy(id = "a", source = "Monthly salary", bank = "SBI"),
+            all[0].copy(id = "b", source = "Freelance logo work", bank = "HDFC"),
+            all[0].copy(id = "c", source = "Salary", bank = "ICICI"),
+        )
+        assertEquals("ICICI", lastFromSource(list, "Salary")?.bank) // an exact match wins
+        assertEquals("SBI", lastFromSource(list.take(2), "Salary")?.bank) // then the newest variant
+        assertEquals("HDFC", lastFromSource(list, "Freelance")?.bank)
+        assertEquals(null, lastFromSource(list, "Acme")) // not a preset: exact only
+    }
+
     @Test fun countBy_trimmed_mostUsedFirst() {
         // " Salary " counts as Salary; Cash's empty bank is skipped
         assertEquals(listOf("Salary", "Freelance", "Future"), countBy(all.map { it.source }))
