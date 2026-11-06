@@ -148,8 +148,9 @@ class PlansViewModel @Inject constructor(
             val currency = prefs.currency.first()
             val uid = auth.currentUid
             val today = todayStr()
-            // One AI plan a month: it comes back as made, and only when there's none does the device work one out
-            val used = uid != null && aiBudgetUsed(prefs.aiBudgetMonth(uid).first(), today)
+            // One SpendWise AI plan a month: it comes back as made, and only when there's none does the device work
+            // one out. The user's own key has no such limit: each tap asks again
+            val used = uid != null && !ai.byok() && aiBudgetUsed(prefs.aiBudgetMonth(uid).first(), today)
             // The saved plan was checked when it was made, so a category it added for the user's plans stays
             val saved = if (used) uid?.let { prefs.aiBudgetPlan(it).first() }?.let { checkReply(readReply(it), facts, allowNew = true) } else null
             val ai = if (used) null else askAi(facts, currency, cleanPlans(plans))

@@ -443,4 +443,13 @@ class AssistantTest {
         }
         assertTrue(route("how much did I invest this year") is AssistantRoute.Calculate)
     }
+
+    @Test fun `a calculated figure goes to the AI without entry descriptions`() {
+        val listed = calculatedFacts(card("list my food expenses this year"))
+        assertTrue(listed, listed.startsWith("CALCULATED ANSWER"))
+        assertTrue(listed, listed.contains("Top entries"))
+        assertFalse(listed, listed.contains("Swiggy"))
+        val byCategory = calculatedFacts(card("breakdown of spending this year"))
+        assertTrue(byCategory, byCategory.contains("Food & Dining"))
+    }
 }

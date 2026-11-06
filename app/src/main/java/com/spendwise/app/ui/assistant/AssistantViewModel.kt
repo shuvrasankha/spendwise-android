@@ -21,6 +21,7 @@ import com.spendwise.app.data.ai.textMessages
 import com.spendwise.app.data.worker.AiAllowance
 import com.spendwise.app.data.worker.AiConsent
 import com.spendwise.app.data.worker.NotSignedIn
+import com.spendwise.app.domain.calculatedFacts
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.investFacts
 import com.spendwise.app.domain.portfolio
@@ -329,7 +330,11 @@ class AssistantViewModel @Inject constructor(
             val r = records.first()
             val found = { spec: AskSpec -> runQuery(spec, r.expenses, r.income).count > 0 }
             when (val route = routeQuestion(question, today, context(), found)) {
-                is AssistantRoute.Calculate -> add(AssistantTurn(TurnKind.CALCULATED, query = if (route.unsure) readWithAi(question, route.query, today) else route.query))
+                is AssistantRoute.Calculate -> {
+                    val query = if (route.unsure) readWithAi(question, route.query, today) else route.query
+                    // The figure is worked out here; the AI explains it, so every question gets a written answer
+                    advise(AssistantRoute.Advise(CoachTopic.OVERVIEW, query.from, query.to, query.categories), question, calculated = query)
+                }
                 is AssistantRoute.Clarify -> add(AssistantTurn(TurnKind.CLARIFY, route.text, options = route.options.map { SavedOption(it.label, it.question) }))
                 is AssistantRoute.Advise -> advise(route, question)
             }
@@ -367,22 +372,29 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
-    private suspend fun advise(route: AssistantRoute.Advise, question: String) {
+    /**
+     * Advice from the AI. With [calculated], a sum already worked out here: its card shows above the AI's words,
+     * and when the AI can't answer (no consent yet, today's limit, offline) the card alone is the answer, quietly.
+     */
+    private suspend fun advise(route: AssistantRoute.Advise, question: String, calculated: FinQuery? = null) {
         val r = records.first()
         val today = LocalDate.now()
         val range = adviceRange(route.from, route.to, today)
         val summary = summarize(r.expenses, r.income, r.debts, range)
-        if (!summary.hasData) {
+        if (calculated == null && !summary.hasData) {
             add(AssistantTurn(TurnKind.CLARIFY, COACH_NO_DATA))
             return
         }
-        val query = adviceQuery(route, range)
+        val query = calculated ?: adviceQuery(route, range)
         fun failed(message: String, retry: Boolean = true) {
+            if (calculated != null) return add(AssistantTurn(TurnKind.CALCULATED, query = calculated))
             add(AssistantTurn(TurnKind.ADVICE, query = query, topic = route.topic))
             error.value = message to retry
         }
-        if (!consent.ensure()) return failed(ASSISTANT_NO_CONSENT)
         val byok = ai.byok()
+        // A sum never opens the consent dialog: the user's own key was agreed to when it was turned on
+        val agreed = if (calculated != null) byok || prefs.aiConsent.first() else consent.ensure()
+        if (!agreed) return failed(ASSISTANT_NO_CONSENT)
         if (!byok && !allowance.left(AiFeature.COACH)) return failed(aiLimitText(AiFeature.COACH), retry = false)
         val failure = try {
             val currency = prefs.currency.first()
@@ -390,7 +402,8 @@ class AssistantViewModel @Inject constructor(
             // Debt advice needs each open debt, not only the totals: amounts and age, never names or notes
             val facts = adviceFacts(summary, range, fmt) + (if (route.topic == CoachTopic.DEBT) "\n" + debtFacts(r.debts, today.toString(), fmt) else "") +
                 // Investments are whole-portfolio figures, not the period's: what's held today
-                "\n" + investFacts(portfolio(r.holdings, r.expenses, today.toString()), fmt)
+                "\n" + investFacts(portfolio(r.holdings, r.expenses, today.toString()), fmt) +
+                (calculated?.let { "\n" + calculatedFacts(calculate(it, r.expenses, r.income, today.toString(), fmt)) } ?: "")
             val messages = listOf("system" to coachSystemPrompt(route.topic, facts, currency)) + aiHistory(r, currency, question)
             val by = ai.label()
             val res = ai.complete(AiCall(AiTask.COACH, textMessages(messages), maxTokens = 700, temperature = 0.6))

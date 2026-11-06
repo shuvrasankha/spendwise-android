@@ -26,6 +26,9 @@ class AiExtrasTest {
         assertEquals("Health", readCategory(" health.\n"))
         assertNull(readCategory("Other"))
         assertNull(readCategory("I think it's food"))
+        assertEquals("Food & Dining", readCategory("Category: **Food & Dining**"))
+        assertNull(readCategory("Shopping or Groceries")) // two names: unsure
+        assertNull(readCategory("Category: Other"))
     }
 
     @Test fun explainThisMonthIsAdviceOnThisMonth() {

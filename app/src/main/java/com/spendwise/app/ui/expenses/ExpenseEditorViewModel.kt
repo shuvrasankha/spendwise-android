@@ -243,9 +243,8 @@ class ExpenseEditorViewModel @Inject constructor(
     private var hintJob: Job? = null
 
     /**
-     * The brand or kind in the description first, on the device. Only with the user's own key, and AI consent
-     * already given, does a description the device can't place go to the AI: typing never spends the free
-     * daily allowance or opens the consent dialog.
+     * The brand or kind in the description first, on the device. Only with the user's own key does a description
+     * the device can't place go to the AI: typing never spends the free daily allowance or opens a consent dialog.
      */
     private fun suggestCategory(description: String) {
         hintJob?.cancel()
@@ -255,7 +254,8 @@ class ExpenseEditorViewModel @Inject constructor(
         if (text.length < 3) return
         hintJob = viewModelScope.launch {
             delay(900) // after typing pauses
-            if (!ai.byok() || !prefs.aiConsent.first()) return@launch
+            // Own key only: it was agreed to when it was turned on, so no other consent is needed
+            if (!ai.byok()) return@launch
             val res = try {
                 ai.complete(AiCall(AiTask.VOICE, textMessages(listOf("system" to categoryPrompt(), "user" to text.take(120))), maxTokens = 20, temperature = 0.0))
             } catch (e: CancellationException) {
