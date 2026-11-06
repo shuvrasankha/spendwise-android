@@ -164,7 +164,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                         }
                     })
                     SettingsRow("Reminder time", icon = SwIcons.Clock, trailing = Trailing.Value(state.reminderAt), divider = true, onClick = { picking = "time" })
-                    SettingsRow("Weekly money note", icon = SwIcons.Sparkles, trailing = Trailing.Switch(weeklyOn) { on ->
+                    SettingsRow("Weekly money note", icon = SwIcons.Calendar, trailing = Trailing.Switch(weeklyOn) { on ->
                         when {
                             !on -> viewModel.setWeeklyNote(false)
                             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> askWeeklyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
