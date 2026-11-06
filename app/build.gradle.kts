@@ -36,6 +36,14 @@ android {
         manifestPlaceholders["perf"] = false
     }
 
+    // Where the app is distributed. Play forbids installing updates from elsewhere, so only the GitHub build
+    // has the install permission and the GitHub updater; the Play build updates through Play.
+    flavorDimensions += "store"
+    productFlavors {
+        create("play") { dimension = "store" }
+        create("github") { dimension = "store" }
+    }
+
     signingConfigs {
         if (keystore != null) create("release") {
             storeFile = rootProject.file(keystore.getProperty("storeFile"))

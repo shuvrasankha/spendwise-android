@@ -84,8 +84,9 @@ app/src/main/java/com/spendwise/app/
 ## Workflow rules
 - Work one feature slice at a time. Finish, build, and verify before starting the next.
 - After every change, run `./gradlew assembleDebug`. Fix all errors and warnings you introduced.
-- Run unit tests with `./gradlew testDebugUnitTest` for anything in `domain/` or `data/`.
-- When a device or emulator is connected, run `./gradlew installDebug` to install.
+- Run unit tests with `./gradlew testPlayDebugUnitTest` for anything in `domain/` or `data/`.
+- When a device or emulator is connected, run `./gradlew installPlayDebug` to install.
+- Two store flavors: `play` and `github`. Only `github` has `REQUEST_INSTALL_PACKAGES` and the GitHub updater (`app/src/github/`); never add self-update code to `main` or `play`.
 - Keep business logic out of Composables.
 - Don't add libraries beyond the stack above without asking.
 - Never commit `google-services.json`, keystores, or signing passwords.

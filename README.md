@@ -81,10 +81,15 @@ The specs live alongside the code:
 4. Build and test:
 
 ```sh
-./gradlew assembleDebug          # APK in app/build/outputs/apk/debug/
-./gradlew testDebugUnitTest      # unit tests
-./gradlew installDebug           # install on a connected device
+./gradlew assembleDebug          # APKs in app/build/outputs/apk/{play,github}/debug/
+./gradlew testPlayDebugUnitTest  # unit tests
+./gradlew installPlayDebug       # install on a connected device
 ```
+
+There are two builds of the same app (`productFlavors` in `app/build.gradle.kts`): **play**, for Google
+Play, which updates through Play; and **github**, for GitHub Releases, which also has the
+`REQUEST_INSTALL_PACKAGES` permission and the GitHub updater (`app/src/github/`). Play forbids apps
+installing their own updates, so that code is never in the Play build.
 
 ## Working with the web app
 
@@ -115,14 +120,14 @@ The release build is signed with an upload key that never goes into git.
 3. Raise `versionCode` in `app/build.gradle.kts` above the last build on Play, then build the bundle:
 
    ```sh
-   ./gradlew bundleRelease          # app/build/outputs/bundle/release/app-release.aab
+   ./gradlew bundlePlayRelease      # app/build/outputs/bundle/playRelease/app-play-release.aab
    ```
 
 Turn on Play App Signing when you upload the first bundle, so Google holds the app signing key.
 
 ### GitHub release (automatic)
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`: it builds the signed APK and bundle, checks the
+Pushing a `v*` tag runs `.github/workflows/release.yml`: it builds the signed GitHub APK and Play bundle, checks the
 APK isn't debug-signed, and publishes a GitHub release with `SpendWise.apk` (what the in-app updater
 downloads). The bundle for Play is kept as an artifact on the run.
 

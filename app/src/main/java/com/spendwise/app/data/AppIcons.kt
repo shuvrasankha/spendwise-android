@@ -27,7 +27,7 @@ enum class AppIcon(val alias: String, val label: String, val tile: Long, @param:
  * [applyPending] runs when the app leaves the screen (SpendWiseActivity.onStop).
  */
 @Singleton
-class AppIconSwitcher @Inject constructor(@ApplicationContext private val context: Context) {
+class AppIconSwitcher @Inject constructor(@param:ApplicationContext private val context: Context) {
 
     @Volatile private var pending: AppIcon? = null
 
