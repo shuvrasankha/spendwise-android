@@ -27,7 +27,9 @@ Native Android rewrite of the SpendWise web app (vanilla JS + Firebase, hosted o
 
 ## Package / application ID
 
-- `com.spendwise.app` (existing ID, so keep it exactly; never change applicationId)
+- `com.spendwise.app`: the code namespace and the `github` build's applicationId (existing ID, so keep it exactly)
+- `com.spendwise.money`: the `play` build's applicationId (`com.spendwise.app` was taken on Play). Never change either: Play package names are permanent
+- Never build a component name or shortcut target from `context.packageName` plus a class name; classes live under the namespace
 - versionCode must be higher than any previously published build under this ID
 
 ## Package layout

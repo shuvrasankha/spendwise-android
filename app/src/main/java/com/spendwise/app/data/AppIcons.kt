@@ -26,12 +26,15 @@ enum class AppIcon(val alias: String, val label: String, val tile: Long, @param:
  * Disabling the alias the open task was started from closes that task, so a pick waits in [pending] and
  * [applyPending] runs when the app leaves the screen (SpendWiseActivity.onStop).
  */
+/** Alias names resolve against the code namespace, which differs from the Play build's package name. */
+private const val NAMESPACE = "com.spendwise.app"
+
 @Singleton
 class AppIconSwitcher @Inject constructor(@param:ApplicationContext private val context: Context) {
 
     @Volatile private var pending: AppIcon? = null
 
-    private fun component(icon: AppIcon) = ComponentName(context.packageName, context.packageName + icon.alias)
+    private fun component(icon: AppIcon) = ComponentName(context.packageName, NAMESPACE + icon.alias)
 
     /** The pick waiting to apply, else the enabled alias ("default" state is the manifest's: only DARK). */
     fun current(): AppIcon = pending ?: run {

@@ -3,7 +3,7 @@
 Answers for each Play Console form, taken from what the app does in 1.8.1 (code 20) and from
 `docs/privacy-policy.html`. Copy them in as written. Where a choice is a judgement call, the line says so.
 
-- Package: `com.spendwise.app`
+- Package: `com.spendwise.money` (`com.spendwise.app` is taken on Play; the GitHub build keeps it)
 - Privacy policy: https://shuvrasankha.github.io/spendwise-android/privacy-policy.html
 - Account deletion: https://shuvrasankha.github.io/spendwise-android/delete-account.html
 - Contact email: contact.spend.wise.app@gmail.com
