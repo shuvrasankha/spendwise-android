@@ -1,5 +1,6 @@
 package com.spendwise.app.data.worker
 
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -18,7 +19,7 @@ class WorkerPushTest {
 class AiRequestTest {
     @Test fun `request body as the web sends it`() = assertEquals(
         """{"model":"m","messages":[{"role":"system","content":"s"},{"role":"user","content":"u"}],"max_tokens":400,"temperature":0.2}""",
-        aiRequest("m", listOf("system" to "s", "user" to "u"), 400, 0.2).toString(),
+        aiRequestOf("m", listOf("system" to JsonPrimitive("s"), "user" to JsonPrimitive("u")), 400, 0.2).toString(),
     )
 
     @Test fun `reply content`() {

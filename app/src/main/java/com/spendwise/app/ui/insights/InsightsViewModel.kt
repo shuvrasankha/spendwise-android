@@ -1,9 +1,5 @@
 package com.spendwise.app.ui.insights
 
-import com.spendwise.app.domain.todayStr
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.DebtRepository
@@ -40,11 +36,6 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import java.time.LocalDate
-import com.spendwise.app.domain.ASK_MAX
-import com.spendwise.app.domain.AskResult
-import com.spendwise.app.domain.AskSpec
-import com.spendwise.app.domain.guessSpec
-import com.spendwise.app.domain.runQuery
 import javax.inject.Inject
 import com.spendwise.app.domain.likelySubscriptions
 import com.spendwise.app.domain.unusualExpenses

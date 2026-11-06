@@ -24,3 +24,6 @@ keystore.properties
 
 # Local BYOK working notes
 BYOK_IMPLEMENTATION_STEPS.md
+
+# Android Studio project files (machine-specific)
+/.idea/

@@ -178,28 +178,6 @@ fun checkExpense(
 /** saveEditExpense: ticking starts a series; unticking a repeating entry stops it; otherwise it stays as it was. */
 fun editedRepeat(on: Boolean, was: String?): String? = if (on) "monthly" else if (was == "monthly") "stopped" else was
 
-/** dashboard.js › updateExpenseCards (spec §6.4). */
-data class ExpenseFigures(
-    val month: Double, val monthCount: Int,
-    val year: Double, val yearCount: Int,
-    val all: Double, val allCount: Int,
-    val perDay: Double,
-)
-
-fun expenseFigures(expenses: List<Expense>, today: java.time.LocalDate): ExpenseFigures {
-    val todayS = today.toString()
-    val ms = today.withDayOfMonth(1).toString()
-    val spending = expenses.filter { isSpending(it.category) }
-    val month = spending.filter { it.date >= ms && it.date <= todayS }
-    // web quirk: §9.3 — the year counts future-dated entries too
-    val year = spending.filter { it.date.startsWith(today.year.toString()) }
-    val monthTotal = month.sumOf { it.amount }
-    return ExpenseFigures(
-        monthTotal, month.size, year.sumOf { it.amount }, year.size, spending.sumOf { it.amount }, spending.size,
-        monthTotal / today.dayOfMonth,
-    )
-}
-
 /** The same amount, category and date again within 2 minutes is usually a double tap: the web asks once. */
 const val DUPLICATE_WINDOW_MS = 120_000L
 

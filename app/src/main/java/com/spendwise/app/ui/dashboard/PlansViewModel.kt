@@ -29,7 +29,6 @@ import com.spendwise.app.domain.aiPlanHolds
 import com.spendwise.app.domain.planJson
 import com.spendwise.app.domain.aiBudgetUsed
 import com.spendwise.app.data.auth.AuthRepository
-import java.time.LocalDate
 import com.spendwise.app.ui.format.formatWhole
 import kotlinx.coroutines.flow.first
 import com.spendwise.app.data.expenses.ExpenseRepository

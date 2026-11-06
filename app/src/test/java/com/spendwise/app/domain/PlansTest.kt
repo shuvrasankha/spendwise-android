@@ -54,23 +54,6 @@ class PlansTest {
         assertNull(editedRepeat(false, null))
     }
 
-    // ── Expense page figures (§6.4) ──
-
-    @Test fun expenseFigures_monthYearAllAndDailyAverage() {
-        val f = expenseFigures(
-            listOf(
-                ex(30.0, FOOD, "2026-10-20"), // future: in the year (§9.3), not the month
-                ex(50.0, FOOD, "2026-10-10"),
-                ex(1000.0, INVEST, "2026-10-02"),
-                ex(100.0, FOOD, "2026-10-01"),
-                ex(200.0, FOOD, "2026-03-01"),
-                ex(400.0, FOOD, "2025-12-31"),
-            ),
-            LocalDate.of(2026, 10, 10),
-        )
-        assertEquals(ExpenseFigures(150.0, 2, 380.0, 4, 780.0, 5, 15.0), f)
-    }
-
     // ── EMI plans (helpers.js › emiPlans) ──
 
     private val today = LocalDate.of(2026, 10, 26)
