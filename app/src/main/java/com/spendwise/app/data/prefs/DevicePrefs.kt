@@ -178,6 +178,13 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (on) it[APP_LOCK] = true else it.remove(APP_LOCK) }
     }
 
+    /** The Sunday "week in money" note; off unless switched on. Per device, never synced. */
+    val weeklyNote: Flow<Boolean> = store.data.map { it[WEEKLY_NOTE] == true }
+
+    suspend fun setWeeklyNote(on: Boolean) {
+        store.edit { if (on) it[WEEKLY_NOTE] = true else it.remove(WEEKLY_NOTE) }
+    }
+
     /** Haptic ticks on taps; on unless switched off. Per device, never synced. */
     val hapticEnabled: Flow<Boolean> = store.data.map { it[HAPTIC_OFF] != true }
 
@@ -249,6 +256,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
         val HAPTIC_OFF = booleanPreferencesKey("haptic_off")
+        val WEEKLY_NOTE = booleanPreferencesKey("weekly_note")
         val TOUR_SEEN = booleanPreferencesKey("tour_seen")
         val WIDGET_TRANSPARENCY = intPreferencesKey("widget_transparency")
         val AI_MODE = stringPreferencesKey("ai_mode")

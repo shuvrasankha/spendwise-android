@@ -55,6 +55,7 @@ import com.spendwise.app.ui.components.Trailing
 import com.spendwise.app.ui.debts.DebtsPage
 import com.spendwise.app.ui.debts.DebtsViewModel
 import com.spendwise.app.ui.debts.readContact
+import com.spendwise.app.ui.expenses.CategoryHint
 import com.spendwise.app.ui.expenses.ExpenseEditorViewModel
 import com.spendwise.app.ui.format.formatAmount
 import com.spendwise.app.ui.icons.SwIcons
@@ -187,6 +188,7 @@ private fun ExpenseFields(state: com.spendwise.app.ui.expenses.EditorState, vm: 
             form.description, vm::setDescription, "Description",
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
         )
+        CategoryHint(state, vm::setCategory)
         Label("Paid with")
         ChipFlow { PAYMENT_METHODS.forEach { SwChip(it, form.payment == it, { vm.setPayment(it) }) } }
         if (isCard(form.payment)) SwField(form.cardName, vm::setCardName, "Card name (optional)")

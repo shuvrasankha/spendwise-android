@@ -120,8 +120,11 @@ private fun topicFor(q: String): CoachTopic = when {
     else -> CoachTopic.OVERVIEW
 }
 
-/** The question read on the device. Nothing here calls the AI or touches an entry. */
-fun routeQuestion(question: String, today: String, context: AssistantContext = AssistantContext()): AssistantRoute {
+/**
+ * The question read on the device. Nothing here calls the AI. [found] says whether a free-text search matches any
+ * entry: a question whose words match nothing ("how is my financial health") is for the AI, not a ₹0 search.
+ */
+fun routeQuestion(question: String, today: String, context: AssistantContext = AssistantContext(), found: (AskSpec) -> Boolean = { true }): AssistantRoute {
     val q = question.trim().lowercase().replace(Regex("""[?!]+$"""), "")
     impossibleDate(" $q ", today)?.let { bad ->
         return AssistantRoute.Clarify("\"$bad\" isn't a date on the calendar. Which dates do you mean?", STARTERS)
@@ -142,7 +145,12 @@ fun routeQuestion(question: String, today: String, context: AssistantContext = A
     if (context.lastWasAdvice && (followUp && !hasDates || !spoken || q.split(Regex("""\s+""")).size > 3 && !hasDates && !named && metric == FinMetric.TOTAL)) {
         return AssistantRoute.Advise(context.lastTopic ?: topicFor(q), null, null, spec.categories)
     }
-    if (!spoken) return AssistantRoute.Clarify("I can add up your entries or give advice on them. What would you like to know?", STARTERS)
+    // Anything that isn't plainly a sum of the entries is a question for the AI
+    if (!spoken && followUp && context.last == null) return AssistantRoute.Clarify("What should I look at? Name a category or a period.", STARTERS)
+    if (!spoken) return AssistantRoute.Advise(topicFor(q), spec.from, spec.to, spec.categories)
+    if (spec.text != null && spec.tag == null && !found(spec.copy(from = null, to = null))) {
+        return AssistantRoute.Advise(topicFor(q), spec.from, spec.to, spec.categories)
+    }
 
     val prev = context.last
     if (followUp && prev == null && !hasDates && !named && metric == FinMetric.TOTAL) {
@@ -495,7 +503,8 @@ fun adviceQuery(route: AssistantRoute.Advise, range: PeriodRange): FinQuery =
     if (route.categories.isNotEmpty()) FinQuery(FinMetric.TOTAL, categories = route.categories, from = range.start, to = range.end)
     else FinQuery(FinMetric.BREAKDOWN, from = range.start, to = range.end)
 
-const val ASSISTANT_AI_NOTE = "AI advice, based on the figures above. It can be wrong."
+/** [by]: the AI that wrote the answer. */
+fun assistantAiNote(by: String) = (if (by.isEmpty()) "AI answer" else "Answered by $by") + ". It can be wrong."
 const val ASSISTANT_NO_CONSENT = "Advice needs the AI, so here are just your figures. Your numbers are always worked out on this device."
 
 val ASSISTANT_NUMBER_PROMPTS = listOf(

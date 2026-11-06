@@ -20,6 +20,13 @@ class AiGateway @Inject constructor(
     /** Whether AI goes to the user's own provider; the Worker's daily allowance applies only when false. */
     suspend fun byok(): Boolean = prefs.aiMode.first() == "byok"
 
+    /** Who answers a text call now, for "Answered by …": the provider and model in BYOK mode. */
+    suspend fun label(): String {
+        if (!byok()) return "SpendWise AI"
+        val p = byokProvider(prefs.byokProvider.first())
+        return "${p.name} · ${prefs.byokModel("text", p.id).first().ifBlank { p.defaultModel }} (your key)"
+    }
+
     suspend fun complete(call: AiCall): AiResult {
         // Read once: a call in progress keeps its provider if the mode changes
         if (!byok()) return worker.complete(workerModel(call.task), call)

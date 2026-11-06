@@ -71,10 +71,11 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
+import com.spendwise.app.domain.DEBT_PLAN_QUESTION
 
 /** Debts (spec §1.5): net balance, a button for the New entry sheet, by person, open and settled debts. */
 @Composable
-fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hiltViewModel()) {
+fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, onOpenAssistant: (String) -> Unit = {}, vm: DebtsViewModel = hiltViewModel()) {
     val page by vm.page.collectAsStateWithLifecycle()
     val currency by vm.currency.collectAsStateWithLifecycle()
     val filterKey by vm.filter.collectAsStateWithLifecycle()
@@ -126,6 +127,12 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, vm: DebtsViewModel = hilt
                 }
                 is DebtsPage.Ready -> {
                     val (person, open) = vm.open(p)
+                    // The AI sees each open debt's amount and age, never who it's with
+                    if (p.people.isNotEmpty()) item {
+                        Box(Modifier.padding(start = Spacing.gutter, end = Spacing.gutter, bottom = 16.dp)) {
+                            SwButton("Make a payoff plan", { onOpenAssistant(DEBT_PLAN_QUESTION) }, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.Sparkles)
+                        }
+                    }
                     if (p.showPeople) {
                         item { SectionHeader("By person") }
                         p.people.forEachIndexed { i, pr ->

@@ -114,6 +114,8 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
     val context = LocalContext.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
+    val weeklyOn by viewModel.weeklyNote.collectAsStateWithLifecycle()
+    val askWeeklyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.setWeeklyNote(true, it) }
     val c = SpendWiseTheme.colors
     val gutter = Modifier.padding(horizontal = Spacing.gutter)
 
@@ -162,6 +164,13 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                         }
                     })
                     SettingsRow("Reminder time", icon = SwIcons.Clock, trailing = Trailing.Value(state.reminderAt), divider = true, onClick = { picking = "time" })
+                    SettingsRow("Weekly money note", icon = SwIcons.Sparkles, trailing = Trailing.Switch(weeklyOn) { on ->
+                        when {
+                            !on -> viewModel.setWeeklyNote(false)
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> askWeeklyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            else -> viewModel.setWeeklyNote(true)
+                        }
+                    }, divider = true)
                 }
                 state.reminderNote?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
             }

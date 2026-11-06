@@ -2,8 +2,9 @@ package com.spendwise.app.ui.navigation
 
 import android.content.Intent
 import com.spendwise.app.domain.EXPENSE_CATEGORIES
+import com.spendwise.app.domain.WEEK_QUESTION
 
-/** App links: spendwise://{dashboard|add|history|insights}, the web's index.html#{page} (spec §1.0). */
+/** App links: spendwise://{dashboard|add|history|insights|debts|week}, the web's index.html#{page} (spec §1.0). */
 const val LINK_SCHEME = "spendwise"
 
 /** The Add sheet opened on [category] (the widget's quick add). */
@@ -20,6 +21,7 @@ fun linkRoute(scheme: String?, page: String?, fragment: String?, param: (String)
         "add" -> param("cat").firstOrNull()?.takeIf { it in EXPENSE_CATEGORIES }?.let(::AddExpenseIn) ?: AddExpense
         "insights" -> Insights
         "debts" -> Debts
+        "week" -> Assistant(WEEK_QUESTION)
         "history" -> History(
             income = fragment == "income" || param("tab").firstOrNull() == "income",
             q = param("q").firstOrNull(),

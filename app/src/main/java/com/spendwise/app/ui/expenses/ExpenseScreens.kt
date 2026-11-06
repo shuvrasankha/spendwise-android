@@ -47,6 +47,7 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
+import com.spendwise.app.domain.CATEGORY_TILE_LABELS
 
 /** Edit an existing expense (spec §2.3): the same fields as the New entry sheet, Save, and Delete with confirmation. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -84,6 +85,7 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
                             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
                         )
                     }
+                    CategoryHint(state, editor::setCategory, gutter)
                     FieldLabel("Paid with")
                     FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         PAYMENT_METHODS.forEach { SwChip(it, f.payment == it, { editor.setPayment(it) }) }
@@ -132,5 +134,15 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
             confirmButton = { TextButton(onClick = editor::confirmDelete) { Text("Delete", color = c.negative) } },
             dismissButton = { TextButton(onClick = editor::cancelDelete) { Text("Cancel") } },
         )
+    }
+}
+
+/** The category the description points to, one tap to use; hidden once it's the one chosen. Add and Edit share it. */
+@Composable
+internal fun CategoryHint(state: EditorState, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
+    val hint = state.categoryHint?.takeIf { it != state.form.category } ?: return
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(if (state.hintByAi) "AI suggests" else "Suggested", style = SwType.label, color = SpendWiseTheme.colors.textMuted)
+        SwChip(CATEGORY_TILE_LABELS[hint] ?: hint, false, { onPick(hint) }, leading = SwIcons.forCategory(hint))
     }
 }

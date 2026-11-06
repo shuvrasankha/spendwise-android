@@ -50,6 +50,9 @@ private val SMS_CATEGORIES = listOf(
     "Home & Rent" to """\brent\b|nobroker""",
 ).map { (name, re) -> name to Regex(re) }
 
+/** The category a description names by brand or kind ("Swiggy order" is Food & Dining); null when nothing matches. */
+fun categoryFromText(text: String): String? = text.lowercase().let { t -> SMS_CATEGORIES.firstOrNull { it.second.containsMatchIn(t) }?.first }
+
 private fun number(s: String) = s.replace(",", "").toDoubleOrNull()?.takeIf { it > 0 }
 
 private fun amountOf(text: String): Double? {

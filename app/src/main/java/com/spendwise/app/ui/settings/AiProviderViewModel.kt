@@ -121,14 +121,16 @@ class AiProviderViewModel @Inject constructor(
     }
 
     /** One call per distinct model; the models are saved only when every call passes. */
-    fun test() = viewModelScope.launch {
+    fun test() = viewModelScope.launch { runTest() }
+
+    private suspend fun runTest() {
         val d = draft.value
-        if (d.test == KeyTest.Running) return@launch
+        if (d.test == KeyTest.Running) return
         draft.update { it.copy(test = KeyTest.Running, note = null) }
         val p = d.provider
         val models = listOf(d.textModel, d.visionModel).map { it.trim().ifEmpty { p.defaultModel } }.distinct()
         val result = try {
-            val key = keys.read(p.id) ?: return@launch draft.update { it.copy(test = KeyTest.Failed("Save your API key first.")) }
+            val key = keys.read(p.id) ?: return draft.update { it.copy(test = KeyTest.Failed("Save your API key first.")) }
             models.firstNotNullOfOrNull { (client.testConnection(p, key, it) as? AiResult.Failed)?.error }
                 ?.let { KeyTest.Failed(byokErrorText(it)) } ?: KeyTest.Passed
         } catch (e: CancellationException) {
@@ -145,9 +147,11 @@ class AiProviderViewModel @Inject constructor(
         draft.update { if (it.provider == p && it.textModel == d.textModel && it.visionModel == d.visionModel) it.copy(test = result) else it }
     }
 
+    /** With a saved key that hasn't passed a test yet, the test runs here rather than sending the user to the button. */
     fun useMyKey() = viewModelScope.launch {
-        val s = state.value
-        if (!s.canActivate) return@launch draft.update { it.copy(note = if (s.keyMask == null) "Save your API key first." else "Test the connection first.") }
+        if (state.value.keyMask == null) return@launch draft.update { it.copy(note = "Save your ${it.provider.name} API key below first.") }
+        if (draft.value.test != KeyTest.Passed) runTest()
+        if (!state.first { it.test != KeyTest.Running }.canActivate) return@launch
         if (prefs.byokConsent(id).first()) activate() else draft.update { it.copy(consentAsked = true) }
     }
 

@@ -31,6 +31,9 @@ import java.time.Month
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
+import com.spendwise.app.domain.goalPlanText
+import com.spendwise.app.ui.format.formatWhole
+import java.time.LocalDate
 
 /** The goal sheet (goals.js): "Add to …", "Edit goal" or "New savings goal", and delete with confirmation. */
 @Composable
@@ -41,6 +44,7 @@ fun GoalDialog(
     onSave: (name: String, target: String, by: String, saved: String, amount: String) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    monthlySaving: Double? = null,
 ) {
     val c = SpendWiseTheme.colors
     val goal = editing.goal
@@ -86,6 +90,12 @@ fun GoalDialog(
                 MenuChip(by.year.toString(), years.map { it to it.toString() }, { by = by.withYear(it) })
             }
             Box(gutter) { MoneyField("Saved so far", saved, currency.symbol, placeholder = "0") { saved = it } }
+            // The plan, worked out on the phone from the last 3 months as the fields change
+            goalPlanText(number(target), number(saved), by.toString(), LocalDate.now().toString(), monthlySaving) { formatWhole(it, currency) }
+                ?.let { Text(it, style = SwType.body, color = c.text, modifier = gutter) }
         }
     }
 }
+
+/** What's typed, as a number for the plan: commas allowed; anything unreadable is 0 and shows no plan. */
+private fun number(s: String) = s.replace(",", "").trim().toDoubleOrNull()?.takeIf { it.isFinite() } ?: 0.0

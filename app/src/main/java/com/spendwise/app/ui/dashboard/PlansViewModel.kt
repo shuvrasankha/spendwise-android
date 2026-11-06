@@ -55,6 +55,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.spendwise.app.domain.averageMonthlySaving
+import kotlinx.coroutines.flow.combine
 
 /** A snackbar on Home; [undoId] is an expense its Undo deletes. */
 data class Notice(val text: String, val undoId: String? = null, val error: Boolean = false)
@@ -187,6 +189,10 @@ class PlansViewModel @Inject constructor(
     }
     fun editGoal(id: String) = saved(id)?.let { openGoal(GoalEditing(adding = false, goal = it)) }
     fun addMoney(id: String) = saved(id)?.let { openGoal(GoalEditing(adding = true, goal = it)) }
+    /** Saved a month lately, for the goal sheet's plan; null without income. */
+    val monthlySaving: StateFlow<Double?> = combine(expenses.expenses(), income.income()) { e, i -> averageMonthlySaving(e, i, todayStr()) }
+        .catch { emit(null) }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private fun openGoal(e: GoalEditing) { _goalError.update { null }; _goal.update { e } }
     fun closeGoal() = _goal.update { null }
 

@@ -1,6 +1,10 @@
 package com.spendwise.app.domain
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -96,18 +100,45 @@ fun factsText(s: InsightSummary, r: PeriodRange, money: (Double) -> String): Str
     return lines.joinToString("\n")
 }
 
-fun coachSystemPrompt(topic: CoachTopic, facts: String, currency: Currency): String = """You are the money coach inside SpendWise, a personal expense tracker. Amounts are in ${currency.code} (${currency.symbol}).
+fun coachSystemPrompt(topic: CoachTopic, facts: String, currency: Currency): String = """You are the money assistant inside SpendWise, a personal expense tracker. Amounts are in ${currency.code} (${currency.symbol}).
+You can answer any personal finance question: the user's own spending, income, savings and debts, and general topics like budgeting, saving, emergency funds, loans, credit, taxes, insurance and investing concepts.
 Rules:
-- Use only the numbers below. Never invent amounts, dates, income, goals or interest rates. If something isn't in the data, say so in one short sentence.
-- Answer the question asked in the first sentence, with a clear yes, no or number, then explain.
+- For the user's own figures, use only the numbers below. Never invent their amounts, dates, income, goals or interest rates. If something isn't in the data, say so briefly.
+- For general questions, answer from sound, widely accepted financial knowledge, and link it to the user's numbers when they're relevant.
+- Talk like a knowledgeable friend: answer the actual question directly in natural sentences. Never open with a bare "Yes.", "No." or a lone number, and don't repeat a fixed template.
 - Be specific: name categories and amounts from the data, and estimate savings in ${currency.symbol}.
 - A saving per month can never be more than what's spent per month on that thing: check PER MONTH below. Say when an amount is already small.
-- Keep each answer under 150 words. Use a short numbered or bulleted list for steps.
-- Plain, friendly English. Don't recommend specific financial products, funds or stocks.
-Focus: ${topic.focus}
+- Keep answers under 180 words. Use a short list only when giving steps or options.
+- Don't recommend specific financial products, funds or stocks by name. If a question isn't about money, say briefly that you only help with finances.
+${if (topic == CoachTopic.OVERVIEW) "" else "Focus if relevant: ${topic.focus}\n"}- After the answer, on its own last line, write "$FOLLOW_UPS_TAG" and 2 or 3 short questions the user might ask next about their money, separated by " | ". Each under 60 characters, in the user's voice.
 
 USER'S NUMBERS
 $facts"""
+
+const val FOLLOW_UPS_TAG = "NEXT:"
+
+/** A past answer as the model wrote it: its follow-up line put back. */
+fun withFollowUps(answer: String, next: List<String>) = if (next.isEmpty()) answer else "$answer\n\n$FOLLOW_UPS_TAG ${next.joinToString(" | ")}"
+
+/**
+ * The newest question with a reminder of the follow-up line. Tested 2026-11-06 on Groq/qwen: after a few
+ * earlier answers without one, the model drops it despite the system prompt; the reminder brings it back.
+ */
+fun remindFollowUps(messages: List<Pair<String, String>>): List<Pair<String, String>> {
+    val i = messages.indexOfLast { it.first == "user" }
+    if (i < 0) return messages
+    return messages.toMutableList().also { it[i] = "user" to "${messages[i].second}\n\n(End your reply with the $FOLLOW_UPS_TAG line.)" }
+}
+
+/** The answer without its follow-up line, and the questions on it. A reply without one is all answer. */
+fun splitFollowUps(reply: String): Pair<String, List<String>> {
+    val lines = reply.trimEnd().lines()
+    val i = lines.indexOfLast { it.trim().trimStart('*', '_').startsWith(FOLLOW_UPS_TAG, ignoreCase = true) }
+    if (i < 0) return reply.trim() to emptyList()
+    val qs = lines[i].trim().trimStart('*', '_').substring(FOLLOW_UPS_TAG.length).trim('*', '_', ' ')
+        .split('|').map { it.trim().trim('"', '-', ' ') }.filter { it.length in 3..80 }.distinct().take(3)
+    return (lines.take(i) + lines.drop(i + 1)).joinToString("\n").trim() to qs
+}
 
 enum class AiFailure { RATE_LIMITED, NOT_AUTHENTICATED, OFFLINE, OTHER }
 
@@ -167,3 +198,29 @@ fun markdownBlocks(text: String): List<MdBlock> {
     flushPara(); flushList()
     return out.ifEmpty { listOf(MdBlock.Paragraph(listOf("No response."))) }
 }
+
+/** Ask › photo with no question typed. */
+const val BILL_QUESTION = "Explain this bill or statement"
+
+/** Ask about a photo of a bill or statement: the image is read once and never kept. */
+fun billPrompt(currency: Currency) = """You are the money assistant inside SpendWise. The user sends a photo of a bill, invoice, bank or card statement, or loan document, with a question about it. The user's currency is ${currency.code} (${currency.symbol}).
+Rules:
+- Answer the user's question first. Without one, explain what the document is, the total or amount due, the due date, and any fees, interest, penalties or charges worth checking.
+- Use only what you can read in the photo. If something is cut off or unreadable, say so. Never guess amounts or dates.
+- Never repeat account, card, phone or customer numbers, or addresses.
+- Point out anything unusual: a late fee, a price rise, a charge that looks doubled, or a minimum payment that only covers interest.
+- If the photo isn't a financial document, say briefly that you can only explain bills and statements.
+- Keep it under 180 words, in plain sentences; a short list only for several charges.
+- After the answer, on its own last line, write "$FOLLOW_UPS_TAG" and 2 or 3 short questions the user might ask next about this document, separated by " | ". Each under 60 characters, in the user's voice."""
+
+/** The question and the photo, as one user message of parts (as receiptMessages). */
+fun billMessages(currency: Currency, question: String, image: String): List<Pair<String, JsonElement>> = listOf(
+    "system" to JsonPrimitive(billPrompt(currency)),
+    "user" to buildJsonArray {
+        add(buildJsonObject { put("type", JsonPrimitive("text")); put("text", JsonPrimitive(question)) })
+        add(buildJsonObject {
+            put("type", JsonPrimitive("image_url"))
+            put("image_url", buildJsonObject { put("url", JsonPrimitive(image)) })
+        })
+    },
+)

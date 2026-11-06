@@ -42,7 +42,10 @@ val GEMINI = ByokProvider(
 )
 val ANTHROPIC = ByokProvider("anthropic", "Anthropic", "https://api.anthropic.com/v1/messages", "claude-opus-5-5", "sk-ant-…", "Get a key at platform.claude.com.")
 
-val BYOK_PROVIDER_LIST = listOf(NVIDIA, OPENAI, GEMINI, ANTHROPIC)
+/** OpenAI-compatible, so it takes the plain body. Live-tested 2026-11-06: qwen answers text with no hidden reasoning and takes images; gpt-oss refuses images. */
+val GROQ = ByokProvider("groq", "Groq", "https://api.groq.com/openai/v1/chat/completions", "qwen/qwen3.8-27b", "gsk_…", "Get a key at console.groq.com.")
+
+val BYOK_PROVIDER_LIST = listOf(NVIDIA, OPENAI, GEMINI, ANTHROPIC, GROQ)
 
 fun byokProvider(id: String?): ByokProvider = BYOK_PROVIDER_LIST.firstOrNull { it.id == id } ?: NVIDIA
 

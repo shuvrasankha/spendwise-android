@@ -24,6 +24,7 @@ import com.spendwise.app.domain.ASK_MAX
 import com.spendwise.app.domain.ASSISTANT_NO_CONSENT
 import com.spendwise.app.domain.AiFailure
 import com.spendwise.app.domain.AiFeature
+import com.spendwise.app.domain.AskSpec
 import com.spendwise.app.domain.AssistantContext
 import com.spendwise.app.domain.AssistantRoute
 import com.spendwise.app.domain.COACH_MAX_TURNS
@@ -49,6 +50,10 @@ import com.spendwise.app.domain.currencyOf
 import com.spendwise.app.domain.mergeAiSpec
 import com.spendwise.app.domain.readSpec
 import com.spendwise.app.domain.routeQuestion
+import com.spendwise.app.domain.remindFollowUps
+import com.spendwise.app.domain.splitFollowUps
+import com.spendwise.app.domain.withFollowUps
+import com.spendwise.app.domain.runQuery
 import com.spendwise.app.domain.summarize
 import com.spendwise.app.ui.format.formatAmount
 import com.spendwise.app.ui.format.formatWhole
@@ -77,6 +82,12 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import javax.inject.Inject
+import com.spendwise.app.domain.debtFacts
+import com.spendwise.app.domain.BILL_QUESTION
+import com.spendwise.app.domain.RECEIPT_BAD_PHOTO
+import com.spendwise.app.domain.billMessages
+import com.spendwise.app.data.ReceiptPhotos
+import android.net.Uri
 
 enum class TurnKind { USER, CALCULATED, ADVICE, CLARIFY }
 
@@ -88,24 +99,40 @@ data class AssistantTurn(
     val query: FinQuery? = null,
     val topic: CoachTopic? = null,
     val options: List<SavedOption> = emptyList(),
+    /** The AI that wrote an ADVICE answer; empty for chats saved before this was kept. */
+    val by: String = "",
+    /** A USER question sent with a photo; the photo itself is never kept. */
+    val photo: Boolean = false,
 )
 
 @Serializable
 data class SavedOption(val label: String, val question: String)
 
-/** One conversation per user, kept for a day on this device only, like the coach's before it. */
+/** One conversation, on this device only. [id] is when it started. */
 @Serializable
-data class SavedAssistant(val uid: String, val savedAt: Long, val turns: List<AssistantTurn>)
+data class SavedChat(val id: Long, val savedAt: Long, val turns: List<AssistantTurn>) {
+    val title get() = turns.firstOrNull { it.kind == TurnKind.USER }?.text.orEmpty()
+}
+
+/** The user's past chats, newest first. Another user's on this device are not shown. */
+@Serializable
+data class SavedChats(val uid: String, val chats: List<SavedChat>)
+
+const val CHATS_KEPT = 30
+
+/** [chat] replaces the one with its id, moves to the top, and the oldest past [CHATS_KEPT] drop off. */
+fun upsertChat(chats: List<SavedChat>, chat: SavedChat): List<SavedChat> =
+    (listOf(chat) + chats.filter { it.id != chat.id }).take(CHATS_KEPT)
 
 @Immutable
 sealed interface AssistantRow {
     @Immutable
-    data class Question(val text: String) : AssistantRow
+    data class Question(val text: String, val photo: Boolean = false) : AssistantRow
     @Immutable
     data class Calculated(val card: FinCard) : AssistantRow
     /** [text] null: the AI didn't answer, and only the figures are shown. */
     @Immutable
-    data class Advice(val card: FinCard?, val text: String?) : AssistantRow
+    data class Advice(val card: FinCard?, val text: String?, val by: String = "", val next: List<String> = emptyList()) : AssistantRow
     @Immutable
     data class Clarify(val text: String, val options: List<ClarifyOption>) : AssistantRow
 }
@@ -132,9 +159,20 @@ class AssistantViewModel @Inject constructor(
     private val consent: AiConsent,
     private val allowance: AiAllowance,
     private val auth: AuthRepository,
+    private val photos: ReceiptPhotos,
 ) : ViewModel() {
 
     private val turns = MutableStateFlow<List<AssistantTurn>>(emptyList())
+    private var chatId = System.currentTimeMillis()
+
+    /** Past chats on this device, newest first. */
+    val chats: StateFlow<List<SavedChat>> = prefs.coachChat.map { json -> readChats(json) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private fun readChats(json: String?): List<SavedChat> {
+        val saved = json?.let { runCatching { Json.decodeFromString(SavedChats.serializer(), it) }.getOrNull() } ?: return emptyList()
+        return if (saved.uid == auth.currentUid) saved.chats else emptyList()
+    }
     private val busy = MutableStateFlow(false)
     private val error = MutableStateFlow<Pair<String, Boolean>?>(null)
 
@@ -177,6 +215,71 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch { answer(q) }
     }
 
+    /** Where the camera saves a bill photo. */
+    fun newPhotoUri(): Uri = photos.newUri()
+
+    /** A bill or statement photo with [text] as the question: read by the vision model, then deleted. */
+    fun sendPhoto(uri: Uri?, text: String) {
+        if (uri == null || busy.value) return photos.clear()
+        val q = text.trim().take(ASK_MAX).ifEmpty { BILL_QUESTION }
+        error.value = null
+        turns.update { it + AssistantTurn(TurnKind.USER, q, photo = true) }
+        busy.value = true
+        viewModelScope.launch {
+            try {
+                explainPhoto(uri, q)
+                save()
+            } finally {
+                busy.value = false
+            }
+        }
+    }
+
+    private suspend fun explainPhoto(uri: Uri, question: String) {
+        fun failed(message: String) {
+            error.value = message to false // the photo is gone, so a retry has nothing to send
+        }
+        val image = try {
+            photos.dataUrl(uri)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        } finally {
+            photos.clear()
+        }
+        if (image == null) return failed(RECEIPT_BAD_PHOTO)
+        if (!consent.ensure()) return failed(ASSISTANT_NO_CONSENT)
+        val byok = ai.byok()
+        if (!byok && !allowance.left(AiFeature.VOICE)) return failed(aiLimitText(AiFeature.VOICE))
+        val failure = try {
+            val by = ai.label()
+            val res = ai.complete(AiCall(AiTask.RECEIPT, billMessages(prefs.currency.first(), question, image), maxTokens = 700, temperature = 0.3))
+            val content = (res as? AiResult.Ok)?.content?.trim()?.takeIf { it.isNotEmpty() }
+            when {
+                byok && content == null -> return failed(byokErrorText((res as? AiResult.Failed)?.error ?: AiError.BadReply))
+                res is AiResult.Failed && res.status == 429 -> AiFailure.RATE_LIMITED
+                res is AiResult.Failed && res.error == AiError.Network -> AiFailure.OFFLINE
+                content == null -> AiFailure.OTHER
+                else -> {
+                    if (!byok) allowance.used(AiFeature.VOICE)
+                    val (answer, next) = splitFollowUps(content)
+                    add(AssistantTurn(TurnKind.ADVICE, answer, options = next.map { SavedOption(it, it) }, by = by))
+                    null
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: NotSignedIn) {
+            AiFailure.NOT_AUTHENTICATED
+        } catch (e: IOException) {
+            AiFailure.OFFLINE
+        } catch (e: Exception) {
+            AiFailure.OTHER
+        }
+        if (failure != null) failed(coachErrorText(failure, resetTime()))
+    }
+
     /** Try again: the last question, with whatever it left behind taken off. */
     fun retry() {
         if (busy.value) return
@@ -189,17 +292,38 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch { answer(q) }
     }
 
+    /** The chat so far is already saved; this starts an empty one. */
     fun newChat() {
         if (busy.value) return
         turns.value = emptyList()
         error.value = null
-        viewModelScope.launch { prefs.setCoachChat(null) }
+        chatId = System.currentTimeMillis()
+    }
+
+    fun openChat(id: Long) {
+        if (busy.value) return
+        val chat = chats.value.firstOrNull { it.id == id } ?: return
+        chatId = chat.id
+        turns.value = chat.turns
+        error.value = null
+    }
+
+    fun deleteChat(id: Long) = viewModelScope.launch {
+        if (id == chatId) newChat()
+        writeChats(chats.value.filter { it.id != id })
+    }
+
+    private suspend fun writeChats(list: List<SavedChat>) {
+        val uid = auth.currentUid ?: return
+        prefs.setCoachChat(Json.encodeToString(SavedChats.serializer(), SavedChats(uid, list)))
     }
 
     private suspend fun answer(question: String) {
         try {
             val today = LocalDate.now().toString()
-            when (val route = routeQuestion(question, today, context())) {
+            val r = records.first()
+            val found = { spec: AskSpec -> runQuery(spec, r.expenses, r.income).count > 0 }
+            when (val route = routeQuestion(question, today, context(), found)) {
                 is AssistantRoute.Calculate -> add(AssistantTurn(TurnKind.CALCULATED, query = if (route.unsure) readWithAi(question, route.query, today) else route.query))
                 is AssistantRoute.Clarify -> add(AssistantTurn(TurnKind.CLARIFY, route.text, options = route.options.map { SavedOption(it.label, it.question) }))
                 is AssistantRoute.Advise -> advise(route, question)
@@ -257,9 +381,12 @@ class AssistantViewModel @Inject constructor(
         if (!byok && !allowance.left(AiFeature.COACH)) return failed(aiLimitText(AiFeature.COACH), retry = false)
         val failure = try {
             val currency = prefs.currency.first()
-            val facts = adviceFacts(summary, range) { formatWhole(it, currency).replaceFirst(' ', ' ') }
+            val fmt = { n: Double -> formatWhole(n, currency).replaceFirst(' ', ' ') }
+            // Debt advice needs each open debt, not only the totals: amounts and age, never names or notes
+            val facts = adviceFacts(summary, range, fmt) + if (route.topic == CoachTopic.DEBT) "\n" + debtFacts(r.debts, today.toString(), fmt) else ""
             val messages = listOf("system" to coachSystemPrompt(route.topic, facts, currency)) + aiHistory(r, currency, question)
-            val res = ai.complete(AiCall(AiTask.COACH, textMessages(messages), maxTokens = 700, temperature = 0.4))
+            val by = ai.label()
+            val res = ai.complete(AiCall(AiTask.COACH, textMessages(messages), maxTokens = 700, temperature = 0.6))
             val content = (res as? AiResult.Ok)?.content?.trim()?.takeIf { it.isNotEmpty() }
             if (byok && content == null) return failed(byokErrorText((res as? AiResult.Failed)?.error ?: AiError.BadReply))
             when {
@@ -268,7 +395,8 @@ class AssistantViewModel @Inject constructor(
                 content == null -> AiFailure.OTHER
                 else -> {
                     if (!byok) allowance.used(AiFeature.COACH)
-                    add(AssistantTurn(TurnKind.ADVICE, content, query, route.topic))
+                    val (answer, next) = splitFollowUps(content)
+                    add(AssistantTurn(TurnKind.ADVICE, answer, query, route.topic, next.map { SavedOption(it, it) }, by))
                     null
                 }
             }
@@ -290,7 +418,8 @@ class AssistantViewModel @Inject constructor(
         val past = turns.value.mapNotNull { t ->
             when (t.kind) {
                 TurnKind.USER -> "user" to t.text
-                TurnKind.ADVICE -> t.text.takeIf { it.isNotEmpty() }?.let { "assistant" to it }
+                // With its follow-ups put back, so past answers show the model the format it's asked for
+                TurnKind.ADVICE -> t.text.takeIf { it.isNotEmpty() }?.let { "assistant" to withFollowUps(it, t.options.map { o -> o.question }) }
                 TurnKind.CALCULATED -> t.query?.let { q ->
                     val c = calculate(q, r.expenses, r.income, today) { formatWhole(it, currency) }
                     "assistant" to "Calculated: ${c.title}: ${c.headline}"
@@ -298,7 +427,7 @@ class AssistantViewModel @Inject constructor(
                 TurnKind.CLARIFY -> null
             }
         }
-        return past.takeLast(COACH_MAX_TURNS).ifEmpty { listOf("user" to question) }
+        return remindFollowUps(past.takeLast(COACH_MAX_TURNS).ifEmpty { listOf("user" to question) })
     }
 
     private fun rowsFor(t: List<AssistantTurn>, r: Records, currency: Currency): List<AssistantRow> {
@@ -306,25 +435,25 @@ class AssistantViewModel @Inject constructor(
         val money = { n: Double -> formatAmount(n, currency) }
         return t.map { x ->
             when (x.kind) {
-                TurnKind.USER -> AssistantRow.Question(x.text)
+                TurnKind.USER -> AssistantRow.Question(x.text, x.photo)
                 TurnKind.CALCULATED -> AssistantRow.Calculated(calculate(x.query!!, r.expenses, r.income, today, money))
-                TurnKind.ADVICE -> AssistantRow.Advice(x.query?.let { calculate(it, r.expenses, r.income, today, money) }, x.text.takeIf { it.isNotEmpty() })
+                TurnKind.ADVICE -> AssistantRow.Advice(x.query?.let { calculate(it, r.expenses, r.income, today, money) }, x.text.takeIf { it.isNotEmpty() }, x.by, x.options.map { it.question })
                 TurnKind.CLARIFY -> AssistantRow.Clarify(x.text, x.options.map { ClarifyOption(it.label, it.question) })
             }
         }
     }
 
     private suspend fun save() {
-        val uid = auth.currentUid ?: return
-        prefs.setCoachChat(Json.encodeToString(SavedAssistant.serializer(), SavedAssistant(uid, System.currentTimeMillis(), turns.value)))
+        if (turns.value.isEmpty()) return
+        writeChats(upsertChat(readChats(prefs.coachChat.first()), SavedChat(chatId, System.currentTimeMillis(), turns.value)))
     }
 
-    /** Today's conversation for this user, if under a day old. A chat saved by an older version doesn't read, and is dropped. */
+    /** The last chat carries on if it's under a day old; older ones stay in the list. A chat saved by an older version doesn't read, and is dropped. */
     private suspend fun restore() {
-        val json = prefs.coachChat.first() ?: return
-        val saved = runCatching { Json.decodeFromString(SavedAssistant.serializer(), json) }.getOrNull() ?: return
-        if (saved.uid != auth.currentUid || System.currentTimeMillis() - saved.savedAt > COACH_SAVED_MS) return
-        if (turns.value.isEmpty()) turns.value = saved.turns
+        val last = readChats(prefs.coachChat.first()).firstOrNull() ?: return
+        if (System.currentTimeMillis() - last.savedAt > COACH_SAVED_MS || turns.value.isNotEmpty()) return
+        chatId = last.id
+        turns.value = last.turns
     }
 
     /** aiResetTime: the daily limit resets at midnight UTC, shown in the device's time. */
