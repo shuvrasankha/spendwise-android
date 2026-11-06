@@ -69,3 +69,15 @@ fun untilNextReminder(now: ZonedDateTime, at: String): Duration {
 fun reminderOnNote(at: String) = "You'll get a reminder at $at if you haven't added anything that day."
 const val REMINDER_BLOCKED = "Notifications are blocked for SpendWise. Allow them in your phone settings, then turn this on again."
 const val REMINDER_ASK = "Daily reminder is on for your account. Turn it on here to get it on this device too."
+
+/** The weekly money note: Sundays at this time, when the week is all but over. */
+const val WEEKLY_NOTE_AT = "19:00"
+const val WEEKLY_NOTE_TITLE = "Your week in money"
+const val WEEKLY_NOTE_TEXT = "Tap to see what you spent this week and one thing to do next week."
+
+/** Until the next Sunday at [WEEKLY_NOTE_AT]; a Sunday evening already past waits a week. */
+fun untilWeeklyNote(now: ZonedDateTime): Duration {
+    var next = now.with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)).with(LocalTime.parse(WEEKLY_NOTE_AT)).withSecond(0).withNano(0)
+    if (!next.isAfter(now)) next = next.plusWeeks(1)
+    return Duration.between(now, next)
+}

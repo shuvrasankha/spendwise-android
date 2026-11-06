@@ -338,6 +338,9 @@ fun askHistory(spec: AskSpec): AskHistory? {
 }
 
 const val ASK_MAX = 200
+/** Insights › "Explain this month": advice on the month so far (Assistant routes "explain" + "this month" to trends). */
+const val EXPLAIN_MONTH_QUESTION = "Explain this month: what changed, why, and one thing to do"
+
 val ASK_EXAMPLES = listOf("Average daily spending last month", "Food spending this month", "Compare this month with last month", "Biggest expense this year")
 
 const val ASK_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
@@ -382,3 +385,6 @@ fun readSpec(raw: String): AskSpec? {
         measure = when (string("measure")) { "count" -> AskMeasure.COUNT; "biggest" -> AskMeasure.BIGGEST; "list" -> AskMeasure.LIST; else -> AskMeasure.TOTAL },
     )
 }
+
+/** The weekly money note opens Ask with this (Assistant routes "explain" + "this week" to advice on Monday..today). */
+const val WEEK_QUESTION = "Explain this week: what I spent, how it compares with last week, and one thing to do next week"

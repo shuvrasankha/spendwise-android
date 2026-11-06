@@ -26,6 +26,7 @@ object SwIcons {
     )
     val History = lucide("history", "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20", "M12 6v6l4 2")
     val Plus = lucide("plus", "M5 12h14", "M12 5v14")
+    val ArrowUp = lucide("arrowUp", "m5 12 7-7 7 7", "M12 19V5")
     val Insights = lucide("insights", "M5 21v-6", "M12 21V3", "M19 21V9")
     val More = lucide("more", "M12 12h.01", "M19 12h.01", "M5 12h.01")
     val Back = lucide("back", "m15 18-6-6 6-6")

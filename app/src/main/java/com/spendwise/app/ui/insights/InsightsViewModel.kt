@@ -46,6 +46,8 @@ import com.spendwise.app.domain.AskSpec
 import com.spendwise.app.domain.guessSpec
 import com.spendwise.app.domain.runQuery
 import javax.inject.Inject
+import com.spendwise.app.domain.likelySubscriptions
+import com.spendwise.app.domain.unusualExpenses
 
 /** The period tabs; Custom starts on this month, like the web's date inputs. */
 data class PeriodChoice(
@@ -55,12 +57,18 @@ data class PeriodChoice(
 )
 
 /** One period's cards: [range] is null when Custom has an error ([periodError]). */
-data class Glance(val range: PeriodRange, val summary: InsightSummary, val budget: BudgetReport?, val pie: List<PieSlice>)
+data class Glance(
+    val range: PeriodRange, val summary: InsightSummary, val budget: BudgetReport?, val pie: List<PieSlice>,
+    val unusual: List<com.spendwise.app.domain.Unusual> = emptyList(),
+)
 
 sealed interface InsightsState {
     data object Loading : InsightsState
     data class Failed(val message: String) : InsightsState
-    data class Ready(val choice: PeriodChoice, val forecast: Forecast, val glance: Glance?, val periodError: String?) : InsightsState
+    data class Ready(
+        val choice: PeriodChoice, val forecast: Forecast, val glance: Glance?, val periodError: String?,
+        val subscriptions: List<com.spendwise.app.domain.Subscription> = emptyList(),
+    ) : InsightsState
 }
 
 private data class Records(
@@ -112,12 +120,14 @@ class InsightsViewModel @Inject constructor(
         val today = LocalDate.now()
         val todayS = today.toString()
         val f = forecast(r.expenses, todayS) { key, month -> "$key:$month" in r.skipped }
+        val subs = likelySubscriptions(r.expenses, todayS)
         return when (val range = periodRange(c.period, today, c.customStart, c.customEnd)) {
-            is Checked.Invalid -> InsightsState.Ready(c, f, null, range.message)
+            is Checked.Invalid -> InsightsState.Ready(c, f, null, range.message, subs)
             is Checked.Ok -> {
                 val s = summarize(r.expenses, r.income, r.debts, range.value)
-                val glance = Glance(range.value, s, budgetReport(r.expenses, r.settings.budget, range.value, todayS, f.total), pieSlices(s.categories))
-                InsightsState.Ready(c, f, glance, null)
+                val unusual = unusualExpenses(r.expenses, range.value.start, minOf(range.value.end, todayS))
+                val glance = Glance(range.value, s, budgetReport(r.expenses, r.settings.budget, range.value, todayS, f.total), pieSlices(s.categories), unusual)
+                InsightsState.Ready(c, f, glance, null, subs)
             }
         }
     }

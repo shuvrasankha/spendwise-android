@@ -100,12 +100,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
+import com.spendwise.app.domain.EXPLAIN_MONTH_QUESTION
+import com.spendwise.app.domain.Unusual
+import com.spendwise.app.domain.Subscription
+import com.spendwise.app.domain.why
+import com.spendwise.app.domain.question
+import com.spendwise.app.domain.normalizeCategory
+import com.spendwise.app.domain.insightDate
 
 /** Insights (spec §1.7): the way into the assistant, the forecast, the period chips, then the period's cards in the web's order. */
 @Composable
 fun InsightsScreen(
     onAddExpense: () -> Unit,
     onOpenAssistant: (String?) -> Unit,
+    onEditExpense: (String) -> Unit,
     insights: InsightsViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
 ) {
@@ -157,12 +165,14 @@ fun InsightsScreen(
                             item { Section { BudgetSection(g.budget, money, plans::openBudget) } }
                             if (g.pie.isNotEmpty()) item { Section { PieSection(g.pie, g.summary.spent, money) } }
                             if (g.summary.movers.isNotEmpty()) item { Section { ChangedSection(g.summary, money) } }
+                            if (g.unusual.isNotEmpty()) item { Section { UnusualSection(g.unusual, money, onEditExpense, onOpenAssistant) } }
                             if (g.summary.biggest.isNotEmpty()) item { Section { BiggestSection(g.summary, money) } }
                             weekdayCard(g.summary, money)?.let { w -> item { Section { WeekdaySection(g.summary, w, money) } } }
                             paymentRows(g.summary, money).takeIf { it.isNotEmpty() }?.let { rows -> item { Section { PaymentSection(rows) } } }
                             fixedCard(g.summary, money)?.let { f -> item { Section { FixedSection(f) } } }
                         }
                     }
+                    if (s.subscriptions.isNotEmpty()) item { Section { SubscriptionSection(s.subscriptions, money, onEditExpense) } }
                     item { Section { ForecastSection(s.forecast, money) } }
                 }
             }
@@ -222,6 +232,7 @@ private fun AskEntry(onOpen: (String?) -> Unit) {
             Icon(SwIcons.Sparkles, null, Modifier.size(18.dp), tint = c.textMuted)
             Text("Ask about your money, or get advice", style = SwType.body, color = c.textMuted)
         }
+        SwButton("Explain this month", { onOpen(EXPLAIN_MONTH_QUESTION) }, Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.Sparkles)
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ASK_EXAMPLES.forEach { q -> SwChip(q, false, { onOpen(q) }) }
         }
@@ -353,6 +364,33 @@ private fun ChangedSection(s: InsightSummary, money: (Double) -> String) = Colum
             icon = SwIcons.forCategory(m.category), divider = i > 0,
         )
     }
+}
+
+/** Expenses far above their category's usual, or charged twice: open one to fix it, or ask the AI. */
+@Composable
+private fun UnusualSection(items: List<Unusual>, money: (Double) -> String, onEdit: (String) -> Unit, onAsk: (String?) -> Unit) = Column {
+    SectionHeader("Worth a look", icon = SwIcons.Eye)
+    items.forEachIndexed { i, u ->
+        val e = u.expense
+        ListRow(
+            e.description.ifEmpty { normalizeCategory(e.category) }, meta = "${insightDate(e.date)} · ${u.why(money)}", metaLines = 2,
+            amount = money(e.amount), icon = SwIcons.forCategory(e.category), divider = i > 0, onClick = { onEdit(e.id) },
+        )
+        Box(Modifier.padding(start = 8.dp)) { SwButton("Ask AI about it", { onAsk(u.question(money)) }, style = ButtonStyle.Text, compact = true, leading = SwIcons.Sparkles) }
+    }
+}
+
+/** Charges that come back each month but aren't marked as repeating, so they're missing from due bills. */
+@Composable
+private fun SubscriptionSection(subs: List<Subscription>, money: (Double) -> String, onEdit: (String) -> Unit) = Column {
+    SectionHeader("Looks like subscriptions", icon = SwIcons.Receipt, value = "${money(subs.sumOf { it.monthly })} a month")
+    subs.forEachIndexed { i, sub ->
+        ListRow(
+            sub.name, meta = "Seen in ${sub.months} of the last 6 months", amount = money(sub.monthly), sub = "a month",
+            icon = SwIcons.forCategory(sub.latest.category), divider = i > 0, onClick = { onEdit(sub.latest.id) },
+        )
+    }
+    Note("Open one and turn on Repeats every month, so it's counted in your due bills and forecast.")
 }
 
 @Composable

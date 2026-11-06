@@ -55,6 +55,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import java.time.LocalDate
 import javax.inject.Inject
+import com.spendwise.app.data.ai.AiCall
+import com.spendwise.app.data.ai.AiGateway
+import com.spendwise.app.data.ai.AiResult
+import com.spendwise.app.data.ai.AiTask
+import com.spendwise.app.data.ai.textMessages
+import com.spendwise.app.domain.categoryFromText
+import com.spendwise.app.domain.categoryPrompt
+import com.spendwise.app.domain.readCategory
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 data class ExpenseForm(
     val amount: String = "",
@@ -101,6 +111,9 @@ data class EditorState(
     val known: List<KnownPerson> = emptyList(),
     /** Tags from past expenses, most used first, offered under the tag field. */
     val usedTags: List<String> = emptyList(),
+    /** A category the description points to, offered under it; [hintByAi] when the AI read it. */
+    val categoryHint: String? = null,
+    val hintByAi: Boolean = false,
 ) {
     val suggestedTags: List<String> get() = tagSuggestions(usedTags, form.tags, form.tagDraft)
 }
@@ -114,6 +127,7 @@ class ExpenseEditorViewModel @Inject constructor(
     private val prefs: DevicePrefs,
     private val auth: AuthRepository,
     inbox: ShareInbox,
+    private val ai: AiGateway,
 ) : ViewModel() {
 
     private val editingId: String? = savedStateHandle["id"]
@@ -221,7 +235,38 @@ class ExpenseEditorViewModel @Inject constructor(
     fun setCategory(v: String) = updateForm { it.copy(category = v) }
     fun setPayment(v: String) = updateForm { it.copy(payment = v) }
     fun setCardName(v: String) = updateForm { it.copy(cardName = v) }
-    fun setDescription(v: String) = updateForm { it.copy(description = v) }
+    fun setDescription(v: String) {
+        updateForm { it.copy(description = v) }
+        suggestCategory(v)
+    }
+
+    private var hintJob: Job? = null
+
+    /**
+     * The brand or kind in the description first, on the device. Only with the user's own key, and AI consent
+     * already given, does a description the device can't place go to the AI: typing never spends the free
+     * daily allowance or opens the consent dialog.
+     */
+    private fun suggestCategory(description: String) {
+        hintJob?.cancel()
+        val text = description.trim()
+        categoryFromText(text)?.let { c -> return _state.update { it.copy(categoryHint = c, hintByAi = false) } }
+        _state.update { it.copy(categoryHint = null) }
+        if (text.length < 3) return
+        hintJob = viewModelScope.launch {
+            delay(900) // after typing pauses
+            if (!ai.byok() || !prefs.aiConsent.first()) return@launch
+            val res = try {
+                ai.complete(AiCall(AiTask.VOICE, textMessages(listOf("system" to categoryPrompt(), "user" to text.take(120))), maxTokens = 20, temperature = 0.0))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return@launch // a hint is optional: no error for it
+            }
+            val c = (res as? AiResult.Ok)?.content?.let(::readCategory) ?: return@launch
+            _state.update { if (it.form.description.trim() == text) it.copy(categoryHint = c, hintByAi = true) else it }
+        }
+    }
     fun setNotes(v: String) = updateForm { it.copy(notes = v) }
 
     /** Like the web's tag field, a comma or space commits what's been typed. */

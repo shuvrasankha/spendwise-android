@@ -18,6 +18,7 @@ class DeepLinkTest {
         assertEquals(AddExpense, link("add"))
         assertEquals(Insights, link("insights"))
         assertEquals(History(), link("history"))
+        assertEquals(Assistant(com.spendwise.app.domain.WEEK_QUESTION), link("week"))
     }
 
     @Test fun anythingElse_opensNothing() {

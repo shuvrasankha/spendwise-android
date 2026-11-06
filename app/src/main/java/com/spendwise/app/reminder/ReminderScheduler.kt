@@ -42,6 +42,12 @@ class ReminderScheduler @Inject constructor(
         if (push.subscribe(at)) WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME) else enqueue(context, at)
     }
 
+    /** The Sunday note is this device's own job only; the Worker has no such push. */
+    suspend fun setWeeklyNote(on: Boolean) {
+        prefs.setWeeklyNote(on)
+        if (on) WeeklyNoteWorker.schedule(context) else WeeklyNoteWorker.cancel(context)
+    }
+
     suspend fun cancel() {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
         push.unsubscribe()

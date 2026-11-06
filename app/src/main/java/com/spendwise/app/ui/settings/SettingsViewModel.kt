@@ -242,6 +242,14 @@ class SettingsViewModel @Inject constructor(
         scheduler.schedule(at)
     }
 
+    val weeklyNote: StateFlow<Boolean> = prefs.weeklyNote.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setWeeklyNote(on: Boolean, granted: Boolean = true) = viewModelScope.launch {
+        if (on && (!granted || !scheduler.permitted())) return@launch tapNote.update { REMINDER_BLOCKED }
+        tapNote.update { null }
+        scheduler.setWeeklyNote(on)
+    }
+
     fun turnReminderOff() = viewModelScope.launch {
         tapNote.update { null }
         runCatching { settings.saveRemindOn(false) }

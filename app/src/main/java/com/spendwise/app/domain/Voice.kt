@@ -46,6 +46,14 @@ private val CATEGORY_EXAMPLES = mapOf(
     "Other" to "only when nothing above fits",
 )
 
+/** The prompt for one expense description's category: the reply is the name alone. */
+fun categoryPrompt(): String = "Pick the expense category for the description the user gives. Reply with the category name only, exactly as written below. If none fits clearly, reply Other.\n" + categoryGuide()
+
+/** A reply to [categoryPrompt]: a known spending category, or null (Other, unsure, or anything else). */
+fun readCategory(reply: String): String? = reply.trim().trim('.', '"', '*', ' ').let { r ->
+    EXPENSE_CATEGORIES.firstOrNull { it.equals(r, ignoreCase = true) }?.takeIf { it != "Other" }
+}
+
 fun categoryGuide(): String = EXPENSE_CATEGORIES.joinToString("\n") { "- $it: ${CATEGORY_EXAMPLES[it]}" }
 
 val DEBT_TYPES = listOf(THEY_OWE, I_OWE)

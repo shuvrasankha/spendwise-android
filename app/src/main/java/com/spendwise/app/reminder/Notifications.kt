@@ -13,6 +13,8 @@ import com.spendwise.app.SpendWiseActivity
 import com.spendwise.app.R
 import com.spendwise.app.domain.REMINDER_TEXT
 import com.spendwise.app.domain.REMINDER_TITLE
+import com.spendwise.app.domain.WEEKLY_NOTE_TEXT
+import com.spendwise.app.domain.WEEKLY_NOTE_TITLE
 import com.spendwise.app.ui.navigation.LINK_SCHEME
 
 /** The app's notifications: the daily reminder, and messages the Worker pushes (sw.js › push). */
@@ -21,10 +23,15 @@ object Notifications {
     const val DEBTS_CHANNEL = "shared-debts"
     const val BILLS_CHANNEL = "bills"
     const val BUDGET_CHANNEL = "budget-alerts"
+    const val WEEKLY_CHANNEL = "weekly-note"
     private const val REMINDER_ID = 1001
+    private const val WEEKLY_ID = 1002
 
     /** Opens Add Expense, as the web's reminder opens expense.html. One id: a newer reminder replaces an unread one. */
     fun reminder(context: Context) = show(context, REMINDER_CHANNEL, null, REMINDER_ID, REMINDER_TITLE, REMINDER_TEXT, "add")
+
+    /** Opens Ask on this week; the AI writes the note only when it's opened, so nothing is sent in the background. */
+    fun weeklyNote(context: Context) = show(context, WEEKLY_CHANNEL, null, WEEKLY_ID, WEEKLY_NOTE_TITLE, WEEKLY_NOTE_TEXT, "week")
 
     /** One per tag, so a re-sent alert replaces the earlier one, as the web's tag does. */
     fun message(context: Context, channel: String, tag: String?, title: String, body: String, page: String) =
@@ -71,6 +78,7 @@ object Notifications {
                 NotificationChannel(DEBTS_CHANNEL, "Shared debts", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(BILLS_CHANNEL, "Bills and monthly summary", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(BUDGET_CHANNEL, "Budget alerts", NotificationManager.IMPORTANCE_DEFAULT),
+                NotificationChannel(WEEKLY_CHANNEL, "Weekly money note", NotificationManager.IMPORTANCE_DEFAULT),
             ),
         )
     }

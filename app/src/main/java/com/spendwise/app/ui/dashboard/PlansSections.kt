@@ -95,5 +95,6 @@ internal fun PlanDialogs(plans: PlansViewModel, currency: Currency) {
     val goalError by plans.goalError.collectAsStateWithLifecycle()
     val suggest by plans.suggest.collectAsStateWithLifecycle()
     if (budgetOpen) BudgetDialog(plans.budget, currency, budgetError, suggest, plans::suggestBudget, plans::saveBudget, plans::removeBudget, plans::closeBudget)
-    goal?.let { GoalDialog(it, currency, goalError, plans::submitGoal, plans::deleteGoal, plans::closeGoal) }
+    val monthlySaving by plans.monthlySaving.collectAsStateWithLifecycle()
+    goal?.let { GoalDialog(it, currency, goalError, plans::submitGoal, plans::deleteGoal, plans::closeGoal, monthlySaving) }
 }

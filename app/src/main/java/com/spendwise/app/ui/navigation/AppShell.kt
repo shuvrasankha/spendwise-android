@@ -206,6 +206,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                 InsightsScreen(
                     onAddExpense = { entry = EntryType.Expense },
                     onOpenAssistant = { nav.navigate(Assistant(it)) },
+                    onEditExpense = { nav.navigate(EditExpense(it)) },
                 )
             }
             composable<Assistant> {
@@ -234,7 +235,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                 )
             }
             composable<Investments> { InvestScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Invest }, onAllHistory = { nav.navigate(History()) }, vm = investVm) }
-            composable<Debts> { DebtsScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Debt }, vm = debtsVm) }
+            composable<Debts> { DebtsScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Debt }, onOpenAssistant = { nav.navigate(Assistant(it)) }, vm = debtsVm) }
             composable<Settings> { SettingsScreen(onBack = { nav.popBackStack() }, onAiProvider = { nav.navigate(AiProvider) }) }
             composable<AiProvider> { AiProviderScreen(onBack = { nav.popBackStack() }) }
             composable<CsvImport> { CsvImportScreen(onDone = { nav.popBackStack() }) }
@@ -295,11 +296,11 @@ private fun HeaderActions(header: HeaderState, onSettings: () -> Unit, onLogOut:
 }
 
 /**
- * History opens a fresh copy so its filters apply. The rest switch to their tab: a fresh Add would lose
+ * History and Ask open a fresh copy so their filters or question apply. The rest switch to their tab: a fresh Add would lose
  * shared text to the old copy's ViewModel, which takes it first.
  */
 private fun NavHostController.openLink(route: Any) =
-    if (route is History) navigate(route) { popUpTo(graph.findStartDestination().id) { saveState = true } } else switchTo(route)
+    if (route is History || route is Assistant) navigate(route) { popUpTo(graph.findStartDestination().id) { saveState = true } } else switchTo(route)
 
 /** Tab-style navigation: one copy of each destination, state kept when switching back. */
 private fun NavHostController.switchTo(route: Any) {

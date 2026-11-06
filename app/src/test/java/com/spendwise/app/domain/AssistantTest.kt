@@ -342,7 +342,7 @@ class AssistantTest {
     }
 
     @Test fun nonsenseIsAskedAbout() {
-        assertTrue(route("hello there") is AssistantRoute.Clarify)
+        assertTrue(routeQuestion("hello there", today, found = { false }) is AssistantRoute.Advise) // the AI answers what isn't a sum
         assertTrue(route("and last month?") is AssistantRoute.Calculate) // a period alone is enough to add up
         assertTrue(route("and?") is AssistantRoute.Clarify)
     }
@@ -427,5 +427,13 @@ class AssistantTest {
     @Test fun aSavedQueryKeepsItsDates() {
         val json = kotlinx.serialization.json.Json.encodeToString(FinQuery.serializer(), query("food last month"))
         assertEquals(query("food last month"), kotlinx.serialization.json.Json.decodeFromString(FinQuery.serializer(), json))
+    }
+
+    @Test fun questionsTheEntriesCantAnswerGoToTheAi() {
+        val none = { _: AskSpec -> false }
+        assertTrue(routeQuestion("how is my finance health all time", today, found = none) is AssistantRoute.Advise)
+        assertTrue(routeQuestion("what is an emergency fund", today, found = none) is AssistantRoute.Advise)
+        // A search word that is in the entries stays a sum
+        assertTrue(routeQuestion("uber this month", today, found = { true }) is AssistantRoute.Calculate)
     }
 }
