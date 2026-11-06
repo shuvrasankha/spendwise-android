@@ -506,6 +506,21 @@ fun adviceQuery(route: AssistantRoute.Advise, range: PeriodRange): FinQuery =
     if (route.categories.isNotEmpty()) FinQuery(FinMetric.TOTAL, categories = route.categories, from = range.start, to = range.end)
     else FinQuery(FinMetric.BREAKDOWN, from = range.start, to = range.end)
 
+/**
+ * A sum worked out on the device, for the AI to explain: its exact figures, and its top rows without their titles
+ * (entry descriptions), so the coach still never sees a description, note or name. The card shows them.
+ */
+fun calculatedFacts(c: FinCard): String = listOfNotNull(
+    "CALCULATED ANSWER to the user's question, worked out exactly on the device. Lead with this figure and don't recompute it:",
+    "${c.title}: ${c.headline}" + (c.caption?.let { " ($it)" } ?: "") + (c.changeText?.let { "; $it" } ?: ""),
+    c.facts.takeIf { it.isNotEmpty() }?.joinToString("; ") { "${it.label} ${it.value}" },
+    c.rows.takeIf { it.isNotEmpty() }?.joinToString("; ", "Top entries (shown to the user on the card): ") { r ->
+        // A category row keeps its name; an entry row's title is its description, which stays on the device
+        (if (r.title in EXPENSE_CATEGORIES) "${r.title} " else "") + "${r.meta?.let { m -> "$m " } ?: ""}${r.amount}"
+    },
+    "Counted: ${c.basis}",
+).joinToString("\n")
+
 /** [by]: the AI that wrote the answer. */
 fun assistantAiNote(by: String) = (if (by.isEmpty()) "AI answer" else "Answered by $by") + ". It can be wrong."
 const val ASSISTANT_NO_CONSENT = "Advice needs the AI, so here are just your figures. Your numbers are always worked out on this device."

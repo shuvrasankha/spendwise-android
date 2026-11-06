@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -152,6 +153,9 @@ fun AiProviderScreen(onBack: () -> Unit, vm: AiProviderViewModel = hiltViewModel
     }
 }
 
+/** Step-by-step key setup for each provider, on the app's GitHub Pages site; each provider has its own #anchor. */
+private const val API_KEY_GUIDE_URL = "https://shuvrasankha.github.io/spendwise-android/api-key-guide.html"
+
 /** The provider's own mark, in the text colour like every other icon. */
 @Composable
 private fun ProviderIcon(p: ByokProvider) {
@@ -172,6 +176,7 @@ private fun KeySection(s: AiProviderUi, vm: AiProviderViewModel) {
     // Keyed by provider so a half-typed key never carries over. Not rememberSaveable: the key stays out of saved state
     var replacing by remember(s.provider) { mutableStateOf(false) }
     var typed by remember(s.provider) { mutableStateOf("") }
+    val uriHandler = LocalUriHandler.current
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FieldLabel("${s.provider.name} API key")
@@ -192,6 +197,9 @@ private fun KeySection(s: AiProviderUi, vm: AiProviderViewModel) {
             Row(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SwButton("Save key", { vm.saveKey(typed.trim().toCharArray()); typed = ""; replacing = false }, Modifier.weight(1f), enabled = typed.isNotBlank())
                 if (replacing) SwButton("Cancel", { typed = ""; replacing = false }, style = ButtonStyle.Text)
+            }
+            Box(Modifier.padding(horizontal = 8.dp)) {
+                SwButton("How to get an API key", { uriHandler.openUri("$API_KEY_GUIDE_URL#${s.provider.id}") }, style = ButtonStyle.Text, compact = true)
             }
         }
     }

@@ -51,8 +51,10 @@ fun categoryPrompt(): String = "Pick the expense category for the description th
 
 /** A reply to [categoryPrompt]: a known spending category, or null (Other, unsure, or anything else). */
 fun readCategory(reply: String): String? = reply.trim().trim('.', '"', '*', ' ').let { r ->
-    EXPENSE_CATEGORIES.firstOrNull { it.equals(r, ignoreCase = true) }?.takeIf { it != "Other" }
-}
+    // Exactly a name, else the one name a wordier reply ("Category: Food & Dining") contains
+    EXPENSE_CATEGORIES.firstOrNull { it.equals(r, ignoreCase = true) }
+        ?: EXPENSE_CATEGORIES.filter { r.contains(it, ignoreCase = true) }.singleOrNull()
+}?.takeIf { it != "Other" }
 
 fun categoryGuide(): String = EXPENSE_CATEGORIES.joinToString("\n") { "- $it: ${CATEGORY_EXAMPLES[it]}" }
 
