@@ -2,6 +2,7 @@ package com.spendwise.app.ui.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.spendwise.app.data.HolidayFeed
 import com.spendwise.app.data.IncomeRepository
 import com.spendwise.app.data.SettingsRepository
 import com.spendwise.app.data.ai.AiCall
@@ -17,6 +18,8 @@ import com.spendwise.app.domain.SUGGEST_NO_INCOME
 import com.spendwise.app.domain.SUGGEST_NO_RECORDS
 import com.spendwise.app.domain.budgetFacts
 import com.spendwise.app.domain.budgetPrompt
+import com.spendwise.app.domain.cleanPlans
+import com.spendwise.app.domain.hasPlans
 import com.spendwise.app.domain.checkReply
 import com.spendwise.app.domain.readReply
 import com.spendwise.app.domain.suggestFromFacts
@@ -76,6 +79,7 @@ class PlansViewModel @Inject constructor(
     private val income: IncomeRepository,
     private val ai: AiGateway,
     private val auth: AuthRepository,
+    private val holidays: HolidayFeed,
 ) : ViewModel() {
 
     private val settings: StateFlow<UserSettings> = settingsRepo.settings().catch { emit(UserSettings()) }
@@ -129,7 +133,8 @@ class PlansViewModel @Inject constructor(
     val suggest: StateFlow<SuggestState?> = _suggest.asStateFlow()
 
     /** budget.js › suggest: the AI's plan when it can be asked and holds up, else one worked out here. */
-    fun suggestBudget() {
+    /** [plans] is the user's note of what's coming this month; it goes to the AI as written. */
+    fun suggestBudget(plans: String = "") {
         if (_suggest.value?.working == true) return
         _suggest.update { SuggestState(working = true) }
         viewModelScope.launch {
@@ -146,8 +151,9 @@ class PlansViewModel @Inject constructor(
             val today = todayStr()
             // One AI plan a month: it comes back as made, and only when there's none does the device work one out
             val used = uid != null && aiBudgetUsed(prefs.aiBudgetMonth(uid).first(), today)
-            val saved = if (used) uid?.let { prefs.aiBudgetPlan(it).first() }?.let { checkReply(readReply(it), facts) } else null
-            val ai = if (used) null else askAi(facts, currency)
+            // The saved plan was checked when it was made, so a category it added for the user's plans stays
+            val saved = if (used) uid?.let { prefs.aiBudgetPlan(it).first() }?.let { checkReply(readReply(it), facts, allowNew = true) } else null
+            val ai = if (used) null else askAi(facts, currency, cleanPlans(plans))
             // Only an AI answer uses the month's go; the device's own plan, when the AI can't help, is free
             if (ai != null && uid != null) prefs.setAiBudgetPlan(uid, today.take(7), planJson(ai))
             val s = saved ?: ai ?: suggestFromFacts(facts) ?: return@launch _suggest.update { SuggestState(text = SUGGEST_NOTHING, error = true) }
@@ -157,10 +163,11 @@ class PlansViewModel @Inject constructor(
     }
 
     /** Only the facts' numbers go out; null on any failure, so the device's plan is used. */
-    private suspend fun askAi(facts: BudgetFacts, currency: Currency): BudgetSuggestion? = try {
-        val (system, user) = budgetPrompt(facts, currency)
+    private suspend fun askAi(facts: BudgetFacts, currency: Currency, plans: String): BudgetSuggestion? = try {
+        val (system, user) = budgetPrompt(facts, currency, plans, holidays.forMonth(currency, facts.month))
+        val stretch = hasPlans(facts, plans)
         val res = ai.complete(AiCall(AiTask.BUDGET, textMessages(listOf("system" to system, "user" to user)), maxTokens = 400, temperature = 0.2))
-        (res as? AiResult.Ok)?.let { checkReply(readReply(it.content), facts)?.takeIf { p -> aiPlanHolds(p, facts) } }
+        (res as? AiResult.Ok)?.let { checkReply(readReply(it.content), facts, stretch)?.takeIf { p -> aiPlanHolds(p, facts, stretch) } }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {

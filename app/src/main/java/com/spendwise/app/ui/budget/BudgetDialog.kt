@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import com.spendwise.app.domain.Budget
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.EXPENSE_CATEGORIES
+import com.spendwise.app.domain.PLANS_MAX
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.components.FieldLabel
@@ -44,7 +45,7 @@ fun BudgetDialog(
     currency: Currency,
     error: String?,
     suggest: SuggestState?,
-    onSuggest: () -> Unit,
+    onSuggest: (plans: String) -> Unit,
     onSave: (total: String, cats: Map<String, String>) -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
@@ -60,6 +61,7 @@ fun BudgetDialog(
         s.cats.forEach { (c, v) -> cats[c] = plain(v) }
     }
     val gutter = Modifier.padding(horizontal = Spacing.gutter)
+    val plans = remember { mutableStateOf("") }
     SwSheet(
         "Monthly budget", onDismiss,
         footer = {
@@ -71,7 +73,13 @@ fun BudgetDialog(
         },
     ) {
         Text("Saved to your account. Home shows how much of it you've used.", style = SwType.label, color = c.textMuted, modifier = gutter)
-        Box(gutter) { SwButton(if (suggest?.working == true) "Working it out…" else "Suggest from my income", onSuggest, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, enabled = suggest?.working != true, leading = SwIcons.Sparkles) }
+        Box(gutter) {
+            com.spendwise.app.ui.components.SwField(
+                plans.value, { plans.value = it.take(PLANS_MAX) }, "Plans this month, e.g. Diwali, Goa trip (optional)",
+                supportingText = "A trip, a wedding, a big buy. The AI also checks this month's festivals and your goals. Your goal names and this note are sent to it as written.",
+            )
+        }
+        Box(gutter) { SwButton(if (suggest?.working == true) "Working it out…" else "Suggest from my income", { onSuggest(plans.value) }, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, enabled = suggest?.working != true, leading = SwIcons.Sparkles) }
         suggest?.takeIf { !it.working }?.let { s ->
             Text(
                 buildAnnotatedString {
