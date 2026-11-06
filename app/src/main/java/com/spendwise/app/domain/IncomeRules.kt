@@ -74,6 +74,20 @@ fun countBy(values: List<String>): List<String> {
     return counts.entries.sortedByDescending { it.value }.map { it.key }
 }
 
+/** Offered after the user's own sources, so a first entry has chips too. */
+val INCOME_SOURCE_PRESETS = listOf("Salary", "Freelance", "Business", "Interest", "Dividends", "Rental", "Refund", "Gift", "Bonus", "Cashback")
+
+/**
+ * Source chips: the 6 most used, then the other presets. A used source that names a preset
+ * ("Monthly salary", "Freelance logo work") shows as that preset, so variants don't repeat.
+ */
+fun sourceChips(income: List<Income>): List<String> {
+    val used = countBy(income.map { it.source }).map { s ->
+        INCOME_SOURCE_PRESETS.firstOrNull { Regex("\\b${it}\\b", RegexOption.IGNORE_CASE).containsMatchIn(s) } ?: s
+    }.distinct().take(6)
+    return used + INCOME_SOURCE_PRESETS.filter { it !in used }
+}
+
 /** Tapping a source chip: the newest entry from that source, whose payment type and bank are likely again. */
 fun lastFromSource(income: List<Income>, source: String): Income? = income.firstOrNull { it.source == source }
 

@@ -19,6 +19,7 @@ import com.spendwise.app.domain.countBy
 import com.spendwise.app.domain.currencyOf
 import com.spendwise.app.domain.incomeSummary
 import com.spendwise.app.domain.lastFromSource
+import com.spendwise.app.domain.sourceChips
 import com.spendwise.app.ui.expenses.FormMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -44,7 +45,7 @@ sealed interface IncomePage {
         val all: List<Income>,
         val summary: IncomeSummary,
         val recent: List<Income>,
-        /** The 6 most-used sources, as chips under From. */
+        /** The 6 most-used sources, then presets, as chips under From. */
         val sources: List<String>,
         /** Past banks, most used first, as suggestions. */
         val banks: List<String>,
@@ -69,7 +70,7 @@ class IncomeViewModel @Inject constructor(
                     all = all,
                     summary = incomeSummary(all, LocalDate.now()),
                     recent = all.take(RECENT_COUNT),
-                    sources = countBy(all.map { it.source }).take(6),
+                    sources = sourceChips(all),
                     banks = countBy(all.map { it.bank }),
                 )
             }

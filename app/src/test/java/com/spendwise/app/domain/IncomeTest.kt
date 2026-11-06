@@ -28,6 +28,16 @@ class IncomeTest {
         assertEquals(IncomeSummary(0.0, 0, 0.0), incomeSummary(emptyList(), today))
     }
 
+    @Test fun sourceChips_usedFirstThenPresetsWithoutRepeats() {
+        assertEquals(INCOME_SOURCE_PRESETS, sourceChips(emptyList()))
+        val chips = sourceChips(all)
+        assertEquals(listOf("Salary", "Freelance", "Future", "Business"), chips.take(4))
+        assertEquals(1, chips.count { it.equals("salary", ignoreCase = true) })
+        val variants = listOf("Monthly salary", "salary", "Freelance logo work", "Savings interest", "Freelance design project", "Acme Corp")
+            .mapIndexed { i, src -> all[0].copy(id = "v$i", source = src) }
+        assertEquals(listOf("Salary", "Freelance", "Interest", "Acme Corp", "Business"), sourceChips(variants).take(5))
+    }
+
     @Test fun countBy_trimmed_mostUsedFirst() {
         // " Salary " counts as Salary; Cash's empty bank is skipped
         assertEquals(listOf("Salary", "Freelance", "Future"), countBy(all.map { it.source }))

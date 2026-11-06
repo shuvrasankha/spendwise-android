@@ -47,11 +47,27 @@ const val DEFAULT_PAYMENT = "UPI"
 
 fun isCard(payment: String) = payment == "Credit Card" || payment == "Debit Card"
 
-/** The short labels on the web's category tiles, in tile order. */
+/** Android's short tile labels, in the web's tile order. Only the label differs; the saved name stays the web's. */
 val CATEGORY_TILE_LABELS = mapOf(
-    "Food & Dining" to "Food", "Groceries" to "Groceries", "Transport" to "Transport", "Travel" to "Travel",
-    "Shopping" to "Shopping", "Bills & Utilities" to "Bills", "Home & Rent" to "Home", "Health" to "Health",
+    "Food & Dining" to "Dining out", "Groceries" to "Groceries", "Transport" to "Transport", "Travel" to "Travel",
+    "Shopping" to "Shopping", "Bills & Utilities" to "Bills", "Home & Rent" to "Rent & home", "Health" to "Health",
     "Entertainment" to "Fun", "Education" to "Education", "Savings & Investments" to "Savings", "Other" to "Other",
+)
+
+/** What each category covers, shown under the tiles for the one picked. */
+val CATEGORY_HINTS = mapOf(
+    "Food & Dining" to "Restaurants, cafés, takeaway and food delivery",
+    "Groceries" to "Supermarket, vegetables, milk and household supplies",
+    "Transport" to "Fuel, cabs, auto, metro, bus, parking and tolls",
+    "Travel" to "Flights, trains, hotels and holiday spending",
+    "Shopping" to "Clothes, gadgets, personal care and things for the home",
+    "Bills & Utilities" to "Electricity, water, gas, phone, internet and subscriptions",
+    "Home & Rent" to "Rent, maintenance, repairs and house help",
+    "Health" to "Doctor, medicines, tests, gym and insurance",
+    "Entertainment" to "Movies, events, games and hobbies",
+    "Education" to "Fees, courses, books and stationery",
+    "Savings & Investments" to "SIPs, stocks, FDs and savings. Not counted as spending",
+    "Other" to "Gifts, donations and anything else",
 )
 
 /**

@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.spendwise.app.domain.CATEGORY_HINTS
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.I_OWE
 import com.spendwise.app.domain.INCOME_PAYMENT_TYPES
@@ -184,6 +185,7 @@ private fun ExpenseFields(state: com.spendwise.app.ui.expenses.EditorState, vm: 
         ChipFlow {
             state.tiles.forEach { (category, label) -> SwChip(label, form.category == category, { vm.setCategory(category) }, leading = SwIcons.forCategory(category)) }
         }
+        CATEGORY_HINTS[form.category]?.let { Text(it, style = SwType.label, color = SpendWiseTheme.colors.textMuted) }
         SwField(
             form.description, vm::setDescription, "Description",
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
