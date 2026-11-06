@@ -14,7 +14,6 @@ import java.math.RoundingMode
 const val COACH_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 const val COACH_MAX_TURNS = 8
 const val COACH_SAVED_MS = 24 * 3_600_000L
-const val COACH_NOTE = "Ask about the numbers above. Answers are written by AI and can be wrong."
 const val COACH_NO_DATA = "Add some expenses or income for this period, then ask the coach about them."
 
 enum class CoachTopic(val title: String, val chip: String, val focus: String, val question: String, val suggestions: List<String>) {
@@ -32,7 +31,7 @@ enum class CoachTopic(val title: String, val chip: String, val focus: String, va
     ),
     SAVINGS(
         "Savings", "How are my savings?",
-        "the savings rate against a 20% guideline and concrete steps to raise it. If no income is recorded, say that income entries are needed for this and give spending-based tips instead.",
+        "the savings rate against a 20% guideline and concrete steps to raise it. If no income is recorded, say that income entries are needed for this and give spending-based tips instead. For a question about investments, use INVESTMENTS: what is held by type, put in, worth, gain and SIPs.",
         "How is my savings rate, and how can I improve it?",
         listOf("How much should I save each month?", "What if I cut my top category by 10%?", "Where do small amounts add up?"),
     ),
@@ -101,7 +100,7 @@ fun factsText(s: InsightSummary, r: PeriodRange, money: (Double) -> String): Str
 }
 
 fun coachSystemPrompt(topic: CoachTopic, facts: String, currency: Currency): String = """You are the money assistant inside SpendWise, a personal expense tracker. Amounts are in ${currency.code} (${currency.symbol}).
-You can answer any personal finance question: the user's own spending, income, savings and debts, and general topics like budgeting, saving, emergency funds, loans, credit, taxes, insurance and investing concepts.
+You can answer any personal finance question: the user's own spending, income, savings, investments and debts, and general topics like budgeting, saving, emergency funds, loans, credit, taxes, insurance and investing concepts.
 Rules:
 - For the user's own figures, use only the numbers below. Never invent their amounts, dates, income, goals or interest rates. If something isn't in the data, say so briefly.
 - For general questions, answer from sound, widely accepted financial knowledge, and link it to the user's numbers when they're relevant.

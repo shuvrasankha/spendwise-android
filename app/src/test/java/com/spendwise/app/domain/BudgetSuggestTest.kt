@@ -40,8 +40,8 @@ class BudgetSuggestTest {
         val text = factsLines(facts, "₹")
         assertTrue(text.contains("Income: ₹60000 a month on average"))
         assertTrue(text.contains("Home & Rent: ₹15000 (of which ₹15000 repeating"))
-        assertFalse(text.contains("secret") || text.contains("Goa"))
-        assertFalse(budgetPrompt(facts, currencyOf("INR")).toList().any { it.contains("secret") || it.contains("Goa") })
+        assertFalse(budgetPrompt(facts, currencyOf("INR")).toList().any { it.contains("secret") }) // entries never go
+        assertTrue(text.contains("Savings goals, in the user's words:\n- Goa: ₹30000 by Feb 2027, ₹0 saved")) // goals do, by name
     }
 
     @Test fun `no income in the last three months, no suggestion`() {
@@ -137,6 +137,42 @@ class BudgetSuggestTest {
     @Test fun `goals raise what must be kept`() {
         val big = noGoals.copy(goalsMonthly = 25000.0)
         assertFalse(aiPlanHolds(checkSuggestion(40000.0, goodCats.toList(), null, big)!!, big))
+    }
+
+    @Test fun `the AI sees the month and the same month last year`() {
+        val withLastYear = expenses + exp("2025-10-20", "Shopping", 30000.0) + exp("2025-10-21", "Travel", 9000.0) + exp("2025-10-22", "Savings & Investments", 1.0)
+        val f = budgetFacts(withLastYear, income, goals, today)!!
+        assertEquals("2026-10", f.month)
+        assertEquals(mapOf("Shopping" to 30000.0, "Travel" to 9000.0), f.lastYear)
+        val text = factsLines(f, "₹")
+        assertTrue(text.contains("Budget for: October 2026"))
+        assertTrue(text.contains("The same month last year, by category:\n- Travel: ₹9000\n- Shopping: ₹30000"))
+        // Last year's festive month lets Shopping go past its typical month, and Travel come back
+        val festive = f.copy(goalsMonthly = 0.0)
+        val p = checkSuggestion(48000.0, (goodCats + ("Shopping" to 20000.0) + ("Food & Dining" to 5000.0)).toList(), null, festive)!!
+        assertTrue(aiPlanHolds(p, festive))
+        assertTrue("Travel" in checkSuggestion(48000.0, listOf("Travel" to 5000.0), null, festive)!!.cats)
+    }
+
+    @Test fun `the user's plans go to the AI and let a plan stretch`() {
+        val (_, user) = budgetPrompt(facts, currencyOf("INR"), cleanPlans("  Goa trip\n new phone "))
+        assertTrue(user.endsWith("The user's plans for this month, in their words: Goa trip new phone"))
+        assertEquals(PLANS_MAX, cleanPlans("x".repeat(500)).length)
+        assertFalse("Travel" in checkSuggestion(48000.0, listOf("Travel" to 5000.0), null, noGoals)!!.cats)
+        val trip = checkSuggestion(60000.0, (goodCats + ("Travel" to 20000.0)).toList(), null, noGoals, allowNew = true)!!
+        assertFalse(aiPlanHolds(trip, noGoals))
+        assertTrue(aiPlanHolds(trip, noGoals, hasPlans = true))
+        assertFalse(aiPlanHolds(plan(90000.0, goodCats - "Home & Rent"), noGoals, hasPlans = true)) // bills still covered
+    }
+
+    @Test fun `a goal due this month counts as a plan, and holidays reach the AI`() {
+        assertFalse(hasPlans(facts, ""))
+        val due = budgetFacts(expenses, income, listOf(Goal("g", "New phone", 40000.0, "2026-10", 10000.0), Goal("d", "Done", 10.0, "2027-01", 10.0)), today)!!
+        assertEquals(listOf("New phone"), due.goals.map { it.name }) // reached goals are left out
+        assertTrue(hasPlans(due, ""))
+        assertTrue(factsLines(due, "₹").contains("- New phone: ₹40000 by Oct 2026, ₹10000 saved (due this month)"))
+        val (_, user) = budgetPrompt(facts, currencyOf("INR"), holidays = listOf("20 Oct: Dussehra"))
+        assertTrue(user.contains("Festivals and holidays this month, from the public calendar:\n- 20 Oct: Dussehra"))
     }
 
     @Test fun `the device plan always holds`() = assertTrue(aiPlanHolds(suggestFromFacts(noGoals)!!, noGoals))

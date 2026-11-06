@@ -325,7 +325,7 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
                 // The bar's end is whichever is larger of the limit, the projection and what's spent; the tick is the limit
                 val max = maxOf(m.limit!!, m.projected, m.spent).takeIf { it > 0 } ?: 1.0
                 Box(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = 12.dp)) {
-                    BudgetBar((m.spent / max).toFloat(), pace = (m.limit / max).toFloat(), over = m.over)
+                    BudgetBar((m.spent / max).toFloat(), pace = (m.limit / max).toFloat(), over = m.over, paceLabel = "Budget")
                 }
             }
         }

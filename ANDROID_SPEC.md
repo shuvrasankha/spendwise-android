@@ -81,6 +81,10 @@ app is a set of separate HTML pages. Each one loads all of the user's records wi
      - Spent this month (whole currency units).
      - A meter against the budget, or against income if there's no budget.
      - Pace line: "₹X a day · on track for ₹Y by the end of {Month}".
+     - **Android differs (decided 2026-11-06):** the meter's tick for how far through the month we are
+       is labelled "Today" under it, and the status pill reads "Spending fast" (not "Ahead of pace")
+       when spending is past it. The same kind of tick is labelled "Daily average" on Today's bar and
+       "Budget" on Insights' budget bars.
      - Link: "Set a monthly budget" / "Change budget".
   2. **Today**:
      - Today's spending total with an entry count.
@@ -135,6 +139,9 @@ app is a set of separate HTML pages. Each one loads all of the user's records wi
     - **Category tile picker**, 12 tiles: Food, Groceries, Transport, Travel, Shopping, Bills,
       Home, Health, Fun, Education, Savings, Other. Each tile maps to a full category name (§3.1).
       Tiles are reordered by use in the last 60 days, once per visit (`orderCategoryTiles`).
+    - **Android differs (decided 2026-11-06):** two tile labels are "Dining out" (Food & Dining) and
+      "Rent & home" (Home & Rent), and a muted line under the tiles says what the picked category
+      covers (`CATEGORY_HINTS`). Only labels change; the saved category names are the web's.
   - **Description**.
   - **More details** section (collapsed; its summary shows the payment method):
     - Payment method: UPI, Cash, Credit Card, Debit Card, Net Banking, Other. Defaults to the last
@@ -146,6 +153,8 @@ app is a set of separate HTML pages. Each one loads all of the user's records wi
     - **Tags**, split on Enter or comma (`initTagInput`, `addTag`).
   - **Split with others** section: rows of name + optional email, up to 10, with a live summary
     (`split.js › addRow, updateSummary`).
+  - **Android differs (decided 2026-11-06):** the new-entry sheet shows repeat, tags and split
+    straight away, with no "More options" toggle.
   - Buttons **Clear** and **Add Expense**.
   - **Scan receipt** and voice FAB (`voice-command.js`), §7.4.
   - Below the form:
@@ -171,6 +180,7 @@ app is a set of separate HTML pages. Each one loads all of the user's records wi
     - **Date**, with Today / Yesterday chips.
     - **From** (source), with chips for the 6 most-used sources. Tapping a chip also fills the
       bank last used with that source.
+    - **Android differs (decided 2026-11-06):** see §6.11 for preset source chips.
     - **Online / Cash** toggle (`setIncomePayment`).
     - **Bank or wallet**, only for Online, with suggestions from past entries.
     - **Notes**.
@@ -1181,13 +1191,23 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
       of its total, every bill's category has a limit, and no limit is over 110% of a typical month.
       Otherwise the device's plan is shown and the month's go isn't used.
     - The month's AI plan is stored on the device, and tapping Suggest again brings it back.
+    - **Added 2026-11-06:** the AI also gets the month's name, its festivals and public holidays from
+      Google Calendar's public holiday feed for the currency's country (`HolidayFeed`, `holidaysIn`;
+      none when offline or the country isn't mapped), spending by category in the same month last
+      year, unreached goals by name, target, saved and date, and an optional "Plans this month" note
+      (≤200 characters, sent as typed).
+    - Without plans, a limit may reach 110% of the higher of the typical month and last year's same
+      month. With a note or a goal due this month (`hasPlans`), there is no per-category cap and no
+      saving aim: the plan only has to stay within income, cover every bill and add up. Such a plan
+      may include a category with no recent spending, as may one backed by last year's same month.
   - `keep = max(0.2·income, goalsMonthly)`.
   - `target = max(min(spent, income − keep), Σ fixed)`.
   - Flexible spending per category is scaled by `(target − fixed)/flexible`, rounded down to
     hundreds. The fixed part is rounded up to hundreds.
   - `checkSuggestion` keeps known categories only, no category below its bills, and a total that
     covers the categories and stays within income.
-  - The AI only receives these numbers (`factsLines`).
+  - The AI only receives these numbers (`factsLines`). On Android it also receives the goal names,
+    holidays and plans note above, never an entry's description or notes.
   - Tests: `tests/budget.test.mjs`, `tests/invest.test.mjs`.
 
 ### 6.9 Insights (`modules/insights-data.js`)
@@ -1249,6 +1269,13 @@ Let `ms` = the 1st of this month and `day` = the day of the month.
 - Year = Σ from Jan 1 to today.
 - Recent = the newest 8.
 - Source chips = the 6 most frequent sources. Bank suggestions are ranked by frequency.
+- **Android differs (decided 2026-11-06)** (`sourceChips`, `lastFromSource`):
+  - After the used sources come presets: Salary, Freelance, Business, Interest, Dividends, Rental,
+    Refund, Gift, Bonus, Cashback.
+  - A used source that names a preset as a whole word ("Monthly salary") shows as that preset, so
+    variants appear once. Saved sources are never rewritten.
+  - Tapping a chip fills the bank from the newest entry with that exact source, else the newest whose
+    source names that preset.
 
 ---
 

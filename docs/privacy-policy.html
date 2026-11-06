@@ -13,7 +13,7 @@
 </head>
 <body>
 <h1>SpendWise Privacy Policy</h1>
-<p>Effective 30 October 2026. This policy covers the SpendWise Android app and the SpendWise web app, which share one account and one set of data.</p>
+<p>Effective 6 November 2026. This policy covers the SpendWise Android app and the SpendWise web app, which share one account and one set of data.</p>
 
 <h2>What we collect</h2>
 <ul>
@@ -28,21 +28,26 @@
 <p>Your data is stored in Google Firebase (Cloud Firestore and Authentication), tied to your account and protected by security rules so that only you, and people you choose to share a debt with, can read it. It is encrypted in transit. Preferences such as theme, currency, and widget transparency stay on your device only.</p>
 
 <h2>AI features</h2>
-<p>The AI coach, "Ask", budget suggestions, voice and receipt entry, and bank-statement import send content to an AI service through a Cloudflare Worker that we run:</p>
+<p>The AI coach, "Ask", budget suggestions, voice and receipt entry, and bank-statement import send content to an AI service. By default this goes through a Cloudflare Worker that we run:</p>
 <ul>
-  <li>The coach, Ask and budget suggestions send summary figures and your question, not entry descriptions, notes or names.</li>
+  <li>The coach and Ask send summary figures and your question, not entry descriptions, notes or names.</li>
+  <li>Budget suggestions send summary figures. In the Android app they also send your spending in the same month last year, the names, targets and dates of your savings goals, the month's public holidays, and anything you type in the "Plans this month" box. They do not send entry descriptions or notes.</li>
   <li>Voice entry sends the text of what you said. Receipt entry sends the photo you take. Bank-statement import sends the rows of the CSV file you choose, which may contain descriptions.</li>
 </ul>
+<p>If you choose "My own API key" in Settings, these requests go straight from your phone to the provider you pick (NVIDIA, OpenAI, Google Gemini, Anthropic or Groq), under that provider's own terms and privacy policy, and do not pass through our Worker. Your key is stored encrypted on your phone only.</p>
 <p>The app asks for your consent before the first use. Receipt photos are deleted from the device once read. We do not use your data to train AI models or to show advertising.</p>
 
 <h2>Contacts</h2>
 <p>"Choose from contacts" opens the system contact picker. The app receives only the one contact you choose, and uses its name and email to fill the form. It does not read your address book.</p>
 
+<h2>Holiday calendar</h2>
+<p>When you ask for a budget suggestion in the Android app, it downloads Google's public holiday calendar for the country of the currency you chose, so the suggestion can allow for festivals. This request carries no account or money data, only the usual connection details such as your IP address, which Google receives.</p>
+
 <h2>App updates</h2>
 <p>If you installed SpendWise from outside Google Play, the app asks GitHub whether a newer version is published. This request carries no account or money data, only the usual connection details such as your IP address, which GitHub receives.</p>
 
 <h2>Sharing</h2>
-<p>We do not sell your data. It is processed only by the services above (Google Firebase and Cloudflare, and the AI service you consent to). If you enter another person's email on a debt, that debt appears in their SpendWise account if they have one.</p>
+<p>We do not sell your data. It is processed only by the services above (Google Firebase, Google's public holiday calendar, Cloudflare, and the AI service you consent to, or the provider of your own key). If you enter another person's email on a debt, that debt appears in their SpendWise account if they have one.</p>
 
 <h2>Your choices</h2>
 <ul>

@@ -13,7 +13,8 @@ import kotlin.math.floor
 // the device; the AI gets only those numbers, never an entry, description or name. Its answer is checked
 // against the same numbers, and suggestFromFacts gives a plan worked out on the device when it can't help.
 // Android goes further than the web (spec §6.8): limits come from a typical month, not the plain average,
-// and an AI plan that misses the saving aim is not used.
+// and an AI plan that misses the saving aim is not used. The AI also gets the month, its festivals and
+// holidays (HolidayFeed), the same month last year, the user's goals by name, and their note of plans.
 
 private const val LOOKBACK = 3
 private const val SAVE_TARGET = 0.2
@@ -32,7 +33,20 @@ data class BudgetFacts(
     val cats: Map<String, Double>, val fixed: Map<String, Double>, val goalsMonthly: Double,
     /** A month's worth of spending above the typical month, by category. */
     val oneOffs: Map<String, Double> = emptyMap(),
+    /** The month being budgeted, "YYYY-MM". */
+    val month: String = "",
+    /** Spending by category in the same month a year earlier. */
+    val lastYear: Map<String, Double> = emptyMap(),
+    /** Goals not yet reached, for the AI to plan around: a goal due this month is likely a purchase. */
+    val goals: List<Goal> = emptyList(),
 )
+
+/** A goal due this month, or the user's note, asks for more than a typical month (see aiPlanHolds). */
+fun hasPlans(f: BudgetFacts, plans: String) = plans.isNotEmpty() || f.goals.any { it.by == f.month }
+
+/** What the user says is coming up this month ("Diwali shopping, Goa trip"), as sent to the AI. */
+const val PLANS_MAX = 200
+fun cleanPlans(text: String) = text.replace(Regex("\\s+"), " ").trim().take(PLANS_MAX)
 
 data class BudgetSuggestion(val total: Double, val cats: Map<String, Double>, val tip: String, val saves: Double)
 
@@ -82,6 +96,10 @@ fun budgetFacts(expenses: List<Expense>, income: List<Income>, goals: List<Goal>
         spent = cats.values.sum(),
         invested = recent.filter { !isSpending(it.category) }.sumOf { it.amount } / n,
         cats = cats, fixed = fixed, goalsMonthly = goalsMonthly, oneOffs = oneOffs,
+        month = month,
+        goals = goals.filter { it.target > 0 && it.saved < it.target && Regex("""^\d{4}-\d{2}$""").matches(it.by) && it.by >= month },
+        lastYear = expenses.filter { it.date.take(7) == addMonths(month, -12) && isSpending(it.category) }
+            .groupBy { normalizeCategory(it.category) }.mapValues { (_, l) -> l.sumOf { it.amount } }.filterValues { it > 0 },
     )
 }
 
@@ -92,27 +110,41 @@ fun factsLines(f: BudgetFacts, symbol: String): String {
         "- $c: ${m(f.cats.getValue(c))}" + (f.fixed[c]?.takeIf { it != 0.0 }?.let { " (of which ${m(it)} repeating bills/EMIs)" } ?: "")
     }
     val oneOffs = BUDGET_CATEGORIES.filter { it in f.oneOffs }.map { "- $it: ${m(f.oneOffs.getValue(it))} a month" }
-    return (listOf(
+    val goals = f.goals.map { g ->
+        val by = runCatching { java.time.YearMonth.parse(g.by).let { "${it.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)} ${it.year}" } }.getOrDefault(g.by)
+        "- ${g.name}: ${m(g.target)} by $by, ${m(g.saved)} saved" + if (g.by == f.month) " (due this month)" else ""
+    }
+    val lastYear = BUDGET_CATEGORIES.filter { it in f.lastYear }.map { "- $it: ${m(f.lastYear.getValue(it))}" }
+    val monthName = runCatching { java.time.YearMonth.parse(f.month).let { "${it.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)} ${it.year}" } }.getOrNull()
+    return (listOfNotNull(
+        monthName?.let { "Budget for: $it" },
         "Over the last ${f.months} ${if (f.months == 1) "month" else "months"}:",
         "Income: ${m(f.income)} a month on average",
         "Spending: ${m(f.spent)} in a typical month",
         "Invested: ${m(f.invested)}",
         if (f.goalsMonthly != 0.0) "Savings goals need: ${m(f.goalsMonthly)} a month" else "Savings goals: none",
         "Spending by category, in a typical month:",
-    ) + byCat.ifEmpty { listOf("- none") } + if (oneOffs.isEmpty()) emptyList() else listOf("One-off spending on top of that, averaged:") + oneOffs).joinToString("\n")
+    ) + byCat.ifEmpty { listOf("- none") } + (if (oneOffs.isEmpty()) emptyList() else listOf("One-off spending on top of that, averaged:") + oneOffs) +
+        (if (lastYear.isEmpty()) emptyList() else listOf("The same month last year, by category:") + lastYear) +
+        (if (goals.isEmpty()) emptyList() else listOf("Savings goals, in the user's words:") + goals)).joinToString("\n")
 }
 
-/** budgetPrompt: (system, user). */
-fun budgetPrompt(f: BudgetFacts, currency: Currency): Pair<String, String> = """You set a monthly spending budget for a SpendWise user from their own numbers. Amounts are in ${currency.code} (${currency.symbol}).
+/** budgetPrompt: (system, user). [plans] is the user's own note, already cleaned; [holidays] come from HolidayFeed. */
+fun budgetPrompt(f: BudgetFacts, currency: Currency, plans: String = "", holidays: List<String> = emptyList()): Pair<String, String> = """You set a monthly spending budget for a SpendWise user from their own numbers. Amounts are in ${currency.code} (${currency.symbol}).
 Rules:
 - The total must leave money over from income: aim to keep at least 20% of income, more if savings goals need it, but never cut a category below its repeating bills/EMIs.
 - Cut flexible categories (food, shopping, entertainment, travel) before essentials (groceries, bills, rent, health, education).
-- Only use categories from this list: ${BUDGET_CATEGORIES.joinToString(", ")}. Leave out categories with no spending.
-- Budget for a typical month: don't add one-off spending to the limits, and never set a category above its typical month.
+- Only use categories from this list: ${BUDGET_CATEGORIES.joinToString(", ")}. Leave out categories with no spending, unless the same month last year or the user's plans need them.
+- Budget for a typical month: don't add one-off spending to the limits, and keep each category within 10% of its typical month or of the same month last year, whichever is higher.
+- Think about the month being budgeted: the festivals and holidays listed (when there's no list, those usual then where the user lives; the currency shows the region), weddings or sale seasons, and how the same month went last year. Make room for them by moving money between flexible categories.
+- If the user lists plans for the month, or a goal is due this month (likely a purchase), raise only the categories those need, enough to cover them, and keep the rest tight. Goals due later need saving, not spending.
 - Give every category with spending a limit, adding up to the total.
 - Whole numbers only. Use only the numbers given; never invent income or spending.
 Reply with ONLY one JSON object, no other text:
-{"total":<number>,"cats":{"<category>":<number>},"tip":"<one sentence, under 25 words, on where the saving comes from>"}""" to factsLines(f, currency.symbol)
+{"total":<number>,"cats":{"<category>":<number>},"tip":"<one sentence, under 25 words, naming any festival, season or plan you allowed for, and where the saving comes from>"}""" to
+    factsLines(f, currency.symbol) +
+    (if (holidays.isEmpty()) "" else "\nFestivals and holidays this month, from the public calendar:\n" + holidays.joinToString("\n") { "- $it" }) +
+    (if (plans.isEmpty()) "" else "\nThe user's plans for this month, in their words: $plans")
 
 /** A plan worked out on the device: spending trimmed toward keeping a fifth of income, from flexible spending only. */
 fun suggestFromFacts(f: BudgetFacts): BudgetSuggestion? {
@@ -136,11 +168,12 @@ fun suggestFromFacts(f: BudgetFacts): BudgetSuggestion? {
  * Makes any suggestion safe to show: known categories only, whole hundreds, no category below its bills,
  * a total that covers the categories and stays within income. null when nothing is usable.
  */
-fun checkSuggestion(rawTotal: Double, rawCats: List<Pair<String, Double>>, rawTip: String?, f: BudgetFacts): BudgetSuggestion? {
+fun checkSuggestion(rawTotal: Double, rawCats: List<Pair<String, Double>>, rawTip: String?, f: BudgetFacts, allowNew: Boolean = false): BudgetSuggestion? {
     val cats = LinkedHashMap<String, Double>()
     rawCats.forEach { (name, n) ->
         val c = normalizeCategory(name)
-        if (c !in BUDGET_CATEGORIES || !(n > 0) || !((f.cats[c] ?: 0.0) > 0)) return@forEach
+        // A category with no recent spending needs last year's same month, or the user's plans, behind it
+        if (c !in BUDGET_CATEGORIES || !(n > 0) || !((f.cats[c] ?: 0.0) > 0 || c in f.lastYear || allowNew)) return@forEach
         cats[c] = maxOf(roundUp(n), roundUp(f.fixed[c] ?: 0.0))
     }
     val catSum = cats.values.sum()
@@ -154,14 +187,18 @@ fun checkSuggestion(rawTotal: Double, rawCats: List<Pair<String, Double>>, rawTi
     return BudgetSuggestion(total, cats, tip, f.income - total)
 }
 
-/** Whether an AI plan keeps what it should: the saving aim met, limits that add up, every bill covered, nothing raised. */
-fun aiPlanHolds(s: BudgetSuggestion, f: BudgetFacts): Boolean {
-    val keep = maxOf(SAVE_TARGET * f.income, f.goalsMonthly)
+/**
+ * Whether an AI plan keeps what it should: limits that add up and every bill covered, plus, without the user's
+ * plans, the saving aim met and nothing above a typical month or the same month last year. With plans (a trip,
+ * a big buy) the user has asked for more, so a category may go higher and the plan only has to stay within income.
+ */
+fun aiPlanHolds(s: BudgetSuggestion, f: BudgetFacts, hasPlans: Boolean = false): Boolean {
+    val keep = if (hasPlans) 0.0 else maxOf(SAVE_TARGET * f.income, f.goalsMonthly)
     val ceiling = maxOf(f.income - keep, f.fixed.values.sum()) + 100 * (s.cats.size + 1) // room for rounding up to hundreds
     return s.cats.isNotEmpty() && s.total <= ceiling &&
         s.total - s.cats.values.sum() <= UNASSIGNED_SHARE * s.total &&
         f.fixed.keys.all { it !in BUDGET_CATEGORIES || it in s.cats } &&
-        s.cats.all { (c, v) -> v <= roundUp((f.cats[c] ?: 0.0) * OVER_TYPICAL) }
+        (hasPlans || s.cats.all { (c, v) -> v <= roundUp(maxOf(f.cats[c] ?: 0.0, f.lastYear[c] ?: 0.0) * OVER_TYPICAL) })
 }
 
 /** The month's AI plan as stored on the device; checkReply reads it back. */
@@ -172,10 +209,10 @@ fun planJson(s: BudgetSuggestion): String = buildJsonObject {
 }.toString()
 
 /** The AI's answer, checked; Number() rules for its values. */
-fun checkReply(raw: JsonObject?, f: BudgetFacts): BudgetSuggestion? {
+fun checkReply(raw: JsonObject?, f: BudgetFacts, allowNew: Boolean = false): BudgetSuggestion? {
     if (raw == null) return null
     val cats = (raw["cats"] as? JsonObject).orEmpty().map { (k, v) -> k to jsNumberOf(v) }
-    return checkSuggestion(jsNumberOf(raw["total"]), cats, (raw["tip"] as? JsonPrimitive)?.takeIf { it.isString }?.content, f)
+    return checkSuggestion(jsNumberOf(raw["total"]), cats, (raw["tip"] as? JsonPrimitive)?.takeIf { it.isString }?.content, f, allowNew)
 }
 
 /** readReply: the JSON object in a reply that may wrap it in a code block or add words around it. */

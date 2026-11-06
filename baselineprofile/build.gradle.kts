@@ -15,6 +15,8 @@ android {
         minSdk = 28
         targetSdk = 37
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // The app's store flavors behave the same at startup; profile the Play one
+        missingDimensionStrategy("store", "play")
     }
 
     compileOptions {

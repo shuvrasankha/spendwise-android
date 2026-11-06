@@ -47,6 +47,7 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
+import com.spendwise.app.domain.CATEGORY_HINTS
 import com.spendwise.app.domain.CATEGORY_TILE_LABELS
 
 /** Edit an existing expense (spec §2.3): the same fields as the New entry sheet, Save, and Delete with confirmation. */
@@ -79,6 +80,7 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
                     FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.tiles.forEach { (category, label) -> SwChip(label, f.category == category, { editor.setCategory(category) }, leading = SwIcons.forCategory(category)) }
                     }
+                    CATEGORY_HINTS[f.category]?.let { Text(it, gutter, style = SwType.label, color = SpendWiseTheme.colors.textMuted) }
                     Box(gutter) {
                         SwField(
                             f.description, editor::setDescription, "Description",

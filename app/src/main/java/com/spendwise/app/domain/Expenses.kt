@@ -47,11 +47,27 @@ const val DEFAULT_PAYMENT = "UPI"
 
 fun isCard(payment: String) = payment == "Credit Card" || payment == "Debit Card"
 
-/** The short labels on the web's category tiles, in tile order. */
+/** Android's short tile labels, in the web's tile order. Only the label differs; the saved name stays the web's. */
 val CATEGORY_TILE_LABELS = mapOf(
-    "Food & Dining" to "Food", "Groceries" to "Groceries", "Transport" to "Transport", "Travel" to "Travel",
-    "Shopping" to "Shopping", "Bills & Utilities" to "Bills", "Home & Rent" to "Home", "Health" to "Health",
+    "Food & Dining" to "Dining out", "Groceries" to "Groceries", "Transport" to "Transport", "Travel" to "Travel",
+    "Shopping" to "Shopping", "Bills & Utilities" to "Bills", "Home & Rent" to "Rent & home", "Health" to "Health",
     "Entertainment" to "Fun", "Education" to "Education", "Savings & Investments" to "Savings", "Other" to "Other",
+)
+
+/** What each category covers, shown under the tiles for the one picked. */
+val CATEGORY_HINTS = mapOf(
+    "Food & Dining" to "Restaurants, cafés, takeaway and food delivery",
+    "Groceries" to "Supermarket, vegetables, milk and household supplies",
+    "Transport" to "Fuel, cabs, auto, metro, bus, parking and tolls",
+    "Travel" to "Flights, trains, hotels and holiday spending",
+    "Shopping" to "Clothes, gadgets, personal care and things for the home",
+    "Bills & Utilities" to "Electricity, water, gas, phone, internet and subscriptions",
+    "Home & Rent" to "Rent, maintenance, repairs and house help",
+    "Health" to "Doctor, medicines, tests, gym and insurance",
+    "Entertainment" to "Movies, events, games and hobbies",
+    "Education" to "Fees, courses, books and stationery",
+    "Savings & Investments" to "SIPs, stocks, FDs and savings. Not counted as spending",
+    "Other" to "Gifts, donations and anything else",
 )
 
 /**
@@ -161,28 +177,6 @@ fun checkExpense(
 
 /** saveEditExpense: ticking starts a series; unticking a repeating entry stops it; otherwise it stays as it was. */
 fun editedRepeat(on: Boolean, was: String?): String? = if (on) "monthly" else if (was == "monthly") "stopped" else was
-
-/** dashboard.js › updateExpenseCards (spec §6.4). */
-data class ExpenseFigures(
-    val month: Double, val monthCount: Int,
-    val year: Double, val yearCount: Int,
-    val all: Double, val allCount: Int,
-    val perDay: Double,
-)
-
-fun expenseFigures(expenses: List<Expense>, today: java.time.LocalDate): ExpenseFigures {
-    val todayS = today.toString()
-    val ms = today.withDayOfMonth(1).toString()
-    val spending = expenses.filter { isSpending(it.category) }
-    val month = spending.filter { it.date >= ms && it.date <= todayS }
-    // web quirk: §9.3 — the year counts future-dated entries too
-    val year = spending.filter { it.date.startsWith(today.year.toString()) }
-    val monthTotal = month.sumOf { it.amount }
-    return ExpenseFigures(
-        monthTotal, month.size, year.sumOf { it.amount }, year.size, spending.sumOf { it.amount }, spending.size,
-        monthTotal / today.dayOfMonth,
-    )
-}
 
 /** The same amount, category and date again within 2 minutes is usually a double tap: the web asks once. */
 const val DUPLICATE_WINDOW_MS = 120_000L

@@ -112,10 +112,12 @@ fun AiProviderScreen(onBack: () -> Unit, vm: AiProviderViewModel = hiltViewModel
                         if (running) "Testing…" else "Test connection", { vm.test() }, Modifier.fillMaxWidth(),
                         style = ButtonStyle.Secondary, enabled = s.keyMask != null && !running,
                     )
+                    val inUse = s.byok && s.active == s.provider
+                    SwButton(if (inUse) "Set models" else "Set ${s.provider.name} as AI provider",{ vm.useMyKey() }, Modifier.fillMaxWidth(), enabled = s.keyMask != null && !running)
                     Row(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         when (val t = s.test) {
                             KeyTest.Running -> CircularProgressIndicator(Modifier.size(16.dp), color = c.text, strokeWidth = 2.dp)
-                            KeyTest.Passed -> Text(if (s.byok && s.active == s.provider) "Connection works." else "Connection works. Choose My own API key to use it.", style = SwType.label, color = c.positive)
+                            KeyTest.Passed -> Text(if (inUse) "Connection works." else "Connection works. Tap Set to use it.",style = SwType.label, color = c.positive)
                             is KeyTest.Failed -> Text("Test failed: ${t.message}", style = SwType.label, color = c.negative)
                             KeyTest.Idle -> Unit
                         }

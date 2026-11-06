@@ -37,7 +37,7 @@ jobs:
         run: cp .github/ci/google-services.placeholder.json app/google-services.json
 
       - name: Build, unit tests, lint
-        run: ./gradlew assembleDebug testDebugUnitTest lint --continue
+        run: ./gradlew assembleDebug testPlayDebugUnitTest lint --continue
 
       - name: Upload reports
         if: always()

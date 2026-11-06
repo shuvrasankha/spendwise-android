@@ -58,14 +58,15 @@ jobs:
             echo "keyPassword=${KEY_PASSWORD:-$STORE_PASSWORD}"
           } > keystore.properties
 
+      # The APK on GitHub has the self-updater; the Play bundle doesn't (Play forbids it)
       - name: Build APK and bundle
-        run: ./gradlew assembleRelease bundleRelease
+        run: ./gradlew assembleGithubRelease bundlePlayRelease
 
       # Never publish a debug-signed APK: users couldn't install the next update over it
       - name: Check the signer
         run: |
           apksigner=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
-          certs=$("$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk)
+          certs=$("$apksigner" verify --print-certs app/build/outputs/apk/github/release/app-github-release.apk)
           echo "$certs" | grep -E "DN|SHA-256"
           if echo "$certs" | grep -q "CN=Android Debug"; then
             echo "::error::The APK is debug-signed"
@@ -77,7 +78,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/release/app-release.apk SpendWise.apk
+          cp app/build/outputs/apk/github/release/app-github-release.apk SpendWise.apk
           git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
           # Only an annotated tag has a message; a lightweight one would give the commit's
           : > notes.md
@@ -92,7 +93,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bundle-${{ env.TAG }}
-          path: app/build/outputs/bundle/release/app-release.aab
+          path: app/build/outputs/bundle/playRelease/app-play-release.aab
           retention-days: 30
 
       - name: Remove secrets from the runner

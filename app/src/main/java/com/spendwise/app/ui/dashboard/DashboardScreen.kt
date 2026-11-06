@@ -1,8 +1,5 @@
 package com.spendwise.app.ui.dashboard
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +15,6 @@ import androidx.compose.foundation.layout.width
 import com.spendwise.app.ui.theme.Radius
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -71,7 +66,6 @@ import com.spendwise.app.ui.components.Stat
 import com.spendwise.app.ui.components.StatGrid
 import com.spendwise.app.ui.components.StatusPill
 import com.spendwise.app.ui.components.SwButton
-import com.spendwise.app.ui.components.SwChip
 import com.spendwise.app.ui.components.Toast
 import com.spendwise.app.ui.components.WeekBars
 import com.spendwise.app.ui.components.show
@@ -91,7 +85,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
@@ -214,14 +207,14 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
                 val over = m.state.level == BudgetLevel.OVER
                 val text = if (over) "${money(-m.state.left)} over your ${money(m.total)} budget"
                 else "${Math.round(m.state.ratio * 100)}% of your ${money(m.total)} budget · ${money(m.state.left)} left"
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true) }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true, paceLabel = "Today") }
                 Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Same colour as the bar; "Near limit" is the app's NEAR level (80%), otherwise the pace check
                     StatusPill(
                         when {
                             over -> "Over budget"
                             m.state.level == BudgetLevel.NEAR -> "Near limit"
-                            m.state.ratio > pace -> "Ahead of pace"
+                            m.state.ratio > pace -> "Spending fast"
                             else -> "On track"
                         },
                         color = budgetTierColor(m.state.ratio.toFloat()),
@@ -233,7 +226,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
                 val over = m.ratio > 1
                 val text = if (over) "${money(m.spent - m.income)} more than your ${money(m.income)} income"
                 else "${Math.round(m.ratio * 100)}% of your ${money(m.income)} income · ${money(m.income - m.spent)} left"
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.ratio.toFloat(), pace = pace) }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.ratio.toFloat(), pace = pace, paceLabel = "Today") }
                 Caption(text, if (over) c.negative else Color.Unspecified)
             }
             null -> Caption("Add this month's income to see how much is left.")
@@ -298,7 +291,7 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
         if (cmp != null) {
             val text = if (cmp.gap < 1) "Right on your daily average of ${money(h.average)}"
             else "${money(cmp.gap)} ${if (cmp.over) "more" else "less"} than your daily average of ${money(h.average)}"
-            Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 12.dp)) { BudgetBar(cmp.fill.toFloat(), pace = cmp.averageAt.toFloat(), over = cmp.over) }
+            Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 12.dp)) { BudgetBar(cmp.fill.toFloat(), pace = cmp.averageAt.toFloat(), over = cmp.over, paceLabel = "Daily average") }
             Caption(text, if (cmp.over) c.negative else Color.Unspecified)
         } else if (h.todays.isNotEmpty()) {
             Caption("Your daily average shows here from tomorrow")

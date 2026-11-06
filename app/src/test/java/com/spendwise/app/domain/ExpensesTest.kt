@@ -66,6 +66,7 @@ class ExpensesTest {
     @Test fun lists_matchTheWeb() {
         assertEquals(listOf("UPI", "Cash", "Credit Card", "Debit Card", "Net Banking", "Other"), PAYMENT_METHODS)
         assertEquals(EXPENSE_CATEGORIES, CATEGORY_TILE_LABELS.keys.toList())
+        assertEquals(EXPENSE_CATEGORIES, CATEGORY_HINTS.keys.toList())
         assertTrue(isCard("Credit Card") && isCard("Debit Card") && !isCard("UPI"))
     }
 
@@ -85,7 +86,7 @@ class ExpensesTest {
             ),
             today,
         ).map { it.second }
-        assertEquals(listOf("Travel", "Health", "Food", "Groceries", "Transport", "Shopping"), tiles.take(6))
+        assertEquals(listOf("Travel", "Health", "Dining out", "Groceries", "Transport", "Shopping"), tiles.take(6))
         assertEquals(CATEGORY_TILE_LABELS.values.toList(), orderedTiles(emptyList(), today).map { it.second })
     }
 }

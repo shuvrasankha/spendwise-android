@@ -200,6 +200,10 @@ Spec: §1.7 item 5.
     `saveChat`).
   - The consent dialog shows once (D5).
   - Only number facts are sent. Port the web's fact builders exactly.
+  - **Added 2026-11-06 (Android only):** every coach answer also gets the portfolio as it stands
+    (`investFacts`): worth, put in, gain, this month and year, SIPs, and each holding by its type
+    (Mutual fund, Stocks…), never its name. A question pairing an investment word with how it stands
+    ("how are my investments doing") goes to the coach; "how much did I invest" stays a calculation.
 - **AI Ask**: the AI receives only the question, today's date and the category names, and
   returns a spec. Fall back to the slice 16 `guessSpec` on any error.
 - **Tests**: the fact builders contain no description, note or name fields (a privacy test).
