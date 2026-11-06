@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use Your Own AI Key</title>
+<meta name="description" content="How to get an API key from NVIDIA, OpenAI, Google Gemini, Anthropic or Groq and use it in SpendWise.">
+<style>
+  :root { --text: #111; --muted: #555; --bg: #fff; --line: #ddd; --link: #7a5a00; --code: #f3f3f3; }
+  @media (prefers-color-scheme: dark) { :root { --text: #f2f2f2; --muted: #aaa; --bg: #0e0e0e; --line: #333; --link: #f2c14e; --code: #1c1c1e; } }
+  body { font: 16px/1.6 system-ui, sans-serif; max-width: 42rem; margin: 0 auto; padding: 24px 16px 64px; color: var(--text); background: var(--bg); }
+  h1 { font-size: 1.6rem; } h2 { font-size: 1.15rem; margin-top: 2.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin-bottom: 0.25rem; }
+  a { color: var(--link); }
+  code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; overflow-wrap: anywhere; }
+  .muted { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  nav ul { padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+<h1>Use your own AI key in SpendWise</h1>
+<p>SpendWise's AI features (Ask, the coach, budget suggestions, voice entry, receipt scans and CSV import) work out of the box with SpendWise AI, which has daily limits. With your own API key, from one of five providers, there are no SpendWise limits: your provider sets the limits and the price.</p>
+<p class="muted">An API key is a long password that lets an app use your account with an AI provider. It is stored encrypted on your phone only and goes nowhere except that provider.</p>
+
+<nav>
+<p><strong>Choose a provider:</strong></p>
+<ul>
+  <li><a href="#gemini">Google Gemini</a>: has a free tier. A good first choice.</li>
+  <li><a href="#groq">Groq</a>: has a free tier and is very fast.</li>
+  <li><a href="#nvidia">NVIDIA</a>: free credits for developers.</li>
+  <li><a href="#openai">OpenAI</a>: pay as you go.</li>
+  <li><a href="#anthropic">Anthropic</a>: pay as you go.</li>
+</ul>
+<p class="muted">Free tiers and prices change. Check the provider's pricing page before you rely on one.</p>
+</nav>
+
+<h2 id="gemini">Google Gemini</h2>
+<ol>
+  <li>Open <a href="https://aistudio.google.com/apikey">aistudio.google.com/apikey</a> and sign in with a Google account.</li>
+  <li>Accept the terms if asked, then choose <strong>Create API key</strong>.</li>
+  <li>Copy the key. It starts with <code>AIza</code>.</li>
+</ol>
+
+<h2 id="groq">Groq</h2>
+<ol>
+  <li>Open <a href="https://console.groq.com/keys">console.groq.com/keys</a> and sign up or sign in.</li>
+  <li>Choose <strong>Create API Key</strong> and give it a name, such as "SpendWise".</li>
+  <li>Copy the key straight away: Groq shows it only once. It starts with <code>gsk_</code>.</li>
+</ol>
+
+<h2 id="nvidia">NVIDIA</h2>
+<ol>
+  <li>Open <a href="https://build.nvidia.com">build.nvidia.com</a> and sign in with an NVIDIA account (creating one is free).</li>
+  <li>Open your account's API keys page, or any model's page, and choose <strong>Get API Key</strong> or <strong>Generate API Key</strong>.</li>
+  <li>Copy the key. It starts with <code>nvapi-</code>.</li>
+</ol>
+
+<h2 id="openai">OpenAI</h2>
+<ol>
+  <li>Open <a href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a> and sign in. This is the developer platform, separate from a ChatGPT subscription.</li>
+  <li>Add a payment method or prepaid credit under <strong>Billing</strong>: the API doesn't answer without it.</li>
+  <li>Back on API keys, choose <strong>Create new secret key</strong>, name it "SpendWise", and copy it. OpenAI shows it only once. It starts with <code>sk-</code>.</li>
+</ol>
+
+<h2 id="anthropic">Anthropic</h2>
+<ol>
+  <li>Open <a href="https://platform.claude.com">platform.claude.com</a> and sign in. This is the developer platform, separate from a Claude subscription.</li>
+  <li>Buy prepaid credit under <strong>Billing</strong>: the API doesn't answer without it.</li>
+  <li>Open <strong>API Keys</strong>, choose <strong>Create Key</strong>, name it "SpendWise", and copy it. It's shown only once. It starts with <code>sk-ant-</code>.</li>
+</ol>
+
+<h2 id="add">Add the key to SpendWise</h2>
+<ol>
+  <li>In SpendWise, open <strong>Settings › AI provider</strong>.</li>
+  <li>Choose <strong>My own API key</strong>, then pick your provider.</li>
+  <li>Paste the key and tap <strong>Save key</strong>.</li>
+  <li>Tap <strong>Test connection</strong>. "Connection works." means the key is good.</li>
+  <li>Tap <strong>Set [provider] as AI provider</strong>, and agree to send AI requests to that provider.</li>
+</ol>
+<p>From then on, the AI features use your key. To go back, choose <strong>SpendWise AI</strong> on the same screen: your key stays saved for later.</p>
+
+<h3>Models</h3>
+<p>SpendWise picks a model for each provider, so you can leave the model fields empty. To use another one, type its exact name from the provider's model list, then tap Test connection. The vision model must be able to read images, for receipt scans.</p>
+
+<h2 id="problems">If the test fails</h2>
+<table>
+  <tr><th>The app says</th><th>What to do</th></tr>
+  <tr><td>API key rejected. Check the key.</td><td>Copy the key again, with no spaces before or after, and tap Replace. Check the key wasn't deleted on the provider's site.</td></tr>
+  <tr><td>Model unavailable. Check the model ID.</td><td>Clear the model fields to use SpendWise's choice, or check the exact model name.</td></tr>
+  <tr><td>Provider limit reached.</td><td>Free tiers allow only so many requests a minute or a day: wait and try again. For OpenAI and Anthropic, check your credit balance.</td></tr>
+  <tr><td>Provider is busy, or took too long.</td><td>Try again in a minute.</td></tr>
+  <tr><td>Could not connect. Check your internet.</td><td>Check your connection, then try again.</td></tr>
+</table>
+
+<h2 id="safety">Keep your key safe</h2>
+<ul>
+  <li>Treat the key like a password: never share it or post it anywhere.</li>
+  <li>For a paid provider, set a monthly spending limit on its billing page.</li>
+  <li>If you lose your phone or think the key leaked, delete the key on the provider's site, then make a new one.</li>
+  <li>To remove it from SpendWise, open Settings › AI provider and tap <strong>Remove</strong>.</li>
+</ul>
+
+<h2 id="privacy">What your provider sees</h2>
+<p>With your own key, AI requests go straight from your phone to your provider, under that provider's terms and privacy policy. They don't pass through SpendWise's servers, and SpendWise can't see your usage or balance. What each feature sends is set out in the <a href="privacy-policy.html">privacy policy</a>.</p>
+
+<p class="muted">Questions: <a href="mailto:contact.spend.wise.app@gmail.com">contact.spend.wise.app@gmail.com</a></p>
+</body>
+</html>
