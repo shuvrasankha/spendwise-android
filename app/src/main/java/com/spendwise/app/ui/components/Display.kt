@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -320,15 +321,28 @@ private fun growTo(target: Float): Float {
     return a.value
 }
 
-/** Progress is accent (or, with [tiered], green to red by how much of the budget is used); [over] (past the limit by default) turns it negative. [pace] (0..1) marks how far through the period we are. */
+/**
+ * Progress is accent (or, with [tiered], green to red by how much of the budget is used); [over] (past the limit by default) turns it negative.
+ * [pace] (0..1) marks how far through the period we are, named by [paceLabel] under the mark.
+ */
 @Composable
-fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null, over: Boolean = progress > 1f, tiered: Boolean = false) {
+fun BudgetBar(progress: Float, modifier: Modifier = Modifier, pace: Float? = null, over: Boolean = progress > 1f, tiered: Boolean = false, paceLabel: String? = null) {
     val c = SpendWiseTheme.colors
     val fill = if (tiered) budgetTierColor(if (over) maxOf(progress, 1.01f) else progress) else if (over) c.negative else c.accent
-    BoxWithConstraints(modifier.fillMaxWidth().height(12.dp), contentAlignment = Alignment.CenterStart) {
-        Box(Modifier.fillMaxWidth().height(6.dp).clip(Radius.pill).background(c.line))
-        Box(Modifier.fillMaxWidth(growTo(progress.coerceIn(0f, 1f))).height(6.dp).clip(Radius.pill).background(fill))
-        if (pace != null) Box(Modifier.offset(x = maxWidth * pace.coerceIn(0f, 1f) - 1.dp).width(2.dp).height(12.dp).background(c.text))
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().height(12.dp), contentAlignment = Alignment.CenterStart) {
+            Box(Modifier.fillMaxWidth().height(6.dp).clip(Radius.pill).background(c.line))
+            Box(Modifier.fillMaxWidth(growTo(progress.coerceIn(0f, 1f))).height(6.dp).clip(Radius.pill).background(fill))
+            if (pace != null) Box(Modifier.offset(x = maxWidth * pace.coerceIn(0f, 1f) - 1.dp).width(2.dp).height(12.dp).background(c.text))
+        }
+        if (pace != null && paceLabel != null) {
+            // Centred under the mark, kept inside the bar's width
+            Text(paceLabel, style = SwType.label, color = c.textMuted, modifier = Modifier.fillMaxWidth().layout { m, cs ->
+                val p = m.measure(cs.copy(minWidth = 0))
+                val x = (cs.maxWidth * pace.coerceIn(0f, 1f) - p.width / 2f).toInt().coerceIn(0, maxOf(cs.maxWidth - p.width, 0))
+                layout(cs.maxWidth, p.height) { p.place(x, 0) }
+            })
+        }
     }
 }
 

@@ -178,7 +178,6 @@ private fun Label(text: String) = FieldLabel(text, inset = 0.dp)
 @Composable
 private fun ExpenseFields(state: com.spendwise.app.ui.expenses.EditorState, vm: ExpenseEditorViewModel, currency: Currency, onVoice: () -> Unit) {
     val form = state.form
-    var more by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SwButton("Speak or scan", onVoice, style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Mic)
         Label("Category")
@@ -195,34 +194,31 @@ private fun ExpenseFields(state: com.spendwise.app.ui.expenses.EditorState, vm: 
         ChipFlow { PAYMENT_METHODS.forEach { SwChip(it, form.payment == it, { vm.setPayment(it) }) } }
         if (isCard(form.payment)) SwField(form.cardName, vm::setCardName, "Card name (optional)")
 
-        SwButton(if (more) "Fewer options" else "More options", { more = !more }, style = ButtonStyle.Text, compact = true)
-        if (more) {
-            SettingsGroup(null, inset = 0.dp) {
-                SettingsRow("Repeats every month", trailing = Trailing.Switch(form.repeat, vm::setRepeat))
-            }
-            if (form.repeat) {
-                Text(
-                    "Rent, subscriptions, SIPs, EMIs: the Dashboard offers it again when it's due. For a loan or a no-cost EMI, enter how many payments it has.",
-                    style = SwType.label, color = SpendWiseTheme.colors.textMuted,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.weight(1f)) {
-                        SwField(form.emiTotal, vm::setEmiTotal, "Total payments", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    }
-                    Box(Modifier.weight(1f)) {
-                        SwField(form.emiBefore, vm::setEmiBefore, "Already paid", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    }
+        SettingsGroup(null, inset = 0.dp) {
+            SettingsRow("Repeats every month", trailing = Trailing.Switch(form.repeat, vm::setRepeat))
+        }
+        if (form.repeat) {
+            Text(
+                "Rent, subscriptions, SIPs, EMIs: the Dashboard offers it again when it's due. For a loan or a no-cost EMI, enter how many payments it has.",
+                style = SwType.label, color = SpendWiseTheme.colors.textMuted,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.weight(1f)) {
+                    SwField(form.emiTotal, vm::setEmiTotal, "Total payments", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }
+                Box(Modifier.weight(1f)) {
+                    SwField(form.emiBefore, vm::setEmiBefore, "Already paid", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 }
             }
-            SwField(
-                form.tagDraft, vm::setTagDraft, "Tags (optional): comma or space",
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { vm.commitTagDraft() }),
-            )
-            if (form.tags.isNotEmpty()) ChipFlow { form.tags.forEach { SwChip("#$it", true, { vm.removeTag(it) }, leading = SwIcons.Close) } }
-            if (state.suggestedTags.isNotEmpty()) ChipFlow { state.suggestedTags.forEach { SwChip("#$it", false, { vm.addSuggestedTag(it) }, leading = SwIcons.Plus) } }
-            SplitFields(state, currency, vm)
         }
+        SwField(
+            form.tagDraft, vm::setTagDraft, "Tags (optional): comma or space",
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { vm.commitTagDraft() }),
+        )
+        if (form.tags.isNotEmpty()) ChipFlow { form.tags.forEach { SwChip("#$it", true, { vm.removeTag(it) }, leading = SwIcons.Close) } }
+        if (state.suggestedTags.isNotEmpty()) ChipFlow { state.suggestedTags.forEach { SwChip("#$it", false, { vm.addSuggestedTag(it) }, leading = SwIcons.Plus) } }
+        SplitFields(state, currency, vm)
     }
 }
 

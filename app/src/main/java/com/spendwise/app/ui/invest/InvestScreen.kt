@@ -97,7 +97,7 @@ fun InvestScreen(onBack: () -> Unit, onAdd: () -> Unit, onAllHistory: () -> Unit
                     item { Hero(p, debts, currency, money) }
                     item { Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 24.dp)) { SwButton("Put money in", onAdd, Modifier.fillMaxWidth(), leading = SwIcons.Plus) } }
                     item {
-                        SectionHeader("Holdings", action = "New holding", onAction = { vm.newHolding() })
+                        SectionHeader("Holdings", action = "New holding", onAction = { vm.newHolding() }, actionIcon = SwIcons.Plus)
                         if (p.holdings.isNotEmpty()) Text(plural(p.holdings.size, "holding", "holdings"), style = SwType.label, color = c.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
                     }
                     if (p.portfolio.rows.isEmpty() && p.portfolio.other.isEmpty()) item {

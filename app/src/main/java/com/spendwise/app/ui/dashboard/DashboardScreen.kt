@@ -214,14 +214,14 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
                 val over = m.state.level == BudgetLevel.OVER
                 val text = if (over) "${money(-m.state.left)} over your ${money(m.total)} budget"
                 else "${Math.round(m.state.ratio * 100)}% of your ${money(m.total)} budget · ${money(m.state.left)} left"
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true) }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true, paceLabel = "Today") }
                 Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Same colour as the bar; "Near limit" is the app's NEAR level (80%), otherwise the pace check
                     StatusPill(
                         when {
                             over -> "Over budget"
                             m.state.level == BudgetLevel.NEAR -> "Near limit"
-                            m.state.ratio > pace -> "Ahead of pace"
+                            m.state.ratio > pace -> "Spending fast"
                             else -> "On track"
                         },
                         color = budgetTierColor(m.state.ratio.toFloat()),
@@ -233,7 +233,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
                 val over = m.ratio > 1
                 val text = if (over) "${money(m.spent - m.income)} more than your ${money(m.income)} income"
                 else "${Math.round(m.ratio * 100)}% of your ${money(m.income)} income · ${money(m.income - m.spent)} left"
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.ratio.toFloat(), pace = pace) }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.ratio.toFloat(), pace = pace, paceLabel = "Today") }
                 Caption(text, if (over) c.negative else Color.Unspecified)
             }
             null -> Caption("Add this month's income to see how much is left.")
