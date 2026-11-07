@@ -52,7 +52,7 @@ Kotlin · Jetpack Compose · Material 3 · MVVM · Hilt · Coroutines and Flow �
 (offline persistence on) · Credential Manager for Google Sign-In · Navigation Compose · DataStore ·
 WorkManager. Charts are drawn with Compose Canvas.
 
-minSdk 26 · targetSdk 37 · application ID `com.spendwise.app`
+minSdk 26 · targetSdk 37 · application ID `com.spendwise.app` (GitHub build) and `com.spendwise.money` (Play build)
 
 ## Project layout
 

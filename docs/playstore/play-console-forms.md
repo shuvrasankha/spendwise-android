@@ -1,25 +1,23 @@
-# Play Console answers for SpendWise 1.8.1
+# Play Console answers for SpendWise 1.8.2
 
-Answers for each Play Console form, taken from what the app does in 1.8.1 (code 20) and from
+Answers for each Play Console form, taken from what the app does in 1.8.2 (code 21) and from
 `docs/privacy-policy.html`. Copy them in as written. Where a choice is a judgement call, the line says so.
 
-- Package: `com.spendwise.app`
+- Package: `com.spendwise.money` (`com.spendwise.app` is taken on Play; the GitHub build keeps it)
 - Privacy policy: https://shuvrasankha.github.io/spendwise-android/privacy-policy.html
 - Account deletion: https://shuvrasankha.github.io/spendwise-android/delete-account.html
 - Contact email: contact.spend.wise.app@gmail.com
 
 ---
 
-## Fix before uploading: the install permission
+## Uploading a build
 
-The manifest asks for `REQUEST_INSTALL_PACKAGES` so the GitHub build can install its own updates.
-Play allows that permission only for apps whose core purpose is installing other apps, and its
-Device and Network Abuse policy forbids a Play app updating itself outside Play. The updater is off
-when Play installed the app, but the permission and the download code are still in the bundle, so
-review is likely to reject it.
-
-Fix: a `play` build without the permission or the GitHub updater, and a `github` build with them.
-Until then, don't upload.
+- Upload `app-play-release.aab` from `./gradlew bundlePlayRelease` (the `play` flavor, package `com.spendwise.money`).
+- App signing: Google-generated key. The release key is the upload key.
+- Every upload needs a new versionCode. To put a build Play already has on another track
+  (internal → closed), use **Add from library**, not Upload.
+- After the first upload, copy the App signing SHA-1 and SHA-256 (App integrity › App signing)
+  into the `com.spendwise.money` app in Firebase, or Google sign-in fails for Play installs.
 
 ---
 
@@ -35,10 +33,13 @@ the 6 November 2026 text.
 **All or some functionality is restricted.** Everything is behind sign-in.
 
 Give reviewers a working email and password account with some sample data in it (expenses, income,
-a budget, a goal, a holding, a debt). Instructions to paste:
+a budget, a goal, a holding, a debt). The email must be verified, so use an inbox you can open,
+such as a Gmail `+review` alias. Name the sign-in details "Review account". Instructions to paste:
 
-> Sign in with the email and password below. The account has sample data. AI features use
-> SpendWise AI by default; no API key is needed.
+> Sign in with email and password (not "Continue with Google"). The account already has sample
+> data. AI features work with the built-in SpendWise AI; no API key or payment is needed.
+
+Never delete the account or change its password: Play reuses it to review every update.
 
 Don't give your own account. Create one for review.
 
@@ -175,12 +176,11 @@ The public holiday calendar download sends no user data. It names only the count
 - Phone screenshots, at least 2: still needed. The ones in `docs/playstore/raw/` show the Home
   screen from before 1.8.1, so take new ones.
 
-## Release › Release notes for 1.8.1 (500 characters max)
+## Release › Release notes for 1.8.2, the first Play release (500 characters max)
 
-> • AI budget suggestions now allow for festivals, last year's same month, your goals and your plans
-> • The AI chat can see your investments
-> • Clearer category names, with a hint for each
-> • Quick income sources: Salary, Freelance, Interest and more
-> • A "Today" mark on the spending bar
-> • Repeat, tags and split always visible when adding an expense
-> • Set button to switch AI provider
+> First release on Google Play.
+> • Track spending, income, debts, budgets, goals and investments, synced with the SpendWise web app
+> • AI budget suggestions that allow for festivals, last year's same month, your goals and your plans
+> • Ask the AI about your money; sums are worked out exactly on your phone
+> • Use SpendWise AI or your own API key
+> • Home-screen widget, daily reminder, app lock, light and dark themes

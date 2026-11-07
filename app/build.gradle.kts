@@ -40,7 +40,11 @@ android {
     // has the install permission and the GitHub updater; the Play build updates through Play.
     flavorDimensions += "store"
     productFlavors {
-        create("play") { dimension = "store" }
+        create("play") {
+            dimension = "store"
+            // com.spendwise.app is taken on Play; the GitHub build keeps it so its users still get updates
+            applicationId = "com.spendwise.money"
+        }
         create("github") { dimension = "store" }
     }
 
