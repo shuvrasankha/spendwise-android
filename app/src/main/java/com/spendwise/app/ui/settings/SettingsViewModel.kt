@@ -177,9 +177,26 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { auth.signOut() }
     }
 
-    /** Called once the phone's check passed: turning it off needs the same check as opening the app. */
-    fun setLock(on: Boolean) {
-        viewModelScope.launch { lock.setOn(on) }
+    // ── App lock: the PIN, and fingerprint or face standing in for it ──
+
+    val lockHasPin: StateFlow<Boolean> = lock.hasPin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val lockBiometric: StateFlow<Boolean> = lock.biometric.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    suspend fun tryPin(pin: String) = lock.tryPin(pin)
+    suspend fun pinWaitLeft() = lock.waitLeft()
+
+    /** Turns the lock on, or changes the PIN. */
+    fun setPin(pin: String) {
+        viewModelScope.launch { lock.setPin(pin) }
+    }
+
+    /** Called once the PIN (or, for a lock from before PINs, the phone's check) passed. */
+    fun lockOff() {
+        viewModelScope.launch { lock.turnOff() }
+    }
+
+    fun setLockBiometric(on: Boolean) {
+        viewModelScope.launch { lock.setBiometric(on) }
     }
 
     // ── Check for updates (GitHub installs; a Play install opens its Play listing) ──

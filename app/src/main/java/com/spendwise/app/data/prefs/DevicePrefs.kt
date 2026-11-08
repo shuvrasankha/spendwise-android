@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.spendwise.app.domain.PinFails
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.Currency
@@ -178,6 +180,39 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (on) it[APP_LOCK] = true else it.remove(APP_LOCK) }
     }
 
+    /** The lock's PIN record (domain/AppLock.kt › pinRecord), or null: a lock from before PINs uses the screen lock. */
+    val lockPin: Flow<String?> = store.data.map { it[LOCK_PIN] }
+
+    /** A new PIN also clears the wrong-PIN count. */
+    suspend fun setLockPin(record: String) {
+        store.edit {
+            it[LOCK_PIN] = record
+            it.remove(PIN_FAILS); it.remove(PIN_FAILED_AT); it.remove(PIN_FAILED_BOOT)
+        }
+    }
+
+    /** Fingerprint or face may stand in for the PIN. */
+    val lockBiometric: Flow<Boolean> = store.data.map { it[LOCK_BIOMETRIC] == true }
+
+    suspend fun setLockBiometric(on: Boolean) {
+        store.edit { if (on) it[LOCK_BIOMETRIC] = true else it.remove(LOCK_BIOMETRIC) }
+    }
+
+    val pinFails: Flow<PinFails> = store.data.map { PinFails(it[PIN_FAILS] ?: 0, it[PIN_FAILED_AT], it[PIN_FAILED_BOOT]) }
+
+    suspend fun setPinFails(f: PinFails) {
+        store.edit {
+            it[PIN_FAILS] = f.count
+            if (f.at == null) it.remove(PIN_FAILED_AT) else it[PIN_FAILED_AT] = f.at
+            if (f.boot == null) it.remove(PIN_FAILED_BOOT) else it[PIN_FAILED_BOOT] = f.boot
+        }
+    }
+
+    /** App lock off, with its PIN: on sign-out, so the next account on this phone isn't locked out by it. */
+    suspend fun forgetLock() {
+        store.edit { p -> listOf(APP_LOCK, LOCK_PIN, LOCK_BIOMETRIC, PIN_FAILS, PIN_FAILED_AT, PIN_FAILED_BOOT).forEach { p.remove(it) } }
+    }
+
     /** The Sunday "week in money" note; off unless switched on. Per device, never synced. */
     val weeklyNote: Flow<Boolean> = store.data.map { it[WEEKLY_NOTE] == true }
 
@@ -261,6 +296,11 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
+        val LOCK_PIN = stringPreferencesKey("lock_pin")
+        val LOCK_BIOMETRIC = booleanPreferencesKey("lock_biometric")
+        val PIN_FAILS = intPreferencesKey("pin_fails")
+        val PIN_FAILED_AT = longPreferencesKey("pin_failed_at")
+        val PIN_FAILED_BOOT = intPreferencesKey("pin_failed_boot")
         val HAPTIC_OFF = booleanPreferencesKey("haptic_off")
         val WEEKLY_NOTE = booleanPreferencesKey("weekly_note")
         val TOUR_SEEN = booleanPreferencesKey("tour_seen")

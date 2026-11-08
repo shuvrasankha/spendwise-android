@@ -74,6 +74,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,7 +92,10 @@ import com.spendwise.app.ui.components.SwField
 import com.spendwise.app.ui.components.SwSheet
 import com.spendwise.app.ui.components.Trailing
 import com.spendwise.app.ui.icons.SwIcons
-import com.spendwise.app.ui.lock.canLock
+import com.spendwise.app.ui.lock.PinCheckPad
+import com.spendwise.app.ui.lock.SetPinPad
+import com.spendwise.app.ui.lock.canUseBiometric
+import com.spendwise.app.ui.lock.confirmBiometric
 import com.spendwise.app.ui.lock.findActivity
 import com.spendwise.app.ui.lock.confirmIdentity
 import com.spendwise.app.ui.theme.Spacing
@@ -113,6 +117,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
+    var pinStep by rememberSaveable { mutableStateOf<PinStep?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
     val weeklyOn by viewModel.weeklyNote.collectAsStateWithLifecycle()
     val askWeeklyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.setWeeklyNote(true, it) }
@@ -176,15 +181,39 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
             }
 
             val activity = LocalContext.current.findActivity()
-            if (remember { canLock(activity) }) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingsGroup("Security") {
-                        SettingsRow("App lock", icon = SwIcons.Lock, trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
+            val hasPin by viewModel.lockHasPin.collectAsStateWithLifecycle()
+            val bioOn by viewModel.lockBiometric.collectAsStateWithLifecycle()
+            val bioAvailable = remember { canUseBiometric(activity) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Security") {
+                    SettingsRow("App lock", icon = SwIcons.Lock, trailing = Trailing.Switch(state.lockOn) { on ->
+                        when {
+                            on -> pinStep = PinStep.Set
+                            hasPin -> pinStep = PinStep.Off
+                            else -> activity.confirmIdentity { ok -> if (ok) viewModel.lockOff() } // a lock from before PINs
+                        }
+                    })
+                    if (state.lockOn && hasPin) {
+                        SettingsRow("Change PIN", icon = SwIcons.Lock, divider = true, onClick = { pinStep = PinStep.Change })
+                        if (bioAvailable) SettingsRow("Unlock with fingerprint or face", icon = SwIcons.Shield, divider = true, trailing = Trailing.Switch(bioOn) { on ->
+                            if (on) activity.confirmBiometric { ok -> if (ok) viewModel.setLockBiometric(true) } else viewModel.setLockBiometric(false)
+                        })
                     }
-                    Text(
-                        "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
-                        style = SwType.label, color = c.textMuted, modifier = gutter,
-                    )
+                }
+                Text(
+                    "Asks for your PIN when SpendWise opens, and after 5 minutes away. Forgot it? Sign out from the lock screen and sign in again. This device only.",
+                    style = SwType.label, color = c.textMuted, modifier = gutter,
+                )
+            }
+            pinStep?.let { step ->
+                val close = { pinStep = null }
+                Dialog(close, DialogProperties(usePlatformDefaultWidth = false)) {
+                    when (step) {
+                        PinStep.Set -> SetPinPad("Choose a PIN", { viewModel.setPin(it); close() }, onCancel = close)
+                        PinStep.NewPin -> SetPinPad("Choose a new PIN", { viewModel.setPin(it); close() }, onCancel = close)
+                        PinStep.Off -> PinCheckPad("Enter your PIN to turn off app lock", viewModel::tryPin, viewModel::pinWaitLeft, onOk = { viewModel.lockOff(); close() }, onCancel = close)
+                        PinStep.Change -> PinCheckPad("Enter your current PIN", viewModel::tryPin, viewModel::pinWaitLeft, onOk = { pinStep = PinStep.NewPin }, onCancel = close)
+                    }
                 }
             }
 
@@ -282,6 +311,9 @@ private fun ChangePasswordSheet(form: PasswordChange, vm: SettingsViewModel) {
 private const val PLAY_URL = "https://play.google.com/store/apps/details?id="
 
 // The contact address from the privacy policy (docs/privacy-policy.html)
+/** The PIN pad Settings is showing, if any. */
+private enum class PinStep { Set, Off, Change, NewPin }
+
 private const val FEEDBACK_EMAIL = "contact.spend.wise.app@gmail.com"
 
 /** Opens the email app addressed to us, with the version and device filled in so reports say what they ran on. */
