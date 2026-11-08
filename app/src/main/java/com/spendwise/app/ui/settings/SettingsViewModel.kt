@@ -35,6 +35,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import com.spendwise.app.domain.todayStr
+import com.spendwise.app.domain.autoBills
+import com.spendwise.app.domain.AutoBill
+import com.spendwise.app.data.expenses.ExpenseRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -98,6 +105,7 @@ fun updateNote(check: UpdateCheck): String? = when (check) {
     else -> null
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: DevicePrefs,
@@ -108,6 +116,7 @@ class SettingsViewModel @Inject constructor(
     private val updater: GithubUpdater,
     private val lock: AppLock,
     private val icons: AppIconSwitcher,
+    private val expenses: ExpenseRepository,
 ) : ViewModel() {
 
     /** A note from the last tap (blocked, failed), shown instead of the usual one until the next change. */
@@ -175,6 +184,27 @@ class SettingsViewModel @Inject constructor(
     /** The auth gate shows the sign-in screen once this lands. */
     fun logOut() {
         viewModelScope.launch { auth.signOut() }
+    }
+
+    // ── Repeating bills added automatically (opt-in, this account on this device) ──
+
+    val autoBillsOn: StateFlow<Boolean> = auth.authState
+        .flatMapLatest { s -> (s as? AuthState.SignedIn)?.let { prefs.autoBills(it.user.uid) } ?: flowOf(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** What turning it on adds straight away (this month's due bills not yet entered or skipped), or null if it can't tell. */
+    suspend fun autoBillsPreview(): List<AutoBill>? = runCatching {
+        val uid = checkNotNull(auth.currentUid)
+        val skipped = prefs.skippedBills.first()
+        autoBills(uid, expenses.expenses().first(), todayStr(), null) { key, month -> "$key:$month" in skipped }
+    }.getOrNull()
+
+    fun setAutoBills(on: Boolean) {
+        val uid = auth.currentUid ?: return
+        viewModelScope.launch {
+            prefs.setAutoBills(uid, on)
+            if (on) scheduler.runDailyNow()
+        }
     }
 
     // ── App lock: the PIN, and fingerprint or face standing in for it ──

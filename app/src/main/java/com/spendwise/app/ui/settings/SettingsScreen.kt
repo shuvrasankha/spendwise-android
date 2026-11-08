@@ -74,6 +74,11 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.spendwise.app.ui.format.formatWhole
+import com.spendwise.app.domain.billTitle
+import com.spendwise.app.domain.AutoBill
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -178,6 +183,36 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                     }, divider = true)
                 }
                 state.reminderNote?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
+            }
+
+            val autoOn by viewModel.autoBillsOn.collectAsStateWithLifecycle()
+            var autoPreview by remember { mutableStateOf<AutoPreview?>(null) }
+            val scope = rememberCoroutineScope()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Repeating bills") {
+                    SettingsRow("Add them automatically", icon = SwIcons.Receipt, trailing = Trailing.Switch(autoOn) { on ->
+                        if (on) scope.launch { autoPreview = AutoPreview(viewModel.autoBillsPreview()) } else viewModel.setAutoBills(false)
+                    })
+                }
+                Text(
+                    "Bills set to repeat monthly are added on their due day, on this phone, when it's online. Off: they wait under Due this month for you to add.",
+                    style = SwType.label, color = c.textMuted, modifier = gutter,
+                )
+            }
+            autoPreview?.let { (bills) ->
+                val money = { n: Double -> formatWhole(n, state.currency) }
+                AlertDialog(
+                    onDismissRequest = { autoPreview = null },
+                    title = { Text("Add repeating bills automatically?") },
+                    text = {
+                        Text(
+                            (if (bills == null) "Bills due this month that you haven't added yet are added now." else if (bills.isEmpty()) "Nothing is due yet this month." else "Adds now: " + bills.joinToString(", ") { "${billTitle(it.template)} ${money(it.template.amount)}" } + ".") +
+                                " After that, each bill is added on its due day. You can edit or delete them like any entry.",
+                        )
+                    },
+                    confirmButton = { TextButton({ autoPreview = null; viewModel.setAutoBills(true) }) { Text("Turn on") } },
+                    dismissButton = { TextButton({ autoPreview = null }) { Text("Cancel") } },
+                )
             }
 
             val activity = LocalContext.current.findActivity()
@@ -311,6 +346,9 @@ private fun ChangePasswordSheet(form: PasswordChange, vm: SettingsViewModel) {
 private const val PLAY_URL = "https://play.google.com/store/apps/details?id="
 
 // The contact address from the privacy policy (docs/privacy-policy.html)
+/** The bills turning on automatic bills adds now; null when they couldn't be read. */
+private data class AutoPreview(val bills: List<AutoBill>?)
+
 /** The PIN pad Settings is showing, if any. */
 private enum class PinStep { Set, Off, Change, NewPin }
 

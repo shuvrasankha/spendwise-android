@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.spendwise.app.data.worker.PushSync
 import com.spendwise.app.reminder.BudgetAlertSync
+import com.spendwise.app.reminder.DailyWorker
 import com.spendwise.app.reminder.ReminderSync
 import com.spendwise.app.widget.TodayWidgetSync
 import dagger.hilt.android.HiltAndroidApp
@@ -23,6 +24,7 @@ class SpendWiseApp : Application() {
         pushSync.start()
         widgetSync.start()
         budgetAlerts.start()
+        DailyWorker.schedule(this)
         // Crash reports carry the uid only, so a tester's report can be matched; never amounts or names
         FirebaseAuth.getInstance().addAuthStateListener { FirebaseCrashlytics.getInstance().setUserId(it.currentUser?.uid ?: "") }
     }

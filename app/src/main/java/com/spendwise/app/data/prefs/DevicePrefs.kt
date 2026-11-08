@@ -173,6 +173,24 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (json == null) it.remove(COACH_CHAT) else it[COACH_CHAT] = json }
     }
 
+    /** This account adds its repeating bills automatically on this device (off until turned on). */
+    fun autoBills(uid: String): Flow<Boolean> = store.data.map { it[booleanPreferencesKey("auto_bills:$uid")] == true }
+
+    /** Turning it off also forgets how far it got, so turning it on again starts from this month. */
+    suspend fun setAutoBills(uid: String, on: Boolean) {
+        store.edit {
+            if (on) it[booleanPreferencesKey("auto_bills:$uid")] = true else it.remove(booleanPreferencesKey("auto_bills:$uid"))
+            if (!on) it.remove(stringPreferencesKey("auto_bills_through:$uid"))
+        }
+    }
+
+    /** The last month ("YYYY-MM") the automatic run finished for this account, or null before the first. */
+    fun autoBillsThrough(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("auto_bills_through:$uid")] }
+
+    suspend fun setAutoBillsThrough(uid: String, month: String) {
+        store.edit { it[stringPreferencesKey("auto_bills_through:$uid")] = month }
+    }
+
     /** App lock is on for this device (app-lock.js › spendwise_lock); never synced (spec §7.7). */
     val appLock: Flow<Boolean> = store.data.map { it[APP_LOCK] == true }
 
