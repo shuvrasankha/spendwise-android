@@ -9,6 +9,7 @@ import com.spendwise.app.domain.Goal
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.domain.Debt
+import com.spendwise.app.domain.DebtPlan
 import com.spendwise.app.domain.DebtInput
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.HoldingFields
@@ -106,6 +107,8 @@ class DebtRepository @Inject constructor(
         update(id, confirmClaimFields(paid, settles, date, FieldValue.delete()))
 
     fun reopen(id: String, paid: List<Payment>?) = update(id, reopenFields(paid))
+
+    fun setPlan(id: String, plan: DebtPlan?) = update(id, planFields(plan, FieldValue.delete()))
 
     /** Field-path updates only, so fields this client doesn't know about are kept. */
     private fun update(id: String, fields: Map<String, Any>) = PendingWrite(id, collection.document(id).update(fields))
