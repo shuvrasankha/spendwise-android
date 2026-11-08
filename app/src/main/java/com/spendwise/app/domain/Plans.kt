@@ -24,6 +24,29 @@ fun checkBudget(totalText: String, cats: Map<String, String>): Checked<Budget> {
     return Checked.Ok(Budget(total, limits))
 }
 
+/** The line under "Limits by category": what they add up to against the monthly limit, and whether that's over it. Android only. */
+data class CatLimits(val text: String, val over: Boolean)
+
+/** One category's limit as a whole percent of the monthly limit, "8% of the monthly limit"; null unless both are set. */
+fun limitShare(limitText: String, totalText: String): String? {
+    val limit = moneyNum(limitText) ?: return null
+    val total = moneyNum(totalText) ?: return null
+    val pct = Math.round(limit / total * 100)
+    return if (pct == 0L) "Under 1% of the monthly limit" else "$pct% of the monthly limit"
+}
+
+fun catLimits(totalText: String, cats: Map<String, String>, money: (Double) -> String): CatLimits? {
+    val sum = round2(cats.values.sumOf { moneyNum(it) ?: 0.0 })
+    if (sum <= 0) return null
+    val total = moneyNum(totalText)
+    return when {
+        total == null -> CatLimits("Category limits add up to ${money(sum)}.", false)
+        sum > total -> CatLimits("Category limits add up to ${money(sum)}, ${money(round2(sum - total))} more than the monthly limit.", true)
+        sum == total -> CatLimits("Category limits use all of the monthly limit.", false)
+        else -> CatLimits("${money(sum)} (${Math.round(sum / total * 100)}%) split across categories, ${money(round2(total - sum))} left for the rest.", false)
+    }
+}
+
 // ── Goals (goals.js) ─────────────────────────────────────────────────────────
 
 const val MAX_GOALS = 20
