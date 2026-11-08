@@ -299,7 +299,8 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
         if (h.todays.isEmpty()) {
             Caption(if (firstTime) "Start tracking. It takes a few seconds." else "Nothing added today yet.")
             Box(Modifier.padding(horizontal = 8.dp)) {
-                SwButton(if (firstTime) "Add your first expense" else "Add an expense", onAddExpense, style = ButtonStyle.Text, compact = true)
+                if (firstTime) SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp))
+                else SwButton("Add an expense", onAddExpense, style = ButtonStyle.Text, compact = true)
             }
         } else {
             h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
