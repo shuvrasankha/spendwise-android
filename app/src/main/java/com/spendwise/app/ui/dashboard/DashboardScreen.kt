@@ -205,7 +205,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true, paceLabel = "Today") }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), over = over, tiered = true) }
                 Row(Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     // Same colour as the bar; "Near limit" is the app's NEAR level (80%), otherwise the pace check
                     StatusPill(
@@ -229,7 +229,7 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
                 val over = m.ratio > 1
                 val text = if (over) "${money(m.spent - m.income)} more than your ${money(m.income)} income"
                 else "${Math.round(m.ratio * 100)}% of your ${money(m.income)} income · ${money(m.income - m.spent)} left"
-                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.ratio.toFloat(), pace = pace, paceLabel = "Today") }
+                Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.ratio.toFloat()) }
                 Caption(text, if (over) c.negative else Color.Unspecified)
             }
             null -> Caption("Add this month's income to see how much is left.")
@@ -301,9 +301,9 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
         }
         if (h.todays.isEmpty()) {
             Caption(if (firstTime) "Start tracking. It takes a few seconds." else "Nothing added today yet.")
-            Box(Modifier.padding(horizontal = 8.dp)) {
-                if (firstTime) SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp))
-                else SwButton("Add an expense", onAddExpense, Modifier.padding(horizontal = 8.dp, vertical = 8.dp), style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Plus)
+            Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 12.dp)) {
+                if (firstTime) SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth())
+                else SwButton("Add an expense", onAddExpense, style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Plus)
             }
         } else {
             h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
@@ -403,7 +403,8 @@ private fun Recent(o: OverTime, currency: Currency, onOpenHistory: (String?, Str
         SectionHeader("Recent", icon = SwIcons.History, action = if (o.rows.size > LATEST_ROWS) "Show more" else null, onAction = { onOpenHistory(range?.first, range?.second) })
         if (o.rows.isEmpty()) Caption("No expenses in this period.")
         o.rows.take(LATEST_ROWS).groupBy { it.date }.forEach { (date, rows) ->
-            DayHeader(formatDate(date), money(rows.sumOf { it.amount }))
+            // A day with one entry would show the same amount twice
+            DayHeader(formatDate(date), if (rows.size > 1) money(rows.sumOf { it.amount }) else "")
             rows.forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
         }
     }
@@ -427,6 +428,7 @@ private fun Score(h: HomeFigures, onAddIncome: () -> Unit) {
             Text("${s.score}", style = SwType.title, color = if (s.score < 40) c.negative else c.text)
             Text(s.label, style = SwType.body, color = c.text, modifier = Modifier.padding(bottom = 4.dp))
         }
+        Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 8.dp)) { BudgetBar(s.score / 100f, over = s.score < 40) }
         Caption(s.tip)
         if (open) s.parts.forEach { part ->
             val pct = Math.round(part.value * 100)
