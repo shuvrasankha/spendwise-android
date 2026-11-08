@@ -254,6 +254,7 @@ fun SettingsRow(
     icon: ImageVector? = null,
     trailing: Trailing = Trailing.Chevron,
     divider: Boolean = false,
+    sub: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val c = SpendWiseTheme.colors
@@ -267,7 +268,10 @@ fun SettingsRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (icon != null) Crossfade(icon, label = "rowIcon") { Icon(it, null, Modifier.size(20.dp), tint = c.textMuted) }
-            Text(title, style = SwType.body, color = c.text, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f).padding(vertical = if (sub != null) 10.dp else 0.dp)) {
+                Text(title, style = SwType.body, color = c.text)
+                if (sub != null) Text(sub, style = SwType.label, color = c.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             when (trailing) {
                 Trailing.Chevron -> Icon(SwIcons.ChevronRight, null, Modifier.size(18.dp), tint = c.textFaint)
                 Trailing.None -> Unit

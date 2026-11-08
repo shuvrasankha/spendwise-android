@@ -173,3 +173,27 @@ fun daySpendDetail(entries: Int): String = when (entries) {
     1 -> "1 expense"
     else -> "$entries expenses"
 }
+
+/** The one-line summaries under the More page's Money rows, from the figures Home shows. Android only. */
+data class MoreSummary(val income: String, val debts: String, val invested: String, val budget: String, val goals: String)
+
+fun moreSummary(f: HomeFigures, money: (Double) -> String): MoreSummary = moreSummary(
+    f.income, f.owe, f.owed, f.invested, f.spent, f.budget.total, f.goals.size, f.goals.count { it.pace.level == GoalLevel.DONE }, money,
+)
+
+internal fun moreSummary(
+    income: Double, owe: Double, owed: Double, invested: Double, spent: Double, budget: Double?, goals: Int, reached: Int,
+    money: (Double) -> String,
+) = MoreSummary(
+    income = if (income > 0) "${money(income)} this month" else "Nothing added this month",
+    debts = listOfNotNull(
+        if (owe > 0) "You owe ${money(owe)}" else null,
+        if (owed > 0) "${money(owed)} owed to you" else null,
+    ).joinToString(" · ").ifEmpty { "All settled" },
+    invested = if (invested > 0) "${money(invested)} put in this month" else "Nothing put in this month",
+    budget = monthSpendDetail(spent, budget, money),
+    goals = when (goals) {
+        0 -> "No goals yet"
+        else -> (if (goals == 1) "1 goal" else "$goals goals") + if (reached > 0) ", $reached reached" else ""
+    },
+)
