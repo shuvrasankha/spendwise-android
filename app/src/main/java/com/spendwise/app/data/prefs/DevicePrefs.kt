@@ -206,10 +206,16 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
     }
 
     /** The budget alert last sent to this account on this device, "YYYY-MM:NEAR|OVER" (domain/BudgetAlert.kt). */
-    fun budgetAlertSent(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("budget_alert:$uid")] }
+    /** Budget alerts sent ("YYYY-MM:category:LEVEL"); the old single "YYYY-MM:LEVEL" record reads as the total's. */
+    fun budgetAlertsSent(uid: String): Flow<Set<String>> = store.data.map { p ->
+        p[stringSetPreferencesKey("budget_alerts:$uid")].orEmpty() + listOfNotNull(p[stringPreferencesKey("budget_alert:$uid")]?.replaceFirst(":", ":*:"))
+    }
 
-    suspend fun setBudgetAlertSent(uid: String, sent: String) {
-        store.edit { it[stringPreferencesKey("budget_alert:$uid")] = sent }
+    suspend fun setBudgetAlertsSent(uid: String, sent: Set<String>) {
+        store.edit {
+            it[stringSetPreferencesKey("budget_alerts:$uid")] = sent
+            it.remove(stringPreferencesKey("budget_alert:$uid"))
+        }
     }
 
     /** Today's AI use of one feature by this account, as "YYYY-MM-DD:n" (AiAllowance). */
