@@ -205,10 +205,8 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
-                val text = if (over) "${money(-m.state.left)} over your ${money(m.total)} budget"
-                else "${Math.round(m.state.ratio * 100)}% of your ${money(m.total)} budget · ${money(m.state.left)} left"
                 Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), pace = pace, over = over, tiered = true, paceLabel = "Today") }
-                Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     // Same colour as the bar; "Near limit" is the app's NEAR level (80%), otherwise the pace check
                     StatusPill(
                         when {
@@ -219,8 +217,13 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
                         },
                         color = budgetTierColor(m.state.ratio.toFloat()),
                     )
-                    Text(text, style = SwType.label, color = if (over) c.negative else c.textMuted, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        if (over) "${money(-m.state.left)} over" else "${money(m.state.left)} left",
+                        style = SwType.bodyStrong, color = if (over) c.negative else c.text,
+                    )
                 }
+                Caption("${Math.round(m.state.ratio * 100)}% of your ${money(m.total)} budget")
             }
             is Meter.Income -> {
                 val over = m.ratio > 1
@@ -232,10 +235,10 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
             null -> Caption("Add this month's income to see how much is left.")
         }
         if (h.perDay != null && h.forecastTotal != null) {
-            Caption("${money(h.perDay)} a day · on track for ${money(h.forecastTotal)} by the end of ${h.monthName}")
+            Caption("${money(Math.round(h.perDay).toDouble())} a day · on track for ${money(Math.round(h.forecastTotal).toDouble())} by the end of ${h.monthName}")
         }
-        Box(Modifier.padding(horizontal = Spacing.gutter).padding(bottom = 8.dp)) {
-            SwButton(if (h.budget.total != null) "Update budget" else "Set a monthly budget", onBudget, style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Receipt)
+        Box(Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)) {
+            SwButton(if (h.budget.total != null) "Update budget" else "Set a monthly budget", onBudget, style = ButtonStyle.Text, compact = true, leading = SwIcons.Receipt)
         }
     }
 }
@@ -300,7 +303,7 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
             Caption(if (firstTime) "Start tracking. It takes a few seconds." else "Nothing added today yet.")
             Box(Modifier.padding(horizontal = 8.dp)) {
                 if (firstTime) SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp))
-                else SwButton("Add an expense", onAddExpense, style = ButtonStyle.Text, compact = true)
+                else SwButton("Add an expense", onAddExpense, Modifier.padding(horizontal = 8.dp, vertical = 8.dp), style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Plus)
             }
         } else {
             h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
