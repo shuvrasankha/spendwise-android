@@ -24,7 +24,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.spendwise.app.ui.components.SwField
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +54,7 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 
-/** Import from a bank statement (csv-upload.js): pick a CSV, the AI sorts it, you check the rows, then save. */
+/** Import from a bank statement (csv-upload.js): pick a CSV, PDF or Excel file, the AI sorts it, you check the rows, then save. */
 @Composable
 fun CsvImportScreen(onDone: () -> Unit, vm: CsvImportViewModel = hiltViewModel()) {
     val phase by vm.phase.collectAsStateWithLifecycle()
@@ -65,13 +72,25 @@ fun CsvImportScreen(onDone: () -> Unit, vm: CsvImportViewModel = hiltViewModel()
                 is CsvPhase.Upload -> Column(body, verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("AI sorts a bank statement into expenses and income, and you check every row before saving.", style = SwType.body, color = c.textMuted)
                     SwButton(
-                        "Choose a CSV file", { pick.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "application/vnd.ms-excel")) },
+                        "Choose a file", { pick.launch(STATEMENT_TYPES) },
                         Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.Upload,
                     )
                     Text(p.fileName ?: "No file selected", style = SwType.label, color = c.textMuted)
-                    Text("Up to 200 rows and 512 KB.", style = SwType.caption, color = c.textFaint)
+                    Text("CSV, PDF or Excel (.xlsx). Up to 200 rows; a PDF of about a month.", style = SwType.caption, color = c.textFaint)
+                    // Reset when another file is picked; the password is never saved
+                    var password by rememberSaveable(p.fileName) { mutableStateOf("") }
+                    if (p.needsPassword) {
+                        Text("This PDF is locked. Enter the password your bank gave for it.", style = SwType.body, color = c.text)
+                        SwField(
+                            password, { password = it }, "PDF password", leading = SwIcons.Lock, visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+                        )
+                    }
                     p.note?.let { Text(it, style = SwType.label, color = c.negative) }
-                    SwButton("Read with AI", vm::parse, Modifier.fillMaxWidth(), enabled = p.fileName != null)
+                    SwButton(
+                        "Read with AI", { vm.parse(password.takeIf { p.needsPassword }) }, Modifier.fillMaxWidth(),
+                        enabled = p.fileName != null && (!p.needsPassword || password.isNotEmpty()),
+                    )
                 }
                 is CsvPhase.Processing -> Busy(body, p.step)
                 CsvPhase.Saving -> Busy(body, "Saving…")
@@ -91,11 +110,11 @@ fun CsvImportScreen(onDone: () -> Unit, vm: CsvImportViewModel = hiltViewModel()
     if (consent) {
         AlertDialog(
             onDismissRequest = { vm.answerConsent(false) },
-            title = { Text("CSV Upload Consent") },
+            title = { Text("Statement Upload Consent") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Your CSV file will be sent to an AI service (Cloudflare Workers AI) for automatic column detection and transaction extraction.")
-                    Text("What is sent: The raw CSV content including all columns and rows (max 200 rows).")
+                    Text("Your statement will be sent to an AI service (Cloudflare Workers AI) for automatic column detection and transaction extraction.")
+                    Text("What is sent: The statement's rows from the table heading on, including all columns (max 200 rows). A PDF or Excel file is read on your phone and only its text is sent.")
                     Text("What happens: AI analyzes the data to detect columns, categories, and dates, then returns structured transaction data.")
                     Text("Your data is processed securely and is not stored by the AI service. You can review and edit all detected transactions before importing.")
                 }
@@ -137,7 +156,7 @@ private fun Preview(p: CsvPhase.Preview, currency: Currency, vm: CsvImportViewMo
             }
         }
         // Selection is by row number in the parsed file, so that is the row's identity too
-        itemsIndexed(p.rows, key = { i, _ -> "tx-$i" }) { i, tx -> TxRow(tx, i in p.selected, currency) { vm.toggle(i) } }
+        itemsIndexed(p.rows, key = { i, _ -> "tx-$i" }) { i, tx -> TxRow(tx, i in p.selected, currency, { vm.flipType(i) }) { vm.toggle(i) } }
         item {
             Column(Modifier.padding(horizontal = Spacing.gutter, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 p.note?.let { Text(it, style = SwType.label, color = c.negative) }
@@ -161,7 +180,7 @@ private fun Tick(on: Boolean) {
 }
 
 @Composable
-private fun TxRow(tx: CsvTx, checked: Boolean, currency: Currency, onToggle: () -> Unit) {
+private fun TxRow(tx: CsvTx, checked: Boolean, currency: Currency, onFlip: () -> Unit, onToggle: () -> Unit) {
     val c = SpendWiseTheme.colors
     val isIncome = tx.type == "income"
     Row(
@@ -175,7 +194,16 @@ private fun TxRow(tx: CsvTx, checked: Boolean, currency: Currency, onToggle: () 
                 listOf(formatDate(tx.date), if (isIncome) "Income" else "Expense · ${tx.category}", tx.payment).joinToString(" · "),
                 style = SwType.caption, color = c.textMuted,
             )
+            TextButton(onFlip, contentPadding = PaddingValues(0.dp)) {
+                Text(if (isIncome) "Make it an expense" else "Make it income", style = SwType.label, color = c.text)
+            }
         }
         Text((if (isIncome) "+" else "") + formatAmount(tx.amount, currency), style = SwType.bodyStrong, color = if (isIncome) c.positive else c.text)
     }
 }
+
+/** CSV, PDF and Excel; "application/vnd.ms-excel" and text/plain too, as some apps label a CSV so. */
+private val STATEMENT_TYPES = arrayOf(
+    "text/csv", "text/comma-separated-values", "text/plain", "application/vnd.ms-excel", "application/pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+)
