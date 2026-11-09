@@ -42,6 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -90,9 +94,7 @@ import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
 import java.util.Locale
 import com.spendwise.app.domain.lastDays
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.foundation.Canvas
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -225,19 +227,26 @@ private fun Hero(h: HomeFigures, expenses: List<Expense>, currency: Currency, on
     val money = { n: Double -> formatAmount(n, currency) }
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
-    Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         val amount = formatNumber(countUp(h.spent), currency)
         val week = remember(expenses, today) { lastDays(expenses, today) }
         Row(verticalAlignment = Alignment.Bottom) {
             Metric("Spent in ${h.monthName}", currency.symbol, amount, Modifier.weight(1f), icon = SwIcons.Calendar)
             // shortcut: hidden for amounts over 8 characters, which need the full width; a smaller amount style would let it stay
-            if (formatNumber(h.spent, currency).length <= 8) WeekBars(week, money, Modifier.padding(end = Spacing.gutter, bottom = 6.dp))
+            if (formatNumber(h.spent, currency).length <= 8) WeekLine(week, money, Modifier.padding(end = Spacing.gutter, bottom = 6.dp))
         }
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
                 Box(Modifier.padding(horizontal = Spacing.gutter)) { BudgetBar(m.state.ratio.toFloat(), over = over, tiered = true) }
                 Row(Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.weight(1f)) {
+                        Text(
+                            if (over) "${money(-m.state.left)} over" else "${money(m.state.left)} left",
+                            style = SwType.bodyStrong, color = if (over) c.negative else c.text, modifier = Modifier.alignByBaseline(),
+                        )
+                        Text(" of ${money(m.total)}", style = SwType.label, color = c.textMuted, modifier = Modifier.alignByBaseline())
+                    }
                     // Same colour as the bar; "Near limit" is the app's NEAR level (80%), otherwise the pace check
                     StatusPill(
                         when {
@@ -248,13 +257,7 @@ private fun Hero(h: HomeFigures, expenses: List<Expense>, currency: Currency, on
                         },
                         color = budgetTierColor(m.state.ratio.toFloat()),
                     )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        if (over) "${money(-m.state.left)} over" else "${money(m.state.left)} left",
-                        style = SwType.bodyStrong, color = if (over) c.negative else c.text,
-                    )
                 }
-                Caption("${Math.round(m.state.ratio * 100)}% of your ${money(m.total)} budget")
             }
             is Meter.Income -> {
                 val over = m.ratio > 1
@@ -266,7 +269,7 @@ private fun Hero(h: HomeFigures, expenses: List<Expense>, currency: Currency, on
             null -> Caption("Add this month's income to see how much is left.")
         }
         if (h.perDay != null && h.forecastTotal != null) {
-            Caption("${money(Math.round(h.perDay).toDouble())} a day · on track for ${money(Math.round(h.forecastTotal).toDouble())} by the end of ${h.monthName}")
+            Caption("${money(Math.round(h.perDay).toDouble())} a day · about ${money(Math.round(h.forecastTotal).toDouble())} by month end")
         }
         Box(Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)) {
             SwButton(if (h.budget.total != null) "Update budget" else "Set a monthly budget", onBudget, style = ButtonStyle.Text, compact = true, leading = SwIcons.Receipt)
@@ -274,30 +277,33 @@ private fun Hero(h: HomeFigures, expenses: List<Expense>, currency: Currency, on
     }
 }
 
-/** The last 7 days as thin bars, today in the accent, with day initials. Its description says the same in words. */
+/** The last 7 days as a smooth line over a faint fill, today's point marked, with day initials under each point. Its description says the same in words. */
 @Composable
-private fun WeekBars(days: List<Pair<LocalDate, Double>>, money: (Double) -> String, modifier: Modifier = Modifier) {
+private fun WeekLine(days: List<Pair<LocalDate, Double>>, money: (Double) -> String, modifier: Modifier = Modifier) {
     val c = SpendWiseTheme.colors
     val max = days.maxOf { it.second }.takeIf { it > 0 } ?: 1.0
     val said = "Last 7 days: " + days.joinToString(", ") { (d, v) -> "${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)} ${money(v)}" }
-    Column(modifier.width(104.dp).clearAndSetSemantics { contentDescription = said }, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Last 7 days", style = SwType.caption, color = c.textMuted)
+    Column(modifier.width(104.dp).clearAndSetSemantics { contentDescription = said }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Canvas(Modifier.fillMaxWidth().height(44.dp)) {
-            val gap = 6.dp.toPx()
-            val w = (size.width - gap * (days.size - 1)) / days.size
-            val r = CornerRadius(w / 2, w / 2)
-            days.forEachIndexed { i, (_, v) ->
-                val h = if (v > 0) (v / max * size.height).toFloat().coerceAtLeast(w) else 2.dp.toPx()
-                val x = i * (w + gap)
-                drawRoundRect(
-                    if (i == days.lastIndex) c.accent else if (v > 0) c.textFaint else c.line,
-                    topLeft = Offset(x, size.height - h), size = Size(w, h), cornerRadius = r,
-                )
+            val step = size.width / days.size
+            val dot = 4.dp.toPx()
+            val points = days.mapIndexed { i, (_, v) -> Offset(step * (i + 0.5f), dot + (size.height - 2 * dot) * (1 - (v / max).toFloat())) }
+            // Each segment eases out and in at its points (control points at the midpoint's x), so a busy day reads as a hill, not a spike
+            val line = Path().apply {
+                moveTo(points[0].x, points[0].y)
+                points.zipWithNext { a, b -> val mid = (a.x + b.x) / 2; cubicTo(mid, a.y, mid, b.y, b.x, b.y) }
             }
+            val area = Path().apply { addPath(line); lineTo(points.last().x, size.height); lineTo(points[0].x, size.height); close() }
+            drawPath(area, c.accent.copy(alpha = 0.12f))
+            drawPath(line, c.accent, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawCircle(c.accent, dot, points.last())
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth()) {
             days.forEachIndexed { i, (d, _) ->
-                Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), style = SwType.caption, color = if (i == days.lastIndex) c.text else c.textFaint)
+                Text(
+                    d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), style = SwType.caption,
+                    color = if (i == days.lastIndex) c.text else c.textFaint, textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
+                )
             }
         }
     }

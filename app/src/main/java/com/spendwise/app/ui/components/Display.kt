@@ -315,7 +315,8 @@ fun budgetTierColor(ratio: Float): Color {
 fun countUp(value: Double): Double {
     val count = remember { Animatable(0f) }
     LaunchedEffect(value) { count.animateTo(value.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
-    return if (count.value == value.toFloat()) value else count.value.toDouble()
+    // Whole numbers while counting: a fractional step would make formatNumber flash paise and jump in width
+    return if (count.value == value.toFloat()) value else Math.round(count.value).toDouble()
 }
 
 /** A fraction that grows from 0 when first shown and eases to each new [target], so bars fill instead of snapping. */
