@@ -78,6 +78,12 @@ import com.spendwise.app.ui.theme.Spacing
 import com.spendwise.app.ui.theme.SpendWiseTheme
 import com.spendwise.app.ui.theme.SwType
 import java.time.LocalDate
+import java.util.Locale
+import com.spendwise.app.domain.lastDays
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.Canvas
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -150,7 +156,7 @@ fun DashboardScreen(
                 }
                 is DashboardState.Ready -> {
                     val money = { n: Double -> formatAmount(n, currency) }
-                    item { Hero(s.home, currency, plans::openBudget) }
+                    item { Hero(s.home, s.expenses, currency, plans::openBudget) }
                     item { Section(0.dp) { Tiles(s.home, money, onOpenIncome, onOpenDebts) } }
                     if (s.home.due.isNotEmpty()) item { Section { DueThisMonth(s.home.due, money, plans) } }
                     if (s.emis.isNotEmpty()) item { Section { Emis(s.emis, currency) } }
@@ -195,13 +201,19 @@ private fun Caption(text: String, color: Color = Color.Unspecified, modifier: Mo
     Text(text, style = SwType.label, color = if (color == Color.Unspecified) SpendWiseTheme.colors.textMuted else color, modifier = modifier.padding(horizontal = Spacing.gutter))
 
 @Composable
-private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
+private fun Hero(h: HomeFigures, expenses: List<Expense>, currency: Currency, onBudget: () -> Unit) {
     val c = SpendWiseTheme.colors
     val money = { n: Double -> formatAmount(n, currency) }
     val today = LocalDate.now()
     val pace = today.dayOfMonth.toFloat() / today.lengthOfMonth()
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Metric("Spent in ${h.monthName}", currency.symbol, formatNumber(countUp(h.spent), currency), icon = SwIcons.Calendar)
+        val amount = formatNumber(countUp(h.spent), currency)
+        val week = remember(expenses, today) { lastDays(expenses, today) }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Metric("Spent in ${h.monthName}", currency.symbol, amount, Modifier.weight(1f), icon = SwIcons.Calendar)
+            // shortcut: hidden for amounts over 8 characters, which need the full width; a smaller amount style would let it stay
+            if (formatNumber(h.spent, currency).length <= 8) WeekBars(week, money, Modifier.padding(end = Spacing.gutter, bottom = 6.dp))
+        }
         when (val m = h.meter) {
             is Meter.Budget -> {
                 val over = m.state.level == BudgetLevel.OVER
@@ -239,6 +251,35 @@ private fun Hero(h: HomeFigures, currency: Currency, onBudget: () -> Unit) {
         }
         Box(Modifier.padding(horizontal = 8.dp).padding(bottom = 12.dp)) {
             SwButton(if (h.budget.total != null) "Update budget" else "Set a monthly budget", onBudget, style = ButtonStyle.Text, compact = true, leading = SwIcons.Receipt)
+        }
+    }
+}
+
+/** The last 7 days as thin bars, today in the accent, with day initials. Its description says the same in words. */
+@Composable
+private fun WeekBars(days: List<Pair<LocalDate, Double>>, money: (Double) -> String, modifier: Modifier = Modifier) {
+    val c = SpendWiseTheme.colors
+    val max = days.maxOf { it.second }.takeIf { it > 0 } ?: 1.0
+    val said = "Last 7 days: " + days.joinToString(", ") { (d, v) -> "${d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)} ${money(v)}" }
+    Column(modifier.width(104.dp).clearAndSetSemantics { contentDescription = said }, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Last 7 days", style = SwType.caption, color = c.textMuted)
+        Canvas(Modifier.fillMaxWidth().height(44.dp)) {
+            val gap = 6.dp.toPx()
+            val w = (size.width - gap * (days.size - 1)) / days.size
+            val r = CornerRadius(w / 2, w / 2)
+            days.forEachIndexed { i, (_, v) ->
+                val h = if (v > 0) (v / max * size.height).toFloat().coerceAtLeast(w) else 2.dp.toPx()
+                val x = i * (w + gap)
+                drawRoundRect(
+                    if (i == days.lastIndex) c.accent else if (v > 0) c.textFaint else c.line,
+                    topLeft = Offset(x, size.height - h), size = Size(w, h), cornerRadius = r,
+                )
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            days.forEachIndexed { i, (d, _) ->
+                Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), style = SwType.caption, color = if (i == days.lastIndex) c.text else c.textFaint)
+            }
         }
     }
 }
@@ -288,7 +329,11 @@ private fun ExpenseRow(e: Expense, money: (Double) -> String, divider: Boolean, 
 private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money: (Double) -> String, onAddExpense: () -> Unit, onEdit: (String) -> Unit) {
     val c = SpendWiseTheme.colors
     Column {
-        SectionHeader("Today", icon = SwIcons.Clock, value = if (h.todays.isNotEmpty()) money(h.todaySpent) else null)
+        // With nothing yet, Add sits in the header, so the empty day is one compact block
+        SectionHeader(
+            "Today", icon = SwIcons.Clock, value = if (h.todays.isNotEmpty()) money(h.todaySpent) else null,
+            action = if (h.todays.isEmpty() && !firstTime) "Add" else null, actionIcon = SwIcons.Plus, onAction = onAddExpense,
+        )
         if (h.todays.isNotEmpty()) Caption(plural(h.todays.size, "entry", "entries"))
         val cmp = h.todayCompare
         if (cmp != null) {
@@ -301,10 +346,7 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
         }
         if (h.todays.isEmpty()) {
             Caption(if (firstTime) "Start tracking. It takes a few seconds." else "Nothing added today yet.")
-            Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 12.dp)) {
-                if (firstTime) SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth())
-                else SwButton("Add an expense", onAddExpense, style = ButtonStyle.Secondary, compact = true, leading = SwIcons.Plus)
-            }
+            if (firstTime) Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 12.dp)) { SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth()) }
         } else {
             h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
         }

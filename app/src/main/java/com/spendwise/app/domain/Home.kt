@@ -150,6 +150,10 @@ fun daySpend(expenses: List<Expense>, day: String): DaySpend {
     return DaySpend(spent.sumOf { it.amount }, spent.size)
 }
 
+/** Spending on each of the [days] days up to and including [today], oldest first; the Home hero's small chart. */
+fun lastDays(expenses: List<Expense>, today: LocalDate, days: Int = 7): List<Pair<LocalDate, Double>> =
+    (days - 1 downTo 0).map { back -> today.minusDays(back.toLong()).let { it to daySpend(expenses, it.toString()).total } }
+
 /** Spending (not savings) from the 1st of [today]'s month to [today], as the Dashboard counts it. */
 fun monthSpending(expenses: List<Expense>, today: String): Double =
     expenses.filter { it.date >= today.take(8) + "01" && it.date <= today && isSpending(it.category) }.sumOf { it.amount }
