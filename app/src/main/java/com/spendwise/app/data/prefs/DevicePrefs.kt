@@ -8,6 +8,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.spendwise.app.domain.PinFails
 import com.spendwise.app.domain.ReviewItem
+import com.spendwise.app.domain.Learned
+import com.spendwise.app.domain.afterSaving
+import com.spendwise.app.domain.learned
+import com.spendwise.app.domain.readLearned
+import com.spendwise.app.domain.writeLearned
 import com.spendwise.app.domain.SEEN_LIMIT
 import com.spendwise.app.domain.readReview
 import com.spendwise.app.domain.writeReview
@@ -262,9 +267,21 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         return fresh
     }
 
+    /** What was last saved for each payee, so its next SMS arrives with that category and description. */
+    val smsLearned: Flow<Map<String, Learned>> = store.data.map { readLearned(it[SMS_LEARNED]) }
+
+    /** [item] was saved with [category] and [description]: off the list, remembered for its payee, in one edit. */
+    suspend fun finishReview(item: ReviewItem, category: String, description: String) {
+        store.edit {
+            val memory = learned(readLearned(it[SMS_LEARNED]), item, category, description)
+            it[SMS_LEARNED] = writeLearned(memory)
+            it[SMS_REVIEW] = writeReview(afterSaving(readReview(it[SMS_REVIEW]), item, memory))
+        }
+    }
+
     /** On sign-out: the review list belongs to the account, so the next one here never sees it. */
     suspend fun forgetSmsLog() {
-        store.edit { p -> listOf(SMS_LOG, SMS_REVIEW, SMS_SEEN).forEach { p.remove(it) } }
+        store.edit { p -> listOf(SMS_LOG, SMS_REVIEW, SMS_SEEN, SMS_LEARNED).forEach { p.remove(it) } }
     }
 
     /** The Sunday "week in money" note; off unless switched on. Per device, never synced. */
@@ -353,6 +370,7 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val SMS_LOG = booleanPreferencesKey("sms_log")
         val SMS_REVIEW = stringPreferencesKey("sms_review")
         val SMS_SEEN = stringPreferencesKey("sms_seen")
+        val SMS_LEARNED = stringPreferencesKey("sms_learned")
         val LOCK_PIN = stringPreferencesKey("lock_pin")
         val LOCK_BIOMETRIC = booleanPreferencesKey("lock_biometric")
         val PIN_FAILS = intPreferencesKey("pin_fails")

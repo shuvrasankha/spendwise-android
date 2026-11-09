@@ -1,5 +1,9 @@
 package com.spendwise.app.ui.dashboard
 
+import androidx.compose.ui.text.style.TextOverflow
+import com.spendwise.app.domain.EXPENSE_CATEGORIES
+import com.spendwise.app.domain.toIncome
+import com.spendwise.app.domain.IncomeCheck
 import com.spendwise.app.ui.components.SwField
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.mutableStateMapOf
@@ -172,7 +176,7 @@ fun DashboardScreen(
                     val money = { n: Double -> formatAmount(n, currency) }
                     item { Hero(s.home, s.expenses, currency, plans::openBudget) }
                     item { Section(0.dp) { Tiles(s.home, money, onOpenIncome, onOpenDebts) } }
-                    if (pending.isNotEmpty()) item(key = "review") { Section { ToReview(pending, s.expenses, money, review, onAddExpense) } }
+                    if (pending.isNotEmpty()) item(key = "review") { Section { ToReview(pending, s.expenses, money, review, onAddExpense, onAddIncome) } }
                     if (s.home.due.isNotEmpty()) item { Section { DueThisMonth(s.home.due, money, plans) } }
                     if (s.emis.isNotEmpty()) item { Section { Emis(s.emis, currency) } }
                     item { Section { Today(s.home, s.firstTime, currency, money, onAddExpense, onEditExpense) } }
@@ -369,16 +373,21 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
 }
 
 /**
- * Bank SMS payments waiting for approval (domain › AutoLog). The description can be changed in place;
- * Edit opens the full form for anything else.
+ * Bank SMS payments and money in waiting for approval (domain › AutoLog). The description (or source) and the
+ * category can be changed in place; Edit opens the full form for anything else.
  */
 @Composable
-private fun ToReview(items: List<ReviewItem>, expenses: List<Expense>, money: (Double) -> String, vm: ReviewViewModel, onAddExpense: () -> Unit) {
+private fun ToReview(
+    items: List<ReviewItem>, expenses: List<Expense>, money: (Double) -> String, vm: ReviewViewModel,
+    onAddExpense: () -> Unit, onAddIncome: () -> Unit,
+) {
     val c = SpendWiseTheme.colors
-    // Edits outlive scrolling the section away; keyed by the payment's id
+    val income by vm.income.collectAsStateWithLifecycle()
+    // Edits outlive scrolling the section away; keyed by the item's id
     val edits = rememberSaveable(saver = mapSaver({ it.toMap() }, { m -> mutableStateMapOf<String, String>().apply { m.forEach { (k, v) -> put(k, v as String) } } })) {
         mutableStateMapOf<String, String>()
     }
+    var picking by remember { mutableStateOf<ReviewItem?>(null) }
     fun described(item: ReviewItem) = edits[item.id] ?: item.description
     Column {
         SectionHeader(
@@ -388,22 +397,49 @@ private fun ToReview(items: List<ReviewItem>, expenses: List<Expense>, money: (D
         )
         Caption("Read from your bank SMS. Nothing is saved until you approve it.")
         items.asReversed().forEachIndexed { i, item ->
+            val needsBank = item.income && item.toIncome(described(item)) !is IncomeCheck.Ok
+            val added = if (item.income) possiblyAdded(item, income) else possiblyAdded(item, expenses)
             Column(Modifier.padding(horizontal = Spacing.gutter).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (i > 0) HorizontalDivider(color = c.line, modifier = Modifier.padding(bottom = 4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(money(item.amount), style = SwType.stat, color = c.text, modifier = Modifier.weight(1f))
+                    Text(
+                        if (item.income) "+${money(item.amount)}" else money(item.amount), style = SwType.stat,
+                        color = if (item.income) c.positive else c.text, modifier = Modifier.weight(1f),
+                    )
                     Text(formatDate(item.date), style = SwType.label, color = c.textMuted)
                 }
-                Text(listOf(item.category, item.payment, item.cardName).filter { it.isNotEmpty() }.joinToString(" · "), style = SwType.label, color = c.textMuted)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (!item.income) SwButton(item.category, { picking = item }, style = ButtonStyle.Secondary, compact = true, leading = SwIcons.forCategory(item.category))
+                    Text(
+                        (if (item.income) listOf("Money in", item.payment, item.bank) else listOf(item.payment, item.cardName))
+                            .filter { it.isNotEmpty() }.joinToString(" · "),
+                        style = SwType.label, color = c.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 SwField(
-                    described(item), { edits[item.id] = it }, "Description", Modifier.fillMaxWidth(),
-                    supportingText = if (possiblyAdded(item, expenses)) "Possibly already added: an expense of ${money(item.amount)} is on this day." else null,
+                    described(item), { edits[item.id] = it }, if (item.income) "Source" else "Description", Modifier.fillMaxWidth(),
+                    supportingText = when {
+                        needsBank -> "Needs the bank's name. Tap Edit to add it."
+                        added -> "Possibly already added: an entry of ${money(item.amount)} is on this day."
+                        else -> null
+                    },
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SwButton("Approve", { vm.approve(listOf(item to described(item))) }, compact = true, leading = SwIcons.Check)
-                    SwButton("Edit", { vm.edit(item, described(item)); onAddExpense() }, style = ButtonStyle.Secondary, compact = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SwButton("Approve", { vm.approve(listOf(item to described(item))) }, compact = true, leading = SwIcons.Check, enabled = !needsBank)
+                    SwButton("Edit", { vm.edit(item, described(item)); if (item.income) onAddIncome() else onAddExpense() }, style = ButtonStyle.Secondary, compact = true)
                     SwButton("Discard", { vm.discard(item) }, style = ButtonStyle.Text, compact = true)
                 }
+            }
+        }
+    }
+    picking?.let { item ->
+        SwSheet("Category", onDismiss = { picking = null }) {
+            Caption("Next time a payment to ${item.payee} arrives, it starts in the category you save it with.")
+            EXPENSE_CATEGORIES.forEachIndexed { i, cat ->
+                ListRow(
+                    cat, icon = SwIcons.forCategory(cat), meta = if (cat == item.category) "Selected" else null,
+                    divider = i > 0, onClick = { vm.setCategory(item, cat); picking = null },
+                )
             }
         }
     }

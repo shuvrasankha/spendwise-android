@@ -13,6 +13,7 @@ import com.spendwise.app.domain.parseSms
 import com.spendwise.app.domain.queued
 import com.spendwise.app.domain.reviewItem
 import com.spendwise.app.domain.smsFingerprint
+import com.spendwise.app.domain.withLearned
 import com.spendwise.app.ui.navigation.SHARE_LIMIT
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +23,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 /**
- * Reads bank SMS from the default SMS app's notifications into the review list (domain › AutoLog). Only that one
+ * Reads bank SMS (payments and money in) from the default SMS app's notifications into the review list (domain › AutoLog). Only that one
  * app; everything else, and any message parseSms doesn't read as a payment, is ignored and never kept. Nothing is
  * saved to the account here: each payment waits for approval in the app.
  */
@@ -49,10 +50,14 @@ class BankSmsListener : NotificationListenerService() {
             val today = LocalDate.now()
             var added = false
             for ((text, at) in messages) {
-                val spent = parseSms(text.take(SHARE_LIMIT), today) as? SmsEntry.Spent ?: continue
+                val entry = parseSms(text.take(SHARE_LIMIT), today) ?: continue
                 val id = smsFingerprint(text, at)
                 if (!prefs.markSmsSeen(id)) continue
-                prefs.updateSmsReview { queued(it, reviewItem(id, spent)) }
+                val item = when (entry) {
+                    is SmsEntry.Spent -> reviewItem(id, entry)
+                    is SmsEntry.Earned -> reviewItem(id, entry)
+                }.withLearned(prefs.smsLearned.first())
+                prefs.updateSmsReview { queued(it, item) }
                 added = true
             }
             if (added) Notifications.reviewWaiting(this@BankSmsListener, prefs.smsReview.first().size)

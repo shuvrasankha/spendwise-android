@@ -1,6 +1,7 @@
 package com.spendwise.app.ui.navigation
 
 import android.content.Intent
+import com.spendwise.app.domain.ReviewItem
 import com.spendwise.app.domain.SmsEntry
 import com.spendwise.app.domain.parseSms
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,8 +11,11 @@ import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Text shared into the app, read on the device (spec §7.4). [entry] null: not a bank SMS. */
-data class SharedText(val text: String, val entry: SmsEntry?)
+/**
+ * Text shared into the app, read on the device (spec §7.4). [entry] null: not a bank SMS.
+ * [review]: Edit on a To review item, which the form takes off the list (and learns from) once it saves.
+ */
+data class SharedText(val text: String, val entry: SmsEntry?, val review: ReviewItem? = null)
 
 /**
  * Hands shared text to the form that takes it: Add for a payment or anything unread, Income for money in.
@@ -29,9 +33,11 @@ class ShareInbox @Inject constructor() {
         return if (shared.entry is SmsEntry.Earned) Income else AddExpense
     }
 
-    /** A payment from the review list, for Edit: Add expense fills in from it as from a shared SMS. */
-    fun receive(entry: SmsEntry.Spent) {
-        _shared.value = SharedText(entry.description, entry)
+    /** An item from To review, for Edit: Add expense or Add income fills in from it as from a shared SMS. */
+    fun receive(item: ReviewItem, description: String) {
+        val entry = if (item.income) SmsEntry.Earned(item.amount, item.date, description, item.payment, item.bank)
+        else SmsEntry.Spent(item.amount, item.date, item.category, item.payment, item.cardName, description)
+        _shared.value = SharedText(description, entry, item)
     }
 
     /** The waiting text if [wanted] takes it; once only. */

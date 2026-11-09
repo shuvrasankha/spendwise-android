@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.expenses
 
+import com.spendwise.app.domain.ReviewItem
 import com.spendwise.app.domain.SMS_READ
 import com.spendwise.app.domain.SMS_UNREAD
 import com.spendwise.app.domain.SmsEntry
@@ -142,6 +143,8 @@ class ExpenseEditorViewModel @Inject constructor(
     private var wasRepeat: String? = null
     private var lastAdded: Pair<String, Long>? = null
     private var confirmedDuplicate: String? = null
+    /** Edit on a To review payment: saving takes it off the list and remembers its payee's category. */
+    private var fromReview: ReviewItem? = null
 
     init {
         viewModelScope.launch {
@@ -181,6 +184,7 @@ class ExpenseEditorViewModel @Inject constructor(
     }
 
     private fun prefill(s: SharedText) {
+        fromReview = s.review
         val e = s.entry as? SmsEntry.Spent
         _state.update {
             it.copy(
@@ -348,6 +352,8 @@ class ExpenseEditorViewModel @Inject constructor(
         val (write, debtIds) = if (debts.isEmpty()) repo.add(input) to emptyList() else repo.addSplit(input, debts)
         watch(write, failure = "Couldn't save the expense. Check your connection and try again.")
         lastAdded = key to now
+        fromReview?.let { r -> viewModelScope.launch { prefs.finishReview(r, input.category, input.description) } }
+        fromReview = null
         val done = if (debts.isEmpty()) "Expense added successfully!" else splitSaved(debts.size, formatMoney(debts[0].amount, currency.value))
         _state.update {
             it.copy(
