@@ -148,7 +148,7 @@ class ByokProvidersTest {
     @Test fun `anthropic gets the receipt as a base64 image block`() {
         val call = AiCall(AiTask.RECEIPT, receiptMessages("2026-11-05", "data:image/jpeg;base64,AAAA"), maxTokens = 1500, temperature = 0.1, topP = 0.95)
         val body = other(ANTHROPIC, call = call).second.body
-        assertTrue(body.contains("""{"type":"text","text":"Read this receipt."},{"type":"image","source":{"type":"base64","media_type":"image/jpeg","data":"AAAA"}}"""))
+        assertTrue(body.contains("""{"type":"text","text":"Read every receipt or bill in this photo."},{"type":"image","source":{"type":"base64","media_type":"image/jpeg","data":"AAAA"}}"""))
         assertFalse(body.contains("temperature") || body.contains("top_p") || body.contains("image_url"))
     }
 

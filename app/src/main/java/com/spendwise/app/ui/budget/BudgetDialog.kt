@@ -1,5 +1,23 @@
 package com.spendwise.app.ui.budget
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import com.spendwise.app.domain.catLimits
+import com.spendwise.app.domain.limitShare
+import com.spendwise.app.ui.components.SwField
+import com.spendwise.app.ui.format.formatWhole
+import com.spendwise.app.ui.theme.Radius
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -73,10 +91,14 @@ fun BudgetDialog(
         },
     ) {
         Text("Saved to your account. Home shows how much of it you've used.", style = SwType.label, color = c.textMuted, modifier = gutter)
+        Box(gutter) { MoneyField("Monthly limit", total.value, currency.symbol) { total.value = it } }
+
+        // Optional help, below the limit it fills
+        FieldLabel("Not sure? Let AI suggest")
         Box(gutter) {
-            com.spendwise.app.ui.components.SwField(
-                plans.value, { plans.value = it.take(PLANS_MAX) }, "Plans this month, e.g. Diwali, Goa trip (optional)",
-                supportingText = "A trip, a wedding, a big buy. The AI also checks this month's festivals and your goals. Your goal names and this note are sent to it as written.",
+            SwField(
+                plans.value, { plans.value = it.take(PLANS_MAX) }, "Plans this month, e.g. Diwali, Goa trip",
+                supportingText = "Optional. Sent to the AI as written, with your goal names. It also checks this month's festivals.",
             )
         }
         Box(gutter) { SwButton(if (suggest?.working == true) "Working it out…" else "Suggest from my income", { onSuggest(plans.value) }, Modifier.fillMaxWidth(), style = ButtonStyle.Secondary, enabled = suggest?.working != true, leading = SwIcons.Sparkles) }
@@ -91,20 +113,54 @@ fun BudgetDialog(
                 modifier = gutter.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        Box(gutter) { MoneyField("Monthly limit", total.value, currency.symbol) { total.value = it } }
-        FieldLabel("Limits by category (optional)")
-        Column(gutter, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            EXPENSE_CATEGORIES.forEach { cat ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(cat, style = SwType.body, color = c.text, modifier = Modifier.weight(1f))
-                    Box(Modifier.weight(1f)) {
-                        com.spendwise.app.ui.components.SwField(
-                            cats[cat].orEmpty(), { cats[cat] = it }, "No limit", prefix = currency.symbol,
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
-                        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            FieldLabel("Limits by category")
+            val split = catLimits(total.value, cats) { formatWhole(it, currency) }
+            Text(
+                split?.text ?: "Optional. Leave a category empty for no limit.",
+                style = SwType.label, color = if (split?.over == true) c.negative else c.textMuted,
+                modifier = gutter.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        Column(gutter) {
+            EXPENSE_CATEGORIES.forEachIndexed { i, cat ->
+                if (i > 0) HorizontalDivider(color = c.line)
+                Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(cat, style = SwType.body, color = c.text)
+                        limitShare(cats[cat].orEmpty(), total.value)?.let { Text(it, style = SwType.caption, color = c.textMuted) }
                     }
+                    LimitField(cats[cat].orEmpty(), currency.symbol, cat) { cats[cat] = it }
                 }
             }
         }
     }
+}
+
+/** A compact amount box for one category: right-aligned, "No limit" when empty. */
+@Composable
+private fun LimitField(value: String, symbol: String, category: String, onChange: (String) -> Unit) {
+    val c = SpendWiseTheme.colors
+    var focused by remember { mutableStateOf(false) }
+    BasicTextField(
+        value, onChange,
+        Modifier.width(140.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = "$category limit" },
+        textStyle = SwType.body.copy(color = c.text, textAlign = TextAlign.End),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        cursorBrush = SolidColor(c.text),
+        decorationBox = { inner ->
+            Row(
+                Modifier.heightIn(min = 44.dp).border(1.dp, if (focused) c.text else c.line, Radius.control).padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(symbol, style = SwType.body, color = c.textMuted)
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                    if (value.isEmpty()) Text("No limit", style = SwType.body, color = c.textFaint)
+                    inner()
+                }
+            }
+        },
+    )
 }

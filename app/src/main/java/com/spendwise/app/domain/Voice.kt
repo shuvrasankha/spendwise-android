@@ -283,10 +283,10 @@ Example output: [{"type":"debt","amount":500,"debtType":"they-owe","person":"Fri
 
 /** scanReceipt's system message. */
 fun receiptPrompt(today: String): String = """You read shop receipts and bills for an Indian expense tracker. Today is $today.
-Reply with ONLY one JSON object, no other text:
-{"type":"expense","amount":<the final total paid, a number>,"date":"YYYY-MM-DD","category":"<exact name from the list below>","payment":"<one of: ${PAYMENT_METHODS.joinToString(", ")}, or leave out if not shown>","description":"<shop or merchant name, under 60 characters>"}
-Use the grand total after taxes and discounts, never a subtotal or a single item. If the date can't be read, use null.
-If the photo is not a receipt or bill, reply {"type":"none"}.
+The photo may show one bill or several separate bills side by side. Reply with ONLY a JSON array, no other text, with one object per separate bill:
+[{"type":"expense","amount":<that bill's final total paid, a number>,"date":"YYYY-MM-DD","category":"<exact name from the list below>","payment":"<one of: ${PAYMENT_METHODS.joinToString(", ")}, or leave out if not shown>","description":"<shop or merchant name, under 60 characters>"}]
+For each bill use its grand total after taxes and discounts, never a subtotal or a single item, and never add bills together. If a date can't be read, use null.
+If the photo shows no receipt or bill, reply [].
 Pick the category from what the shop sells, using its exact name:
 ${categoryGuide()}"""
 
@@ -294,7 +294,7 @@ ${categoryGuide()}"""
 fun receiptMessages(today: String, image: String): List<Pair<String, JsonElement>> = listOf(
     "system" to JsonPrimitive(receiptPrompt(today)),
     "user" to buildJsonArray {
-        addJsonObject { put("type", "text"); put("text", "Read this receipt.") }
+        addJsonObject { put("type", "text"); put("text", "Read every receipt or bill in this photo.") }
         addJsonObject { put("type", "image_url"); putJsonObject("image_url") { put("url", image) } }
     },
 )
@@ -336,5 +336,5 @@ const val VOICE_MODEL_LOADING = "AI model is loading. Please try again in 20-30 
 const val VOICE_FAILED = "Something went wrong reading that. Nothing was saved, so please try again."
 const val VOICE_SAVE_FAILED = "Couldn't save. Nothing was saved, so it's safe to try again."
 const val RECEIPT_BUSY = "Sending the photo to AI to read it…"
-const val RECEIPT_NONE = "Couldn't find a total on that photo. Try a sharper, closer shot."
+const val RECEIPT_NONE = "Couldn't find a bill total on that photo. Try a sharper, closer shot."
 const val RECEIPT_BAD_PHOTO = "Couldn't open that photo. Try a JPG or PNG."

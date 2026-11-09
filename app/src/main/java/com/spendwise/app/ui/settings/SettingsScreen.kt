@@ -1,5 +1,10 @@
 package com.spendwise.app.ui.settings
 
+import com.spendwise.app.reminder.BankSmsListener
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.core.app.NotificationManagerCompat
+import android.provider.Settings
+import android.content.ComponentName
 import com.spendwise.app.data.AppIcon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
@@ -74,6 +79,12 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.spendwise.app.ui.format.formatWhole
+import com.spendwise.app.domain.billTitle
+import com.spendwise.app.domain.AutoBill
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,7 +102,10 @@ import com.spendwise.app.ui.components.SwField
 import com.spendwise.app.ui.components.SwSheet
 import com.spendwise.app.ui.components.Trailing
 import com.spendwise.app.ui.icons.SwIcons
-import com.spendwise.app.ui.lock.canLock
+import com.spendwise.app.ui.lock.PinCheckPad
+import com.spendwise.app.ui.lock.SetPinPad
+import com.spendwise.app.ui.lock.canUseBiometric
+import com.spendwise.app.ui.lock.confirmBiometric
 import com.spendwise.app.ui.lock.findActivity
 import com.spendwise.app.ui.lock.confirmIdentity
 import com.spendwise.app.ui.theme.Spacing
@@ -113,6 +127,7 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     var picking by rememberSaveable { mutableStateOf<String?>(null) }
+    var pinStep by rememberSaveable { mutableStateOf<PinStep?>(null) }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.turnReminderOn(it) }
     val weeklyOn by viewModel.weeklyNote.collectAsStateWithLifecycle()
     val askWeeklyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.setWeeklyNote(true, it) }
@@ -175,16 +190,117 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                 state.reminderNote?.let { Text(it, style = SwType.label, color = c.textMuted, modifier = gutter) }
             }
 
+            val autoOn by viewModel.autoBillsOn.collectAsStateWithLifecycle()
+            var autoPreview by remember { mutableStateOf<AutoPreview?>(null) }
+            val scope = rememberCoroutineScope()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Repeating bills") {
+                    SettingsRow("Add them automatically", icon = SwIcons.Receipt, trailing = Trailing.Switch(autoOn) { on ->
+                        if (on) scope.launch { autoPreview = AutoPreview(viewModel.autoBillsPreview()) } else viewModel.setAutoBills(false)
+                    })
+                }
+                Text(
+                    "Bills set to repeat monthly are added on their due day, on this phone, when it's online. Off: they wait under Due this month for you to add.",
+                    style = SwType.label, color = c.textMuted, modifier = gutter,
+                )
+            }
+            autoPreview?.let { (bills) ->
+                val money = { n: Double -> formatWhole(n, state.currency) }
+                AlertDialog(
+                    onDismissRequest = { autoPreview = null },
+                    title = { Text("Add repeating bills automatically?") },
+                    text = {
+                        Text(
+                            (if (bills == null) "Bills due this month that you haven't added yet are added now." else if (bills.isEmpty()) "Nothing is due yet this month." else "Adds now: " + bills.joinToString(", ") { "${billTitle(it.template)} ${money(it.template.amount)}" } + ".") +
+                                " After that, each bill is added on its due day. You can edit or delete them like any entry.",
+                        )
+                    },
+                    confirmButton = { TextButton({ autoPreview = null; viewModel.setAutoBills(true) }) { Text("Turn on") } },
+                    dismissButton = { TextButton({ autoPreview = null }) { Text("Cancel") } },
+                )
+            }
+
+            val smsOn by viewModel.smsLog.collectAsStateWithLifecycle()
+            // Granted or taken away in Android's settings, so checked again on every return here
+            var smsAccess by remember { mutableStateOf(hasListenerAccess(context)) }
+            LifecycleResumeEffect(Unit) {
+                smsAccess = hasListenerAccess(context)
+                onPauseOrDispose { }
+            }
+            var smsExplain by rememberSaveable { mutableStateOf(false) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Bank SMS") {
+                    SettingsRow("Read payments from bank SMS", icon = SwIcons.Mail, trailing = Trailing.Switch(smsOn) { on ->
+                        if (on) smsExplain = true else viewModel.setSmsLog(false)
+                    })
+                    if (smsOn && !smsAccess) SettingsRow("Allow notification access", icon = SwIcons.Bell, onClick = { openListenerSettings(context) }, divider = true)
+                }
+                Text(
+                    when {
+                        smsOn && !smsAccess -> "Not reading yet: SpendWise needs notification access. Allow it in Android's settings."
+                        smsOn -> "New bank SMS wait under To review on Home. Nothing is saved until you approve it."
+                        else -> "Payments from your bank SMS wait on Home for you to approve, so you rarely type an expense."
+                    },
+                    style = SwType.label, color = if (smsOn && !smsAccess) c.negative else c.textMuted, modifier = gutter,
+                )
+            }
+            if (smsExplain) {
+                AlertDialog(
+                    onDismissRequest = { smsExplain = false },
+                    title = { Text("Read payments from bank SMS?") },
+                    text = {
+                        Text(
+                            "SpendWise reads the notifications of your SMS app, on this phone only. A bank message about a payment " +
+                                "goes under To review on Home; every other message is ignored and never kept or sent. " +
+                                "A payment is saved to your account only when you approve it.\n\n" +
+                                "Android asks you next to allow notification access for SpendWise.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton({
+                            smsExplain = false
+                            viewModel.setSmsLog(true)
+                            if (!smsAccess) openListenerSettings(context)
+                        }) { Text("Continue") }
+                    },
+                    dismissButton = { TextButton({ smsExplain = false }) { Text("Cancel") } },
+                )
+            }
+
             val activity = LocalContext.current.findActivity()
-            if (remember { canLock(activity) }) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingsGroup("Security") {
-                        SettingsRow("App lock", icon = SwIcons.Lock, trailing = Trailing.Switch(state.lockOn) { on -> activity.confirmIdentity { ok -> if (ok) viewModel.setLock(on) } })
+            val hasPin by viewModel.lockHasPin.collectAsStateWithLifecycle()
+            val bioOn by viewModel.lockBiometric.collectAsStateWithLifecycle()
+            val bioAvailable = remember { canUseBiometric(activity) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Security") {
+                    SettingsRow("App lock", icon = SwIcons.Lock, trailing = Trailing.Switch(state.lockOn) { on ->
+                        when {
+                            on -> pinStep = PinStep.Set
+                            hasPin -> pinStep = PinStep.Off
+                            else -> activity.confirmIdentity { ok -> if (ok) viewModel.lockOff() } // a lock from before PINs
+                        }
+                    })
+                    if (state.lockOn && hasPin) {
+                        SettingsRow("Change PIN", icon = SwIcons.Lock, divider = true, onClick = { pinStep = PinStep.Change })
+                        if (bioAvailable) SettingsRow("Unlock with fingerprint or face", icon = SwIcons.Shield, divider = true, trailing = Trailing.Switch(bioOn) { on ->
+                            if (on) activity.confirmBiometric { ok -> if (ok) viewModel.setLockBiometric(true) } else viewModel.setLockBiometric(false)
+                        })
                     }
-                    Text(
-                        "Asks for your fingerprint, face or screen lock when SpendWise opens, and after 5 minutes away. This device only.",
-                        style = SwType.label, color = c.textMuted, modifier = gutter,
-                    )
+                }
+                Text(
+                    "Asks for your PIN when SpendWise opens, and after 5 minutes away. Forgot it? Sign out from the lock screen and sign in again. This device only.",
+                    style = SwType.label, color = c.textMuted, modifier = gutter,
+                )
+            }
+            pinStep?.let { step ->
+                val close = { pinStep = null }
+                Dialog(close, DialogProperties(usePlatformDefaultWidth = false)) {
+                    when (step) {
+                        PinStep.Set -> SetPinPad("Choose a PIN", { viewModel.setPin(it); close() }, onCancel = close)
+                        PinStep.NewPin -> SetPinPad("Choose a new PIN", { viewModel.setPin(it); close() }, onCancel = close)
+                        PinStep.Off -> PinCheckPad("Enter your PIN to turn off app lock", viewModel::tryPin, viewModel::pinWaitLeft, onOk = { viewModel.lockOff(); close() }, onCancel = close)
+                        PinStep.Change -> PinCheckPad("Enter your current PIN", viewModel::tryPin, viewModel::pinWaitLeft, onOk = { pinStep = PinStep.NewPin }, onCancel = close)
+                    }
                 }
             }
 
@@ -282,6 +398,12 @@ private fun ChangePasswordSheet(form: PasswordChange, vm: SettingsViewModel) {
 private const val PLAY_URL = "https://play.google.com/store/apps/details?id="
 
 // The contact address from the privacy policy (docs/privacy-policy.html)
+/** The bills turning on automatic bills adds now; null when they couldn't be read. */
+private data class AutoPreview(val bills: List<AutoBill>?)
+
+/** The PIN pad Settings is showing, if any. */
+private enum class PinStep { Set, Off, Change, NewPin }
+
 private const val FEEDBACK_EMAIL = "contact.spend.wise.app@gmail.com"
 
 /** Opens the email app addressed to us, with the version and device filled in so reports say what they ran on. */
@@ -520,3 +642,13 @@ private val ThemeMode.label
         ThemeMode.LIGHT -> "Light"
         ThemeMode.DARK -> "Dark"
     }
+
+private fun hasListenerAccess(context: Context) = context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
+
+/** Straight to SpendWise's own switch where Android has that page (11+), else the list of apps. */
+private fun openListenerSettings(context: Context) {
+    val detail = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, ComponentName(context, BankSmsListener::class.java).flattenToString())
+    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) detail else Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+    runCatching { context.startActivity(intent) }.onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } }
+}

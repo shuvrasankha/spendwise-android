@@ -36,6 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.spendwise.app.domain.Debt
+import com.spendwise.app.domain.DebtPlan
+import com.spendwise.app.domain.PLAN_MONTH
+import com.spendwise.app.domain.PLAN_WEEK
+import com.spendwise.app.domain.Payoff
 import com.spendwise.app.domain.I_OWE
 import com.spendwise.app.domain.THEY_OWE
 import com.spendwise.app.domain.debtPaid
@@ -52,6 +56,8 @@ import com.spendwise.app.domain.sub
 import com.spendwise.app.ui.components.BarSegment
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DateChips
+import com.spendwise.app.ui.components.FieldLabel
+import com.spendwise.app.ui.components.SegmentedControl
 import com.spendwise.app.ui.components.ListRow
 import com.spendwise.app.ui.components.Metric
 import com.spendwise.app.ui.components.countUp
@@ -65,6 +71,7 @@ import com.spendwise.app.ui.components.SwField
 import com.spendwise.app.ui.components.SwSheet
 import com.spendwise.app.ui.components.show
 import com.spendwise.app.ui.format.formatAmount
+import com.spendwise.app.ui.format.formatDate
 import com.spendwise.app.ui.format.formatNumber
 import com.spendwise.app.ui.icons.SwIcons
 import com.spendwise.app.ui.theme.Spacing
@@ -156,7 +163,7 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, onOpenAssistant: (String)
                     if (open.isEmpty()) item {
                         Text("No open debts. Add one when someone borrows or lends.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(Spacing.gutter))
                     }
-                    open.forEachIndexed { i, d -> item(key = "o:" + d.id) { Box(Modifier.animateItem()) { DebtItem(d, openMeta(d, today, fmt), fmt, divider = i > 0) { OpenActions(d, vm) } } } }
+                    open.forEachIndexed { i, d -> item(key = "o:" + d.id) { Box(Modifier.animateItem()) { DebtItem(d, openMeta(d, today, fmt), fmt, divider = i > 0, payoff = p.payoffs[d.id]) { OpenActions(d, vm) } } } }
                     if (p.settled.isNotEmpty()) {
                         item(key = "settled-header") {
                             Box(Modifier.padding(top = Spacing.section)) {
@@ -177,12 +184,13 @@ fun DebtsScreen(onBack: () -> Unit, onAdd: () -> Unit, onOpenAssistant: (String)
     }
 
     PaySheetHost(vm, fmt, today)
+    PlanSheetHost(vm, fmt, today)
     ConfirmDialogs(vm, fmt, today)
 }
 
 /** One row: who, which way and when, the amount (what's left while it's open), a paid-back bar, then the row's actions. */
 @Composable
-private fun DebtItem(d: Debt, meta: String, fmt: (Double) -> String, divider: Boolean, actions: @Composable () -> Unit) {
+private fun DebtItem(d: Debt, meta: String, fmt: (Double) -> String, divider: Boolean, payoff: Payoff? = null, actions: @Composable () -> Unit) {
     val c = SpendWiseTheme.colors
     val paid = debtPaid(d.paid)
     val part = !d.settled && paid > 0
@@ -197,6 +205,13 @@ private fun DebtItem(d: Debt, meta: String, fmt: (Double) -> String, divider: Bo
             Column(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("${fmt(paid)} paid back", style = SwType.caption, color = c.textMuted)
                 StackedBar(listOf(BarSegment(share, c.textMuted), BarSegment(1f - share, Color.Transparent)))
+            }
+        }
+        val plan = d.plan
+        if (payoff != null && plan != null) {
+            Column(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 8.dp)) {
+                Text(planLine(plan, payoff, fmt), style = SwType.caption, color = c.textMuted)
+                if (payoff.behind > 0) Text("Behind by ${fmt(payoff.behind)}", style = SwType.caption, color = c.negative)
             }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) { actions() }
@@ -224,8 +239,52 @@ private fun OpenActions(d: Debt, vm: DebtsViewModel) {
             Box {
                 IconAction(SwIcons.More, "More actions for ${d.person}", { menu = true })
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(if (d.plan != null) "Edit repayment plan" else "Repayment plan") }, onClick = { menu = false; vm.openPlan(d.id) })
                     DropdownMenuItem(text = { Text("Delete", color = SpendWiseTheme.colors.negative) }, onClick = { menu = false; vm.askDelete(d.id) })
                 }
+            }
+        }
+    }
+}
+
+private fun planLine(plan: DebtPlan, p: Payoff, fmt: (Double) -> String) =
+    "${fmt(plan.amount)} a ${plan.every}" + (p.ends?.let { " · paid off by ${formatDate(it)}" } ?: "")
+
+/** The repayment plan: how much, how often, from when, and the schedule it makes. */
+@Composable
+private fun PlanSheetHost(vm: DebtsViewModel, fmt: (Double) -> String, today: LocalDate) {
+    val dialog by vm.plan.collectAsStateWithLifecycle()
+    val page by vm.page.collectAsStateWithLifecycle()
+    val plan = dialog ?: return
+    val d = (page as? DebtsPage.Ready)?.all?.firstOrNull { it.id == plan.id } ?: return
+    val c = SpendWiseTheme.colors
+    val gutter = Modifier.padding(horizontal = Spacing.gutter)
+    val preview = vm.planPreview(plan)
+    SwSheet(
+        "Repayment plan", vm::closePlan,
+        footer = {
+            Row(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (d.plan != null) SwButton("Remove", vm::removePlan, style = ButtonStyle.Danger)
+                SwButton("Save plan", vm::savePlan, Modifier.weight(1f))
+            }
+        },
+    ) {
+        Text("${fmt(d.left())} left with ${d.person}", style = SwType.label, color = c.textMuted, modifier = gutter)
+        Box(gutter) { SwField(plan.amount, vm::setPlanAmount, "Each payment", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) }
+        Box(gutter) { SegmentedControl(listOf("Every week", "Every month"), if (plan.every == PLAN_WEEK) 0 else 1, { vm.setPlanEvery(if (it == 0) PLAN_WEEK else PLAN_MONTH) }) }
+        FieldLabel("First payment", gutter)
+        DateChips(plan.start, today, vm::setPlanStart)
+        plan.error?.let { Text(it, style = SwType.label, color = c.negative, modifier = gutter) }
+        if (preview != null && preview.schedule.isNotEmpty()) {
+            Column {
+                SectionHeader("Schedule · paid off by ${formatDate(preview.ends!!)}")
+                preview.schedule.take(12).forEach { (date, amount) ->
+                    Row(gutter.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Text(formatDate(date), style = SwType.body, color = c.text, modifier = Modifier.weight(1f))
+                        Text(fmt(amount), style = SwType.bodyStrong, color = c.text)
+                    }
+                }
+                if (preview.schedule.size > 12) Text("and ${preview.schedule.size - 12} more", style = SwType.label, color = c.textMuted, modifier = gutter)
             }
         }
     }

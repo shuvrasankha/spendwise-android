@@ -35,6 +35,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import com.spendwise.app.domain.todayStr
+import com.spendwise.app.domain.autoBills
+import com.spendwise.app.domain.AutoBill
+import com.spendwise.app.data.expenses.ExpenseRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -98,6 +105,7 @@ fun updateNote(check: UpdateCheck): String? = when (check) {
     else -> null
 }
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: DevicePrefs,
@@ -108,6 +116,7 @@ class SettingsViewModel @Inject constructor(
     private val updater: GithubUpdater,
     private val lock: AppLock,
     private val icons: AppIconSwitcher,
+    private val expenses: ExpenseRepository,
 ) : ViewModel() {
 
     /** A note from the last tap (blocked, failed), shown instead of the usual one until the next change. */
@@ -177,9 +186,47 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { auth.signOut() }
     }
 
-    /** Called once the phone's check passed: turning it off needs the same check as opening the app. */
-    fun setLock(on: Boolean) {
-        viewModelScope.launch { lock.setOn(on) }
+    // ── Repeating bills added automatically (opt-in, this account on this device) ──
+
+    val autoBillsOn: StateFlow<Boolean> = auth.authState
+        .flatMapLatest { s -> (s as? AuthState.SignedIn)?.let { prefs.autoBills(it.user.uid) } ?: flowOf(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** What turning it on adds straight away (this month's due bills not yet entered or skipped), or null if it can't tell. */
+    suspend fun autoBillsPreview(): List<AutoBill>? = runCatching {
+        val uid = checkNotNull(auth.currentUid)
+        val skipped = prefs.skippedBills.first()
+        autoBills(uid, expenses.expenses().first(), todayStr(), null) { key, month -> "$key:$month" in skipped }
+    }.getOrNull()
+
+    fun setAutoBills(on: Boolean) {
+        val uid = auth.currentUid ?: return
+        viewModelScope.launch {
+            prefs.setAutoBills(uid, on)
+            if (on) scheduler.runDailyNow()
+        }
+    }
+
+    // ── App lock: the PIN, and fingerprint or face standing in for it ──
+
+    val lockHasPin: StateFlow<Boolean> = lock.hasPin.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val lockBiometric: StateFlow<Boolean> = lock.biometric.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    suspend fun tryPin(pin: String) = lock.tryPin(pin)
+    suspend fun pinWaitLeft() = lock.waitLeft()
+
+    /** Turns the lock on, or changes the PIN. */
+    fun setPin(pin: String) {
+        viewModelScope.launch { lock.setPin(pin) }
+    }
+
+    /** Called once the PIN (or, for a lock from before PINs, the phone's check) passed. */
+    fun lockOff() {
+        viewModelScope.launch { lock.turnOff() }
+    }
+
+    fun setLockBiometric(on: Boolean) {
+        viewModelScope.launch { lock.setBiometric(on) }
     }
 
     // ── Check for updates (GitHub installs; a Play install opens its Play listing) ──
@@ -243,6 +290,11 @@ class SettingsViewModel @Inject constructor(
     }
 
     val weeklyNote: StateFlow<Boolean> = prefs.weeklyNote.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Bank SMS into To review; also needs notification access, which only Android's settings can grant. */
+    val smsLog: StateFlow<Boolean> = prefs.smsLog.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setSmsLog(on: Boolean) = viewModelScope.launch { prefs.setSmsLog(on) }
 
     fun setWeeklyNote(on: Boolean, granted: Boolean = true) = viewModelScope.launch {
         if (on && (!granted || !scheduler.permitted())) return@launch tapNote.update { REMINDER_BLOCKED }

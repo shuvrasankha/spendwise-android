@@ -6,7 +6,23 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.spendwise.app.domain.PinFails
+import com.spendwise.app.domain.ReviewItem
+import com.spendwise.app.domain.Learned
+import com.spendwise.app.domain.afterSaving
+import com.spendwise.app.domain.learned
+import com.spendwise.app.domain.readLearned
+import com.spendwise.app.domain.writeLearned
+import com.spendwise.app.domain.SEEN_LIMIT
+import com.spendwise.app.domain.readReview
+import com.spendwise.app.domain.writeReview
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.spendwise.app.domain.Card
+import com.spendwise.app.domain.readCards
+import com.spendwise.app.domain.readCardColours
+import com.spendwise.app.domain.writeCardColours
+import com.spendwise.app.domain.writeCards
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DEFAULT_PAYMENT
@@ -171,11 +187,131 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { if (json == null) it.remove(COACH_CHAT) else it[COACH_CHAT] = json }
     }
 
+    /** This account adds its repeating bills automatically on this device (off until turned on). */
+    fun autoBills(uid: String): Flow<Boolean> = store.data.map { it[booleanPreferencesKey("auto_bills:$uid")] == true }
+
+    /** Turning it off also forgets how far it got, so turning it on again starts from this month. */
+    suspend fun setAutoBills(uid: String, on: Boolean) {
+        store.edit {
+            if (on) it[booleanPreferencesKey("auto_bills:$uid")] = true else it.remove(booleanPreferencesKey("auto_bills:$uid"))
+            if (!on) it.remove(stringPreferencesKey("auto_bills_through:$uid"))
+        }
+    }
+
+    /** The last month ("YYYY-MM") the automatic run finished for this account, or null before the first. */
+    fun autoBillsThrough(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("auto_bills_through:$uid")] }
+
+    suspend fun setAutoBillsThrough(uid: String, month: String) {
+        store.edit { it[stringPreferencesKey("auto_bills_through:$uid")] = month }
+    }
+
     /** App lock is on for this device (app-lock.js › spendwise_lock); never synced (spec §7.7). */
     val appLock: Flow<Boolean> = store.data.map { it[APP_LOCK] == true }
 
     suspend fun setAppLock(on: Boolean) {
         store.edit { if (on) it[APP_LOCK] = true else it.remove(APP_LOCK) }
+    }
+
+    /** The lock's PIN record (domain/AppLock.kt › pinRecord), or null: a lock from before PINs uses the screen lock. */
+    val lockPin: Flow<String?> = store.data.map { it[LOCK_PIN] }
+
+    /** A new PIN also clears the wrong-PIN count. */
+    suspend fun setLockPin(record: String) {
+        store.edit {
+            it[LOCK_PIN] = record
+            it.remove(PIN_FAILS); it.remove(PIN_FAILED_AT); it.remove(PIN_FAILED_BOOT)
+        }
+    }
+
+    /** Fingerprint or face may stand in for the PIN. */
+    val lockBiometric: Flow<Boolean> = store.data.map { it[LOCK_BIOMETRIC] == true }
+
+    suspend fun setLockBiometric(on: Boolean) {
+        store.edit { if (on) it[LOCK_BIOMETRIC] = true else it.remove(LOCK_BIOMETRIC) }
+    }
+
+    val pinFails: Flow<PinFails> = store.data.map { PinFails(it[PIN_FAILS] ?: 0, it[PIN_FAILED_AT], it[PIN_FAILED_BOOT]) }
+
+    suspend fun setPinFails(f: PinFails) {
+        store.edit {
+            it[PIN_FAILS] = f.count
+            if (f.at == null) it.remove(PIN_FAILED_AT) else it[PIN_FAILED_AT] = f.at
+            if (f.boot == null) it.remove(PIN_FAILED_BOOT) else it[PIN_FAILED_BOOT] = f.boot
+        }
+    }
+
+    /** App lock off, with its PIN: on sign-out, so the next account on this phone isn't locked out by it. */
+    suspend fun forgetLock() {
+        store.edit { p -> listOf(APP_LOCK, LOCK_PIN, LOCK_BIOMETRIC, PIN_FAILS, PIN_FAILED_AT, PIN_FAILED_BOOT).forEach { p.remove(it) } }
+    }
+
+    /** Bank SMS are read from the SMS app's notifications into a review list; off until turned on here. */
+    val smsLog: Flow<Boolean> = store.data.map { it[SMS_LOG] == true }
+
+    suspend fun setSmsLog(on: Boolean) {
+        store.edit { if (on) it[SMS_LOG] = true else it.remove(SMS_LOG) }
+    }
+
+    /** Payments waiting for approval, oldest first (domain › AutoLog). */
+    val smsReview: Flow<List<ReviewItem>> = store.data.map { readReview(it[SMS_REVIEW]) }
+
+    suspend fun updateSmsReview(change: (List<ReviewItem>) -> List<ReviewItem>) {
+        store.edit { it[SMS_REVIEW] = writeReview(change(readReview(it[SMS_REVIEW]))) }
+    }
+
+    /** Remembers [id]; false when it was already seen, in one edit so two posts at once can't both pass. */
+    suspend fun markSmsSeen(id: String): Boolean {
+        var fresh = false
+        store.edit {
+            val seen = it[SMS_SEEN]?.split('\n').orEmpty()
+            if (id !in seen) {
+                fresh = true
+                it[SMS_SEEN] = (seen + id).takeLast(SEEN_LIMIT).joinToString("\n")
+            }
+        }
+        return fresh
+    }
+
+    /** What was last saved for each payee, so its next SMS arrives with that category and description. */
+    val smsLearned: Flow<Map<String, Learned>> = store.data.map { readLearned(it[SMS_LEARNED]) }
+
+    /** [item] was saved with [category] and [description]: off the list, remembered for its payee, in one edit. */
+    suspend fun finishReview(item: ReviewItem, category: String, description: String) {
+        store.edit {
+            val memory = learned(readLearned(it[SMS_LEARNED]), item, category, description)
+            it[SMS_LEARNED] = writeLearned(memory)
+            it[SMS_REVIEW] = writeReview(afterSaving(readReview(it[SMS_REVIEW]), item, memory))
+        }
+    }
+
+    /** On sign-out: the review list belongs to the account, so the next one here never sees it. */
+    suspend fun forgetSmsLog() {
+        store.edit { p -> listOf(SMS_LOG, SMS_REVIEW, SMS_SEEN, SMS_LEARNED, CARDS_ADDED, CARDS_HIDDEN, CARD_COLOURS_KEY).forEach { p.remove(it) } }
+    }
+
+    /** Cards added on the Cards page and not used yet, and cards taken off the list (domain › Cards). Per device. */
+    val addedCards: Flow<List<Card>> = store.data.map { readCards(it[CARDS_ADDED]) }
+    val hiddenCards: Flow<Set<String>> = store.data.map { it[CARDS_HIDDEN].orEmpty() }
+
+    suspend fun addCard(card: Card) {
+        store.edit {
+            it[CARDS_ADDED] = writeCards(readCards(it[CARDS_ADDED]).filter { c -> c.key != card.key } + card)
+            it[CARDS_HIDDEN] = it[CARDS_HIDDEN].orEmpty() - card.key
+        }
+    }
+
+    /** Colours picked on the Cards page, by card key. */
+    val cardColours: Flow<Map<String, String>> = store.data.map { readCardColours(it[CARD_COLOURS_KEY]) }
+
+    suspend fun setCardColour(key: String, colour: String) {
+        store.edit { it[CARD_COLOURS_KEY] = writeCardColours(readCardColours(it[CARD_COLOURS_KEY]) + (key to colour)) }
+    }
+
+    suspend fun hideCard(card: Card) {
+        store.edit {
+            it[CARDS_ADDED] = writeCards(readCards(it[CARDS_ADDED]).filter { c -> c.key != card.key })
+            it[CARDS_HIDDEN] = it[CARDS_HIDDEN].orEmpty() + card.key
+        }
     }
 
     /** The Sunday "week in money" note; off unless switched on. Per device, never synced. */
@@ -206,10 +342,16 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
     }
 
     /** The budget alert last sent to this account on this device, "YYYY-MM:NEAR|OVER" (domain/BudgetAlert.kt). */
-    fun budgetAlertSent(uid: String): Flow<String?> = store.data.map { it[stringPreferencesKey("budget_alert:$uid")] }
+    /** Budget alerts sent ("YYYY-MM:category:LEVEL"); the old single "YYYY-MM:LEVEL" record reads as the total's. */
+    fun budgetAlertsSent(uid: String): Flow<Set<String>> = store.data.map { p ->
+        p[stringSetPreferencesKey("budget_alerts:$uid")].orEmpty() + listOfNotNull(p[stringPreferencesKey("budget_alert:$uid")]?.replaceFirst(":", ":*:"))
+    }
 
-    suspend fun setBudgetAlertSent(uid: String, sent: String) {
-        store.edit { it[stringPreferencesKey("budget_alert:$uid")] = sent }
+    suspend fun setBudgetAlertsSent(uid: String, sent: Set<String>) {
+        store.edit {
+            it[stringSetPreferencesKey("budget_alerts:$uid")] = sent
+            it.remove(stringPreferencesKey("budget_alert:$uid"))
+        }
     }
 
     /** Today's AI use of one feature by this account, as "YYYY-MM-DD:n" (AiAllowance). */
@@ -255,6 +397,18 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
+        val SMS_LOG = booleanPreferencesKey("sms_log")
+        val SMS_REVIEW = stringPreferencesKey("sms_review")
+        val SMS_SEEN = stringPreferencesKey("sms_seen")
+        val SMS_LEARNED = stringPreferencesKey("sms_learned")
+        val CARDS_ADDED = stringPreferencesKey("cards_added")
+        val CARDS_HIDDEN = stringSetPreferencesKey("cards_hidden")
+        val CARD_COLOURS_KEY = stringPreferencesKey("card_colours")
+        val LOCK_PIN = stringPreferencesKey("lock_pin")
+        val LOCK_BIOMETRIC = booleanPreferencesKey("lock_biometric")
+        val PIN_FAILS = intPreferencesKey("pin_fails")
+        val PIN_FAILED_AT = longPreferencesKey("pin_failed_at")
+        val PIN_FAILED_BOOT = intPreferencesKey("pin_failed_boot")
         val HAPTIC_OFF = booleanPreferencesKey("haptic_off")
         val WEEKLY_NOTE = booleanPreferencesKey("weekly_note")
         val TOUR_SEEN = booleanPreferencesKey("tour_seen")

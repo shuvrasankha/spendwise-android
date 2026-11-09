@@ -22,6 +22,7 @@ credentials = "1.6.0"
 googleid = "1.2.0"
 work = "2.11.0"
 biometric = "1.1.0"
+pdfbox-android = "2.0.27.0"
 appUpdate = "2.1.0"
 crashlyticsPlugin = "3.0.8"
 perfPlugin = "2.0.2"
@@ -68,6 +69,7 @@ androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profi
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmark" }
 androidx-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfbox-android" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

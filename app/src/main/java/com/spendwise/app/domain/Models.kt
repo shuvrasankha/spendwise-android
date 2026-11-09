@@ -38,6 +38,8 @@ data class Debt(
     val pending: Boolean = false,
     /** Shared debts only: createdAt in ms, 0 when unknown (sharedDebtView); orders the bell's items. */
     val createdAt: Long = 0,
+    /** Android's repayment plan (domain/DebtPlan.kt), or null. */
+    val plan: DebtPlan? = null,
 )
 
 const val I_OWE = "i-owe"

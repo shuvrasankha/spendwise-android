@@ -74,9 +74,13 @@ internal fun Goals(h: HomeFigures, money: (Double) -> String, plans: PlansViewMo
                 g.name, meta = row.meta(money),
                 amount = if (done) "Done" else if (late) "Overdue" else "${row.percent}%",
                 amountColor = if (done) c.positive else if (late) c.negative else Color.Unspecified,
-                sub = row.amounts(money), icon = SwIcons.Target, divider = i > 0, metaLines = 2,
+                icon = SwIcons.Target, divider = i > 0, metaLines = 2,
             )
-            Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 4.dp)) { BudgetBar(row.percent / 100f) }
+            // Under the bar, not beside the title, so the goal's details get the full width
+            Column(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BudgetBar(row.percent / 100f)
+                Text(row.amounts(money), style = SwType.caption, color = c.textMuted)
+            }
             // Lined up with the goal's text and bar, not the icon
             Row(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (!done) SwButton("Add money", { plans.addMoney(g.id) }, style = ButtonStyle.Secondary, compact = true)

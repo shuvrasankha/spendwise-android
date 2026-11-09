@@ -2,6 +2,7 @@ package com.spendwise.app.data
 
 import com.spendwise.app.data.worker.WorkerPush
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.spendwise.app.domain.Budget
@@ -9,6 +10,7 @@ import com.spendwise.app.domain.Goal
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.expenses.PendingWrite
 import com.spendwise.app.domain.Debt
+import com.spendwise.app.domain.DebtPlan
 import com.spendwise.app.domain.DebtInput
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.HoldingFields
@@ -107,6 +109,8 @@ class DebtRepository @Inject constructor(
 
     fun reopen(id: String, paid: List<Payment>?) = update(id, reopenFields(paid))
 
+    fun setPlan(id: String, plan: DebtPlan?) = update(id, planFields(plan, FieldValue.delete()))
+
     /** Field-path updates only, so fields this client doesn't know about are kept. */
     private fun update(id: String, fields: Map<String, Any>) = PendingWrite(id, collection.document(id).update(fields))
 }
@@ -139,6 +143,12 @@ class HoldingRepository @Inject constructor(private val db: FirebaseFirestore, p
 
 @Singleton
 class SettingsRepository @Inject constructor(private val db: FirebaseFirestore, private val auth: AuthRepository, @AppScope scope: CoroutineScope) {
+    /** This account's settings from the server; throws when it can't be reached. */
+    suspend fun fromServer(): UserSettings {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        return settingsFrom(db.collection("settings").document(uid).get(Source.SERVER).await().data)
+    }
+
     private val shared = SharedLive(scope, auth.forUser(UserSettings()) { user ->
         db.collection("settings").document(user.uid).live().map { settingsFrom(it.data) }
     })
