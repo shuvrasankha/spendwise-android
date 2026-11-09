@@ -70,7 +70,7 @@ fun cardsSummary(spends: List<CardSpend>, money: (Double) -> String): String = w
 }
 
 /** Card colours, apart from the ones that mean something: green (money in), red (owed), yellow (accent), orange. */
-val CARD_COLOURS = listOf("Blue", "Violet", "Teal", "Pink", "Brown", "Slate")
+val CARD_COLOURS = listOf("Blue", "Violet", "Teal", "Pink", "Brown", "Slate", "Orange")
 
 /**
  * Each card's colour: the one chosen for it, else a default from its name, moved to the next free colour when

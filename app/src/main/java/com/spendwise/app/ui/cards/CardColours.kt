@@ -13,6 +13,7 @@ private val SHADES = mapOf(
     "Pink" to (Color(0xFFDB2777) to Color(0xFFF472B6)),
     "Brown" to (Color(0xFF92400E) to Color(0xFFD6A26B)),
     "Slate" to (Color(0xFF475569) to Color(0xFF94A3B8)),
+    "Orange" to (Color(0xFFC2410C) to Color(0xFFFB923C)),
 )
 
 /** A card colour's shade in the current theme; Unspecified for an unknown name. */

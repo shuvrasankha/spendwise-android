@@ -63,7 +63,7 @@ class CardsTest {
     @Test fun colours_chosenFirst_thenDistinctDefaults_thatDontMoveWithUse() {
         val cards = CARD_COLOURS.indices.map { Card("C$it", "Credit Card") }
         val auto = cardColours(cards, emptyMap())
-        assertEquals(CARD_COLOURS.toSet(), auto.values.toSet()) // six cards, six colours
+        assertEquals(CARD_COLOURS.toSet(), auto.values.toSet()) // one card per colour, every colour used
         assertEquals(auto, cardColours(cards.reversed(), emptyMap())) // order of use doesn't matter
         val picked = cardColours(cards, mapOf(cards[0].key to "Pink", "gone" to "Blue", cards[1].key to "Red"))
         assertEquals("Pink", picked[cards[0].key])

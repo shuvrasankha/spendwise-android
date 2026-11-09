@@ -64,10 +64,15 @@ class CardsViewModel @Inject constructor(
 
     fun retry() = reload.value++
 
-    fun add(name: String, type: String) {
+    /** A null [colour] leaves the card to the automatic pick. */
+    fun add(name: String, type: String, colour: String? = null) {
         val clean = sanitize(name.trim().replace(Regex("\\s+"), " "), 100)
         if (clean.isEmpty()) return
-        viewModelScope.launch { prefs.addCard(Card(clean, type)) }
+        val card = Card(clean, type)
+        viewModelScope.launch {
+            colour?.let { prefs.setCardColour(card.key, it) }
+            prefs.addCard(card)
+        }
     }
 
     /**

@@ -128,7 +128,7 @@ fun CardsScreen(onBack: () -> Unit, onExpenses: (String) -> Unit, vm: CardsViewM
         }
     }
 
-    if (adding) AddCardSheet(onDismiss = { adding = false }) { name, type -> vm.add(name, type); adding = false }
+    if (adding) AddCardSheet(onDismiss = { adding = false }) { name, type, colour -> vm.add(name, type, colour); adding = false }
     open?.let { card ->
         CardSheet(
             card, (page as? CardsPage.Ready)?.colours?.get(card.key), { vm.setColour(card, it) }, onDismiss = { open = null },
@@ -142,15 +142,18 @@ fun CardsScreen(onBack: () -> Unit, onExpenses: (String) -> Unit, vm: CardsViewM
 private val TYPES = listOf("Credit Card", "Debit Card")
 
 @Composable
-private fun AddCardSheet(onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
+private fun AddCardSheet(onDismiss: () -> Unit, onSave: (String, String, String?) -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
     var type by rememberSaveable { mutableStateOf(0) }
+    var colour by rememberSaveable { mutableStateOf<String?>(null) }
     SwSheet("Add card", onDismiss, footer = {
-        SwButton("Save card", { onSave(name, TYPES[type]) }, Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), enabled = name.isNotBlank())
+        SwButton("Save card", { onSave(name, TYPES[type], colour) }, Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), enabled = name.isNotBlank())
     }) {
         Column(Modifier.padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SwField(name, { name = it.take(100) }, "Card name, like HDFC Millennia", keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words))
             SegmentedControl(listOf("Credit", "Debit"), type, { type = it })
+            Text("Colour${colour?.let { " · $it" } ?: " · picked for you"}", style = SwType.labelStrong, color = SpendWiseTheme.colors.textMuted)
+            ColourPicker(colour) { colour = it }
             Text("Only the name is saved, never the card number.", style = SwType.label, color = SpendWiseTheme.colors.textMuted)
         }
     }
@@ -178,13 +181,14 @@ private fun CardSheet(card: Card, colour: String?, onColour: (String) -> Unit, o
 @Composable
 private fun ColourPicker(picked: String?, onPick: (String) -> Unit) {
     val c = SpendWiseTheme.colors
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Spread across the width: seven 36dp swatches fit a 360dp phone, fixed gaps would not
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         CARD_COLOURS.forEach { name ->
             val on = name == picked
             Box(
-                Modifier.size(40.dp).clip(CircleShape)
+                Modifier.size(36.dp).clip(CircleShape)
                     .then(if (on) Modifier.border(2.dp, c.text, CircleShape) else Modifier)
-                    .padding(if (on) 5.dp else 0.dp).clip(CircleShape).background(cardColor(name))
+                    .padding(if (on) 4.dp else 0.dp).clip(CircleShape).background(cardColor(name))
                     .selectable(on, role = Role.RadioButton, onClick = { onPick(name) })
                     .semantics { contentDescription = name },
                 contentAlignment = Alignment.Center,
