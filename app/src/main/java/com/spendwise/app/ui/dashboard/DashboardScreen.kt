@@ -1,5 +1,11 @@
 package com.spendwise.app.ui.dashboard
 
+import com.spendwise.app.ui.components.SwField
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.saveable.mapSaver
+import com.spendwise.app.domain.possiblyAdded
+import com.spendwise.app.domain.ReviewItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -122,8 +128,11 @@ fun DashboardScreen(
     onGoalsShown: () -> Unit = {},
     dashboard: DashboardViewModel = hiltViewModel(),
     plans: PlansViewModel = hiltViewModel(),
+    review: ReviewViewModel = hiltViewModel(),
 ) {
     val state by dashboard.state.collectAsStateWithLifecycle()
+    val pending by review.items.collectAsStateWithLifecycle()
+    val reviewError by review.error.collectAsStateWithLifecycle()
     val currency by dashboard.currency.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val notice by plans.notice.collectAsStateWithLifecycle()
@@ -132,6 +141,11 @@ fun DashboardScreen(
         plans.noticeShown()
         val result = snackbar.show(Toast(n.text, n.error), actionLabel = n.undoId?.let { "Undo" }, duration = SnackbarDuration.Long)
         if (result == SnackbarResult.ActionPerformed) n.undoId?.let(plans::undoDue)
+    }
+    LaunchedEffect(reviewError) {
+        val text = reviewError ?: return@LaunchedEffect
+        review.errorShown()
+        snackbar.show(Toast(text, error = true))
     }
     PlanDialogs(plans, currency)
     val list = rememberLazyListState()
@@ -158,6 +172,7 @@ fun DashboardScreen(
                     val money = { n: Double -> formatAmount(n, currency) }
                     item { Hero(s.home, s.expenses, currency, plans::openBudget) }
                     item { Section(0.dp) { Tiles(s.home, money, onOpenIncome, onOpenDebts) } }
+                    if (pending.isNotEmpty()) item(key = "review") { Section { ToReview(pending, s.expenses, money, review, onAddExpense) } }
                     if (s.home.due.isNotEmpty()) item { Section { DueThisMonth(s.home.due, money, plans) } }
                     if (s.emis.isNotEmpty()) item { Section { Emis(s.emis, currency) } }
                     item { Section { Today(s.home, s.firstTime, currency, money, onAddExpense, onEditExpense) } }
@@ -349,6 +364,47 @@ private fun Today(h: HomeFigures, firstTime: Boolean, currency: Currency, money:
             if (firstTime) Box(Modifier.padding(horizontal = Spacing.gutter, vertical = 12.dp)) { SwButton("Add your first expense", onAddExpense, Modifier.fillMaxWidth()) }
         } else {
             h.todays.take(5).forEachIndexed { i, e -> ExpenseRow(e, money, divider = i > 0, onEdit) }
+        }
+    }
+}
+
+/**
+ * Bank SMS payments waiting for approval (domain › AutoLog). The description can be changed in place;
+ * Edit opens the full form for anything else.
+ */
+@Composable
+private fun ToReview(items: List<ReviewItem>, expenses: List<Expense>, money: (Double) -> String, vm: ReviewViewModel, onAddExpense: () -> Unit) {
+    val c = SpendWiseTheme.colors
+    // Edits outlive scrolling the section away; keyed by the payment's id
+    val edits = rememberSaveable(saver = mapSaver({ it.toMap() }, { m -> mutableStateMapOf<String, String>().apply { m.forEach { (k, v) -> put(k, v as String) } } })) {
+        mutableStateMapOf<String, String>()
+    }
+    fun described(item: ReviewItem) = edits[item.id] ?: item.description
+    Column {
+        SectionHeader(
+            "To review", icon = SwIcons.Receipt, value = "${items.size}",
+            action = if (items.size >= 3) "Approve all" else null, actionIcon = SwIcons.Check,
+            onAction = { vm.approve(items.map { it to described(it) }) },
+        )
+        Caption("Read from your bank SMS. Nothing is saved until you approve it.")
+        items.asReversed().forEachIndexed { i, item ->
+            Column(Modifier.padding(horizontal = Spacing.gutter).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (i > 0) HorizontalDivider(color = c.line, modifier = Modifier.padding(bottom = 4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(money(item.amount), style = SwType.stat, color = c.text, modifier = Modifier.weight(1f))
+                    Text(formatDate(item.date), style = SwType.label, color = c.textMuted)
+                }
+                Text(listOf(item.category, item.payment, item.cardName).filter { it.isNotEmpty() }.joinToString(" · "), style = SwType.label, color = c.textMuted)
+                SwField(
+                    described(item), { edits[item.id] = it }, "Description", Modifier.fillMaxWidth(),
+                    supportingText = if (possiblyAdded(item, expenses)) "Possibly already added: an expense of ${money(item.amount)} is on this day." else null,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SwButton("Approve", { vm.approve(listOf(item to described(item))) }, compact = true, leading = SwIcons.Check)
+                    SwButton("Edit", { vm.edit(item, described(item)); onAddExpense() }, style = ButtonStyle.Secondary, compact = true)
+                    SwButton("Discard", { vm.discard(item) }, style = ButtonStyle.Text, compact = true)
+                }
+            }
         }
     }
 }

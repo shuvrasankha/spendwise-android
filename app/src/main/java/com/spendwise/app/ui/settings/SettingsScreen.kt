@@ -1,5 +1,10 @@
 package com.spendwise.app.ui.settings
 
+import com.spendwise.app.reminder.BankSmsListener
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.core.app.NotificationManagerCompat
+import android.provider.Settings
+import android.content.ComponentName
 import com.spendwise.app.data.AppIcon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
@@ -212,6 +217,53 @@ fun SettingsScreen(onBack: () -> Unit, onAiProvider: () -> Unit, viewModel: Sett
                     },
                     confirmButton = { TextButton({ autoPreview = null; viewModel.setAutoBills(true) }) { Text("Turn on") } },
                     dismissButton = { TextButton({ autoPreview = null }) { Text("Cancel") } },
+                )
+            }
+
+            val smsOn by viewModel.smsLog.collectAsStateWithLifecycle()
+            // Granted or taken away in Android's settings, so checked again on every return here
+            var smsAccess by remember { mutableStateOf(hasListenerAccess(context)) }
+            LifecycleResumeEffect(Unit) {
+                smsAccess = hasListenerAccess(context)
+                onPauseOrDispose { }
+            }
+            var smsExplain by rememberSaveable { mutableStateOf(false) }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SettingsGroup("Bank SMS") {
+                    SettingsRow("Read payments from bank SMS", icon = SwIcons.Mail, trailing = Trailing.Switch(smsOn) { on ->
+                        if (on) smsExplain = true else viewModel.setSmsLog(false)
+                    })
+                    if (smsOn && !smsAccess) SettingsRow("Allow notification access", icon = SwIcons.Bell, onClick = { openListenerSettings(context) }, divider = true)
+                }
+                Text(
+                    when {
+                        smsOn && !smsAccess -> "Not reading yet: SpendWise needs notification access. Allow it in Android's settings."
+                        smsOn -> "New bank SMS wait under To review on Home. Nothing is saved until you approve it."
+                        else -> "Payments from your bank SMS wait on Home for you to approve, so you rarely type an expense."
+                    },
+                    style = SwType.label, color = if (smsOn && !smsAccess) c.negative else c.textMuted, modifier = gutter,
+                )
+            }
+            if (smsExplain) {
+                AlertDialog(
+                    onDismissRequest = { smsExplain = false },
+                    title = { Text("Read payments from bank SMS?") },
+                    text = {
+                        Text(
+                            "SpendWise reads the notifications of your SMS app, on this phone only. A bank message about a payment " +
+                                "goes under To review on Home; every other message is ignored and never kept or sent. " +
+                                "A payment is saved to your account only when you approve it.\n\n" +
+                                "Android asks you next to allow notification access for SpendWise.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton({
+                            smsExplain = false
+                            viewModel.setSmsLog(true)
+                            if (!smsAccess) openListenerSettings(context)
+                        }) { Text("Continue") }
+                    },
+                    dismissButton = { TextButton({ smsExplain = false }) { Text("Cancel") } },
                 )
             }
 
@@ -590,3 +642,13 @@ private val ThemeMode.label
         ThemeMode.LIGHT -> "Light"
         ThemeMode.DARK -> "Dark"
     }
+
+private fun hasListenerAccess(context: Context) = context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
+
+/** Straight to SpendWise's own switch where Android has that page (11+), else the list of apps. */
+private fun openListenerSettings(context: Context) {
+    val detail = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, ComponentName(context, BankSmsListener::class.java).flattenToString())
+    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) detail else Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+    runCatching { context.startActivity(intent) }.onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) } }
+}

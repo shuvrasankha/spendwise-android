@@ -142,6 +142,7 @@ class AuthRepository @Inject constructor(
     suspend fun signOut() {
         keys.forgetAll()
         prefs.forgetLock()
+        prefs.forgetSmsLog()
         push.unregister() // needs the sign-in to reach the Worker
         auth.signOut()
         // So the next Google sign-in asks which account, instead of reusing this one

@@ -29,6 +29,11 @@ class ShareInbox @Inject constructor() {
         return if (shared.entry is SmsEntry.Earned) Income else AddExpense
     }
 
+    /** A payment from the review list, for Edit: Add expense fills in from it as from a shared SMS. */
+    fun receive(entry: SmsEntry.Spent) {
+        _shared.value = SharedText(entry.description, entry)
+    }
+
     /** The waiting text if [wanted] takes it; once only. */
     fun take(wanted: (SharedText) -> Boolean): SharedText? {
         val s = _shared.value ?: return null

@@ -24,6 +24,8 @@ object Notifications {
     const val BILLS_CHANNEL = "bills"
     const val BUDGET_CHANNEL = "budget-alerts"
     const val WEEKLY_CHANNEL = "weekly-note"
+    const val REVIEW_CHANNEL = "sms-review"
+    private const val REVIEW_TAG = "sms-review"
     private const val REMINDER_ID = 1001
     private const val WEEKLY_ID = 1002
 
@@ -32,6 +34,15 @@ object Notifications {
 
     /** Opens Ask on this week; the AI writes the note only when it's opened, so nothing is sent in the background. */
     fun weeklyNote(context: Context) = show(context, WEEKLY_CHANNEL, null, WEEKLY_ID, WEEKLY_NOTE_TITLE, WEEKLY_NOTE_TEXT, "week")
+
+    /** Silent, one at a time, the count only: no amount on the lock screen. Opens Home, where they wait. */
+    fun reviewWaiting(context: Context, count: Int) = message(
+        context, REVIEW_CHANNEL, REVIEW_TAG,
+        if (count == 1) "1 payment to review" else "$count payments to review",
+        "Read from your bank SMS. Approve them in SpendWise.", "dashboard",
+    )
+
+    fun reviewDone(context: Context) = cancel(context, setOf(REVIEW_TAG))
 
     /** One per tag, so a re-sent alert replaces the earlier one, as the web's tag does. */
     fun message(context: Context, channel: String, tag: String?, title: String, body: String, page: String) =
@@ -79,6 +90,7 @@ object Notifications {
                 NotificationChannel(BILLS_CHANNEL, "Bills and monthly summary", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(BUDGET_CHANNEL, "Budget alerts", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(WEEKLY_CHANNEL, "Weekly money note", NotificationManager.IMPORTANCE_DEFAULT),
+                NotificationChannel(REVIEW_CHANNEL, "Bank SMS to review", NotificationManager.IMPORTANCE_LOW),
             ),
         )
     }

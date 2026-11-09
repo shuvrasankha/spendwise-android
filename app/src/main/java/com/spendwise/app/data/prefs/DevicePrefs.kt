@@ -7,6 +7,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.spendwise.app.domain.PinFails
+import com.spendwise.app.domain.ReviewItem
+import com.spendwise.app.domain.SEEN_LIMIT
+import com.spendwise.app.domain.readReview
+import com.spendwise.app.domain.writeReview
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.spendwise.app.domain.CURRENCIES
@@ -231,6 +235,38 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         store.edit { p -> listOf(APP_LOCK, LOCK_PIN, LOCK_BIOMETRIC, PIN_FAILS, PIN_FAILED_AT, PIN_FAILED_BOOT).forEach { p.remove(it) } }
     }
 
+    /** Bank SMS are read from the SMS app's notifications into a review list; off until turned on here. */
+    val smsLog: Flow<Boolean> = store.data.map { it[SMS_LOG] == true }
+
+    suspend fun setSmsLog(on: Boolean) {
+        store.edit { if (on) it[SMS_LOG] = true else it.remove(SMS_LOG) }
+    }
+
+    /** Payments waiting for approval, oldest first (domain › AutoLog). */
+    val smsReview: Flow<List<ReviewItem>> = store.data.map { readReview(it[SMS_REVIEW]) }
+
+    suspend fun updateSmsReview(change: (List<ReviewItem>) -> List<ReviewItem>) {
+        store.edit { it[SMS_REVIEW] = writeReview(change(readReview(it[SMS_REVIEW]))) }
+    }
+
+    /** Remembers [id]; false when it was already seen, in one edit so two posts at once can't both pass. */
+    suspend fun markSmsSeen(id: String): Boolean {
+        var fresh = false
+        store.edit {
+            val seen = it[SMS_SEEN]?.split('\n').orEmpty()
+            if (id !in seen) {
+                fresh = true
+                it[SMS_SEEN] = (seen + id).takeLast(SEEN_LIMIT).joinToString("\n")
+            }
+        }
+        return fresh
+    }
+
+    /** On sign-out: the review list belongs to the account, so the next one here never sees it. */
+    suspend fun forgetSmsLog() {
+        store.edit { p -> listOf(SMS_LOG, SMS_REVIEW, SMS_SEEN).forEach { p.remove(it) } }
+    }
+
     /** The Sunday "week in money" note; off unless switched on. Per device, never synced. */
     val weeklyNote: Flow<Boolean> = store.data.map { it[WEEKLY_NOTE] == true }
 
@@ -314,6 +350,9 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val PUSH_AT = stringPreferencesKey("push_at")
         val COACH_CHAT = stringPreferencesKey("coach_chat")
         val APP_LOCK = booleanPreferencesKey("app_lock")
+        val SMS_LOG = booleanPreferencesKey("sms_log")
+        val SMS_REVIEW = stringPreferencesKey("sms_review")
+        val SMS_SEEN = stringPreferencesKey("sms_seen")
         val LOCK_PIN = stringPreferencesKey("lock_pin")
         val LOCK_BIOMETRIC = booleanPreferencesKey("lock_biometric")
         val PIN_FAILS = intPreferencesKey("pin_fails")

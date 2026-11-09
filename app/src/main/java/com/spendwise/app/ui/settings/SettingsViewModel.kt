@@ -291,6 +291,11 @@ class SettingsViewModel @Inject constructor(
 
     val weeklyNote: StateFlow<Boolean> = prefs.weeklyNote.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /** Bank SMS into To review; also needs notification access, which only Android's settings can grant. */
+    val smsLog: StateFlow<Boolean> = prefs.smsLog.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setSmsLog(on: Boolean) = viewModelScope.launch { prefs.setSmsLog(on) }
+
     fun setWeeklyNote(on: Boolean, granted: Boolean = true) = viewModelScope.launch {
         if (on && (!granted || !scheduler.permitted())) return@launch tapNote.update { REMINDER_BLOCKED }
         tapNote.update { null }
