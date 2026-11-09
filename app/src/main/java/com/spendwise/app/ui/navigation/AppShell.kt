@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.spendwise.app.ui.cards.CardsScreen
 import com.spendwise.app.ui.components.Avatar
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -209,6 +210,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                 MoreScreen(
                     onIncome = { nav.navigate(Income) },
                     onDebts = { nav.navigate(Debts) },
+                    onCards = { nav.navigate(Cards) },
                     onInvestments = { nav.navigate(Investments) },
                     onGoals = { showGoals = true; nav.switchTo(Dashboard) },
                     onImport = { nav.navigate(CsvImport) },
@@ -226,6 +228,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             }
             composable<Investments> { InvestScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Invest }, onAllHistory = { nav.navigate(History()) }, vm = investVm) }
             composable<Debts> { DebtsScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Debt }, onOpenAssistant = { nav.navigate(Assistant(it)) }, vm = debtsVm) }
+            composable<Cards> { CardsScreen(onBack = { nav.popBackStack() }, onExpenses = { nav.navigate(History(q = it)) }) }
             composable<Settings> { SettingsScreen(onBack = { nav.popBackStack() }, onAiProvider = { nav.navigate(AiProvider) }) }
             composable<AiProvider> { AiProviderScreen(onBack = { nav.popBackStack() }) }
             composable<CsvImport> { CsvImportScreen(onDone = { nav.popBackStack() }) }

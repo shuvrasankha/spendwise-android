@@ -25,6 +25,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object Income
 @Serializable data object Investments
 @Serializable data object Debts
+@Serializable data object Cards
 @Serializable data object Settings
 @Serializable data object CsvImport
 @Serializable data object AiProvider

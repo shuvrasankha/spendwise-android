@@ -25,6 +25,9 @@ import com.spendwise.app.ui.components.TabTopBar
 import com.spendwise.app.ui.components.Toast
 import com.spendwise.app.ui.components.show
 import com.spendwise.app.domain.moreSummary
+import com.spendwise.app.domain.cardsSummary
+import com.spendwise.app.ui.cards.CardsPage
+import com.spendwise.app.ui.cards.CardsViewModel
 import com.spendwise.app.ui.dashboard.DashboardState
 import com.spendwise.app.ui.dashboard.DashboardViewModel
 import com.spendwise.app.ui.dashboard.PlanDialogs
@@ -41,6 +44,7 @@ import com.spendwise.app.ui.theme.SpendWiseTheme
 fun MoreScreen(
     onIncome: () -> Unit,
     onDebts: () -> Unit,
+    onCards: () -> Unit,
     onInvestments: () -> Unit,
     onGoals: () -> Unit,
     onImport: () -> Unit,
@@ -49,12 +53,14 @@ fun MoreScreen(
     dashboard: DashboardViewModel = hiltViewModel(),
     backup: BackupViewModel = hiltViewModel(),
     settings: SettingsViewModel = hiltViewModel(),
+    cards: CardsViewModel = hiltViewModel(),
 ) {
     val currency = settings.state.collectAsStateWithLifecycle().value.currency
     val uriHandler = LocalUriHandler.current
     // Each Money row says what's behind it; blank while the figures load
     val figures = (dashboard.state.collectAsStateWithLifecycle().value as? DashboardState.Ready)?.home
     val sums = figures?.let { moreSummary(it) { n -> formatWhole(n, currency) } }
+    val cardLine = (cards.page.collectAsStateWithLifecycle().value as? CardsPage.Ready)?.let { p -> cardsSummary(p.spends) { formatWhole(it, currency) } }
     val snackbar = remember { SnackbarHostState() }
     val notice by plans.notice.collectAsStateWithLifecycle()
     LaunchedEffect(notice) {
@@ -69,6 +75,7 @@ fun MoreScreen(
             SettingsGroup("Money") {
                 SettingsRow("Income", icon = SwIcons.MoneyIn, sub = sums?.income, onClick = onIncome)
                 SettingsRow("Debts", icon = SwIcons.People, sub = sums?.debts, onClick = onDebts, divider = true)
+                SettingsRow("Cards", icon = SwIcons.CreditCard, sub = cardLine, onClick = onCards, divider = true)
                 SettingsRow("Budgets", icon = SwIcons.Receipt, sub = sums?.budget, onClick = plans::openBudget, divider = true)
                 SettingsRow("Savings goals", icon = SwIcons.Target, sub = sums?.goals, onClick = onGoals, divider = true)
                 SettingsRow("Investments", icon = SwIcons.TrendingUp, sub = sums?.invested, onClick = onInvestments, divider = true)

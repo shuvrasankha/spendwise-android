@@ -18,6 +18,11 @@ import com.spendwise.app.domain.readReview
 import com.spendwise.app.domain.writeReview
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.spendwise.app.domain.Card
+import com.spendwise.app.domain.readCards
+import com.spendwise.app.domain.readCardColours
+import com.spendwise.app.domain.writeCardColours
+import com.spendwise.app.domain.writeCards
 import com.spendwise.app.domain.CURRENCIES
 import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.DEFAULT_PAYMENT
@@ -281,7 +286,32 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
 
     /** On sign-out: the review list belongs to the account, so the next one here never sees it. */
     suspend fun forgetSmsLog() {
-        store.edit { p -> listOf(SMS_LOG, SMS_REVIEW, SMS_SEEN, SMS_LEARNED).forEach { p.remove(it) } }
+        store.edit { p -> listOf(SMS_LOG, SMS_REVIEW, SMS_SEEN, SMS_LEARNED, CARDS_ADDED, CARDS_HIDDEN, CARD_COLOURS_KEY).forEach { p.remove(it) } }
+    }
+
+    /** Cards added on the Cards page and not used yet, and cards taken off the list (domain › Cards). Per device. */
+    val addedCards: Flow<List<Card>> = store.data.map { readCards(it[CARDS_ADDED]) }
+    val hiddenCards: Flow<Set<String>> = store.data.map { it[CARDS_HIDDEN].orEmpty() }
+
+    suspend fun addCard(card: Card) {
+        store.edit {
+            it[CARDS_ADDED] = writeCards(readCards(it[CARDS_ADDED]).filter { c -> c.key != card.key } + card)
+            it[CARDS_HIDDEN] = it[CARDS_HIDDEN].orEmpty() - card.key
+        }
+    }
+
+    /** Colours picked on the Cards page, by card key. */
+    val cardColours: Flow<Map<String, String>> = store.data.map { readCardColours(it[CARD_COLOURS_KEY]) }
+
+    suspend fun setCardColour(key: String, colour: String) {
+        store.edit { it[CARD_COLOURS_KEY] = writeCardColours(readCardColours(it[CARD_COLOURS_KEY]) + (key to colour)) }
+    }
+
+    suspend fun hideCard(card: Card) {
+        store.edit {
+            it[CARDS_ADDED] = writeCards(readCards(it[CARDS_ADDED]).filter { c -> c.key != card.key })
+            it[CARDS_HIDDEN] = it[CARDS_HIDDEN].orEmpty() + card.key
+        }
     }
 
     /** The Sunday "week in money" note; off unless switched on. Per device, never synced. */
@@ -371,6 +401,9 @@ class DevicePrefs @Inject constructor(private val store: DataStore<Preferences>)
         val SMS_REVIEW = stringPreferencesKey("sms_review")
         val SMS_SEEN = stringPreferencesKey("sms_seen")
         val SMS_LEARNED = stringPreferencesKey("sms_learned")
+        val CARDS_ADDED = stringPreferencesKey("cards_added")
+        val CARDS_HIDDEN = stringSetPreferencesKey("cards_hidden")
+        val CARD_COLOURS_KEY = stringPreferencesKey("card_colours")
         val LOCK_PIN = stringPreferencesKey("lock_pin")
         val LOCK_BIOMETRIC = booleanPreferencesKey("lock_biometric")
         val PIN_FAILS = intPreferencesKey("pin_fails")

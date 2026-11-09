@@ -11,6 +11,10 @@ import com.spendwise.app.domain.Income
 import com.spendwise.app.domain.IncomeCheck
 import com.spendwise.app.domain.ReviewItem
 import com.spendwise.app.domain.queued
+import com.spendwise.app.domain.cardForBank
+import com.spendwise.app.domain.isCard
+import com.spendwise.app.domain.savedCards
+import kotlinx.coroutines.flow.combine
 import com.spendwise.app.domain.toIncome
 import com.spendwise.app.domain.toInput
 import com.spendwise.app.reminder.Notifications
@@ -41,9 +45,14 @@ class ReviewViewModel @Inject constructor(
     private val inbox: ShareInbox,
 ) : ViewModel() {
 
-    // An emptied list takes its notification with it
+    private val cards = combine(expenses.expenses().catch { emit(emptyList()) }, prefs.addedCards, prefs.hiddenCards, ::savedCards)
+
+    // An emptied list takes its notification with it. A card payment names only the bank: the one saved card from it is used
     val items: StateFlow<List<ReviewItem>> = prefs.smsReview
         .onEach { if (it.isEmpty()) Notifications.reviewDone(context) }
+        .combine(cards) { list, cards ->
+            list.map { i -> if (isCard(i.payment)) cardForBank(i.cardName, i.payment, cards)?.let { i.copy(cardName = it) } ?: i else i }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** For "Possibly already added" on money in; a load error just leaves the hint out. */

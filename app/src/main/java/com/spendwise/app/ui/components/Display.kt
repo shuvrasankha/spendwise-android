@@ -146,6 +146,7 @@ fun ListRow(
     icon: ImageVector? = null,
     amountColor: Color = Color.Unspecified,
     metaColor: Color = Color.Unspecified,
+    iconTint: Color = Color.Unspecified,
     metaLines: Int = 1,
     divider: Boolean = false,
     onClick: (() -> Unit)? = null,
@@ -162,7 +163,7 @@ fun ListRow(
         ) {
             if (icon != null) {
                 Box(Modifier.size(36.dp).clip(Radius.tile).background(c.surface), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, Modifier.size(18.dp), tint = c.textMuted)
+                    Icon(icon, null, Modifier.size(18.dp), tint = iconTint.takeOrElse { c.textMuted })
                 }
             }
             Column(Modifier.weight(1f)) {

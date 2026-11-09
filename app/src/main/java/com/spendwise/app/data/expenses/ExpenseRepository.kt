@@ -2,6 +2,7 @@ package com.spendwise.app.data.expenses
 
 import com.spendwise.app.data.worker.WorkerPush
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.FirebaseFirestore
@@ -129,6 +130,14 @@ class ExpenseRepository @Inject constructor(
         PendingWrite(id, collection.document(id).update(editedExpenseFields(input)))
 
     fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
+
+    /**
+     * A card renamed or merged: the new name on each of its expenses, 500 to a batch (Firestore's limit). It shows at
+     * once, offline too; the task completes when the server has it.
+     */
+    fun renameCard(ids: List<String>, name: String): Task<Void> = Tasks.whenAll(
+        ids.chunked(500).map { chunk -> db.batch().apply { chunk.forEach { update(collection.document(it), "cardName", name) } }.commit() },
+    )
 
     /** Investments › Put money in (invest.js › addEntry). */
     fun addInvestment(input: InvestEntryInput): PendingWrite {
