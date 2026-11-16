@@ -45,6 +45,10 @@ fun csvErrorText(code: String): String = when (code) {
     "MODEL_LOADING" -> "AI model is loading. Please try again in 20-30 seconds."
     "CSV_TOO_SHORT" -> "CSV file is too short. Need at least 2 rows (header + data)."
     "CSV_TOO_MANY_ROWS" -> "CSV is too large. Please limit to 200 rows at a time."
+    "PDF_TOO_LONG" -> "This statement is too long. Download a shorter period, like one month, and try again."
+    "PDF_NO_TEXT" -> "This PDF has no text to read; it may be a scan. Download the statement again from your bank's website or app."
+    "BAD_FILE" -> "Couldn't read this file. Check that it opens on your phone, or download it again."
+    "XLS" -> "Old Excel files (.xls) can't be read. Save it as .xlsx or CSV and try again."
     "NO_DATA_EXTRACTED" -> "Could not extract any valid transactions from this CSV."
     "EMPTY_RESPONSE" -> "AI returned an empty response. Please try again."
     "INVALID_FORMAT" -> "AI returned data in unexpected format. Please try again."
@@ -52,13 +56,14 @@ fun csvErrorText(code: String): String = when (code) {
 }
 
 const val CSV_TOO_BIG = "File is too large (max 512 KB)."
+const val STATEMENT_TOO_BIG = "File is too large (max 10 MB)."
 const val CSV_SAVE_FAILED = "Failed to save transactions. Please try again."
 
-/** handleFileUpload's line check: at least a header and a row, at most 200 non-blank lines. */
-fun checkCsvLines(text: String) {
+/** handleFileUpload's line check: at least a header and a row, at most 200 non-blank lines (a PDF's: [max]). */
+fun checkCsvLines(text: String, max: Int = CSV_MAX_LINES, tooMany: String = "CSV_TOO_MANY_ROWS") {
     val lines = text.split('\n').count { it.isNotBlank() }
     if (lines < 2) throw CsvImportError("CSV_TOO_SHORT")
-    if (lines > CSV_MAX_LINES) throw CsvImportError("CSV_TOO_MANY_ROWS")
+    if (lines > max) throw CsvImportError(tooMany)
 }
 
 /**
@@ -106,6 +111,9 @@ RULES:
 8. Skip header rows if present. Skip any obviously empty/invalid rows.
 9. Amounts should always be positive numbers (no currency symbols).
 10. If the CSV appears to have income entries (salary, freelance, refund, etc.), set type to "income".
+11. Bank statements: money out of the account (Withdrawal, Debit, Dr, a minus sign) is "expense"; money in (Deposit, Credit, Cr) is "income". The text may be laid out in columns: match each amount to the column heading above it. When the balance goes up after a row, that row is "income"; when it goes down, "expense". Never use the balance as the amount.
+12. Skip opening and closing balances, totals, page headings and any line that is not a transaction. A description may run onto the next line: join it to its transaction.
+13. Credit card statements: purchases are "expense"; refunds and cashback are "income"; skip payments made to the card (like "Payment received, thank you").
 
 Example output:
 [

@@ -13,4 +13,5 @@
     <string name="widget_name_today">SpendWise Today</string>
     <string name="widget_name_month">SpendWise Month</string>
     <string name="widget_name_large">SpendWise Overview</string>
+    <string name="sms_listener_label">SpendWise bank SMS reader</string>
 </resources>

@@ -90,8 +90,11 @@ fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
 
     // Receipts: the camera saves into the app's cache; the system photo picker needs no permission
     var photo by rememberSaveable { mutableStateOf<Uri?>(null) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken -> vm.scanReceipt(photo.takeIf { taken }) }
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { vm.scanReceipt(it) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken -> vm.scanReceipts(listOfNotNull(photo.takeIf { taken })) }
+    // The picker needs a limit of 2 or more; the view model keeps only as many as are left
+    val photosLeft = RECEIPTS_MAX - state.photos
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(maxOf(2, photosLeft))) { vm.scanReceipts(it) }
+    val canScan = !state.reading && photosLeft > 0
 
     Scaffold(contentWindowInsets = WindowInsets(0), containerColor = c.bg) { padding ->
         LazyColumn(
@@ -129,8 +132,8 @@ fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
                         modifier = Modifier.weight(1f), style = ButtonStyle.Secondary, enabled = !state.reading, leading = SwIcons.Mic,
                     )
                     SwButton(
-                        "Take a photo", { vm.newPhotoUri().also { photo = it; camera.launch(it) } },
-                        Modifier.weight(1f), style = ButtonStyle.Secondary, enabled = !state.reading, leading = SwIcons.Camera,
+                        if (state.photos == 0) "Take a photo" else "Another photo", { vm.newPhotoUri().also { photo = it; camera.launch(it) } },
+                        Modifier.weight(1f), style = ButtonStyle.Secondary, enabled = canScan, leading = SwIcons.Camera,
                     )
                 }
             }
@@ -138,10 +141,17 @@ fun VoiceScreen(onDone: () -> Unit, vm: VoiceViewModel = hiltViewModel()) {
                 Row(gutter, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     SwButton(
                         "From gallery", { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        Modifier.weight(1f), style = ButtonStyle.Secondary, enabled = !state.reading, leading = SwIcons.Image,
+                        Modifier.weight(1f), style = ButtonStyle.Secondary, enabled = canScan, leading = SwIcons.Image,
                     )
                     SwButton("Read it", vm::submit, Modifier.weight(1f), enabled = !state.reading)
                 }
+            }
+            item {
+                Text(
+                    if (state.photos == 0) "Up to $RECEIPTS_MAX receipt photos at a time."
+                    else "${state.photos} of $RECEIPTS_MAX photos read. Add more, or save these.",
+                    style = SwType.label, color = c.textMuted, modifier = gutter,
+                )
             }
             if (noMic) item { Text("Speech input isn't available on this device. Type it instead.", style = SwType.label, color = c.negative, modifier = gutter) }
             if (state.reading) item { LinearProgressIndicator(gutter.fillMaxWidth(), color = c.text, trackColor = c.line) }

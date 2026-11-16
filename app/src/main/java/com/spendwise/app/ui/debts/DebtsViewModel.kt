@@ -11,6 +11,11 @@ import com.spendwise.app.domain.Currency
 import com.spendwise.app.domain.Debt
 import com.spendwise.app.domain.DebtCheck
 import com.spendwise.app.domain.DebtPerson
+import com.spendwise.app.domain.DebtPlan
+import com.spendwise.app.domain.PLAN_MONTH
+import com.spendwise.app.domain.Payoff
+import com.spendwise.app.domain.payoff
+import com.spendwise.app.domain.planError
 import com.spendwise.app.domain.DebtSummary
 import com.spendwise.app.domain.KnownPerson
 import com.spendwise.app.domain.PayResult
@@ -32,6 +37,7 @@ import com.spendwise.app.domain.round2
 import com.spendwise.app.domain.settledDebts
 import com.spendwise.app.domain.todayStr
 import com.spendwise.app.ui.expenses.FormMessage
+import com.spendwise.app.ui.format.formatDate
 import com.spendwise.app.ui.format.formatMoney
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -61,6 +67,8 @@ sealed interface DebtsPage {
         val showPeople: Boolean,
         val settled: List<Debt>,
         val known: List<KnownPerson>,
+        /** Open debts with a repayment plan: their schedule from today. */
+        val payoffs: Map<String, Payoff> = emptyMap(),
     ) : DebtsPage
 }
 
@@ -75,6 +83,9 @@ data class DebtForm(
 )
 
 /** The payment dialog for one debt: the amount starts at what's left, the date at today. */
+/** The repayment plan sheet as typed. */
+data class PlanDialog(val id: String, val amount: String, val every: String = PLAN_MONTH, val start: String = todayStr(), val error: String? = null)
+
 data class PayDialog(val id: String, val amount: String, val date: String = todayStr(), val error: String? = null)
 
 /** The Debts page (spec §1.5, §2.7): debt.js, debt-data.js and split.js. */
@@ -98,6 +109,7 @@ class DebtsViewModel @Inject constructor(
                     showPeople = all.count { !it.settled } > 1,
                     settled = settledDebts(all),
                     known = peopleFrom(all),
+                    payoffs = all.filter { !it.settled }.mapNotNull { d -> d.plan?.let { d.id to payoff(d, it, todayStr()) } }.toMap(),
                 )
             }
             .onStart { emit(DebtsPage.Loading) }
@@ -181,6 +193,50 @@ class DebtsViewModel @Inject constructor(
                 watch(write) { _formMessage.value = FormMessage("Failed to save. Try again.") }
             }
         }
+    }
+
+    // ── Repayment plan (owner only; the rules refuse anyone else) ──
+
+    private val _plan = MutableStateFlow<PlanDialog?>(null)
+    val plan: StateFlow<PlanDialog?> = _plan.asStateFlow()
+
+    fun openPlan(id: String) {
+        val d = debt(id) ?: return
+        _plan.value = d.plan?.let { PlanDialog(id, plain(it.amount), it.every, it.start) } ?: PlanDialog(id, "")
+    }
+    fun setPlanAmount(v: String) = _plan.update { it?.copy(amount = v, error = null) }
+    fun setPlanEvery(v: String) = _plan.update { it?.copy(every = v, error = null) }
+    fun setPlanStart(v: String) = _plan.update { it?.copy(start = v, error = null) }
+    fun closePlan() { _plan.value = null }
+
+    /** The schedule the sheet would save, or null while it can't be saved. */
+    fun planPreview(p: PlanDialog): Payoff? {
+        val d = debt(p.id) ?: return null
+        val n = parsePayAmount(p.amount)
+        if (planError(d, n, p.start) != null) return null
+        return payoff(d, DebtPlan(round2(n!!), p.every, p.start), todayStr())
+    }
+
+    fun savePlan() {
+        val p = _plan.value ?: return
+        val d = debt(p.id) ?: return closePlan()
+        val n = parsePayAmount(p.amount)
+        planError(d, n, p.start)?.let { e -> _plan.update { it?.copy(error = e) }; return }
+        val plan = DebtPlan(round2(n!!), p.every, p.start)
+        writePlan(d.id, plan)
+        _toast.value = Toast(payoff(d, plan, todayStr()).ends?.let { "Plan saved. Paid off by ${formatDate(it)}." } ?: "Plan saved.")
+        closePlan()
+    }
+
+    fun removePlan() {
+        val p = _plan.value ?: return
+        writePlan(p.id, null)
+        _toast.value = Toast("Plan removed.")
+        closePlan()
+    }
+
+    private fun writePlan(id: String, plan: DebtPlan?) = watch(repo.setPlan(id, plan)) { e ->
+        _toast.value = Toast(if (e.denied()) "SpendWise can't update this debt yet. Try again later." else "Couldn't save the plan. Check your connection and try again.", error = true)
     }
 
     // ── Payments and claims ──

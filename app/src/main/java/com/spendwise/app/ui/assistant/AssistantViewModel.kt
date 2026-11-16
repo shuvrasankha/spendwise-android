@@ -114,8 +114,9 @@ data class SavedOption(val label: String, val question: String)
 
 /** One conversation, on this device only. [id] is when it started. */
 @Serializable
-data class SavedChat(val id: Long, val savedAt: Long, val turns: List<AssistantTurn>) {
-    val title get() = turns.firstOrNull { it.kind == TurnKind.USER }?.text.orEmpty()
+data class SavedChat(val id: Long, val savedAt: Long, val turns: List<AssistantTurn>, val name: String? = null) {
+    /** The name the user gave it, else its first question. */
+    val title get() = name ?: turns.firstOrNull { it.kind == TurnKind.USER }?.text.orEmpty()
 }
 
 /** The user's past chats, newest first. Another user's on this device are not shown. */
@@ -127,6 +128,12 @@ const val CHATS_KEPT = 30
 /** [chat] replaces the one with its id, moves to the top, and the oldest past [CHATS_KEPT] drop off. */
 fun upsertChat(chats: List<SavedChat>, chat: SavedChat): List<SavedChat> =
     (listOf(chat) + chats.filter { it.id != chat.id }).take(CHATS_KEPT)
+
+const val CHAT_NAME_MAX = 60
+
+/** Names the chat with [id] in place; a blank name goes back to its first question. Order and saved time stay. */
+fun renameChat(chats: List<SavedChat>, id: Long, name: String): List<SavedChat> =
+    chats.map { if (it.id == id) it.copy(name = name.trim().take(CHAT_NAME_MAX).ifEmpty { null }) else it }
 
 @Immutable
 sealed interface AssistantRow {
@@ -314,6 +321,10 @@ class AssistantViewModel @Inject constructor(
         error.value = null
     }
 
+    fun renameChat(id: Long, name: String) = viewModelScope.launch {
+        writeChats(renameChat(readChats(prefs.coachChat.first()), id, name))
+    }
+
     fun deleteChat(id: Long) = viewModelScope.launch {
         if (id == chatId) newChat()
         writeChats(chats.value.filter { it.id != id })
@@ -465,7 +476,9 @@ class AssistantViewModel @Inject constructor(
 
     private suspend fun save() {
         if (turns.value.isEmpty()) return
-        writeChats(upsertChat(readChats(prefs.coachChat.first()), SavedChat(chatId, System.currentTimeMillis(), turns.value)))
+        val saved = readChats(prefs.coachChat.first())
+        // Saving a reply keeps the name the user gave the chat
+        writeChats(upsertChat(saved, SavedChat(chatId, System.currentTimeMillis(), turns.value, saved.firstOrNull { it.id == chatId }?.name)))
     }
 
     /** The last chat carries on if it's under a day old; older ones stay in the list. A chat saved by an older version doesn't read, and is dropped. */

@@ -120,6 +120,8 @@ fun InsightsScreen(
     val state by insights.state.collectAsStateWithLifecycle()
     val currency by insights.currency.collectAsStateWithLifecycle()
     val money = { n: Double -> formatAmount(n, currency) }
+    // Projections are estimates, so paise only add noise
+    val whole = { n: Double -> formatAmount(Math.round(n).toDouble(), currency) }
     val snackbar = remember { SnackbarHostState() }
     val notice by plans.notice.collectAsStateWithLifecycle()
     LaunchedEffect(notice) {
@@ -162,7 +164,7 @@ fun InsightsScreen(
                         }
                         else -> {
                             item { Section { CompareSection(g.summary, g, money) } }
-                            item { Section { BudgetSection(g.budget, money, plans::openBudget) } }
+                            item { Section { BudgetSection(g.budget, whole, plans::openBudget) } }
                             if (g.pie.isNotEmpty()) item { Section { PieSection(g.pie, g.summary.spent, money) } }
                             if (g.summary.movers.isNotEmpty()) item { Section { ChangedSection(g.summary, money) } }
                             if (g.unusual.isNotEmpty()) item { Section { UnusualSection(g.unusual, money, onEditExpense, onOpenAssistant) } }
@@ -173,7 +175,7 @@ fun InsightsScreen(
                         }
                     }
                     if (s.subscriptions.isNotEmpty()) item { Section { SubscriptionSection(s.subscriptions, money, onEditExpense) } }
-                    item { Section { ForecastSection(s.forecast, money) } }
+                    item { Section { ForecastSection(s.forecast, whole) } }
                 }
             }
         }
@@ -232,8 +234,9 @@ private fun AskEntry(onOpen: (String?) -> Unit) {
             Icon(SwIcons.Sparkles, null, Modifier.size(18.dp), tint = c.textMuted)
             Text("Ask about your money, or get advice", style = SwType.body, color = c.textMuted)
         }
-        SwButton("Explain this month", { onOpen(EXPLAIN_MONTH_QUESTION) }, Modifier.padding(horizontal = Spacing.gutter).fillMaxWidth(), style = ButtonStyle.Secondary, leading = SwIcons.Sparkles)
+        // "Explain this month" leads the suggestions instead of being a full-width button of its own
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SwChip("Explain this month", false, { onOpen(EXPLAIN_MONTH_QUESTION) }, leading = SwIcons.Sparkles)
             ASK_EXAMPLES.forEach { q -> SwChip(q, false, { onOpen(q) }) }
         }
     }
@@ -268,7 +271,8 @@ private fun Periods(choice: PeriodChoice, vm: InsightsViewModel) {
 private fun ForecastSection(f: Forecast, money: (Double) -> String) {
     val card = forecastCard(f, money) ?: return
     val c = SpendWiseTheme.colors
-    val colors = shades(card.parts.size)
+    // Spent, bills still due, then the rest at your usual pace: one accent getting lighter
+    val colors = listOf(c.accent, c.accent.copy(alpha = 0.45f), c.textFaint).take(card.parts.size)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionHeader("Forecast", icon = SwIcons.TrendingUp)
         Column(Modifier.padding(horizontal = Spacing.gutter), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -280,8 +284,11 @@ private fun ForecastSection(f: Forecast, money: (Double) -> String) {
             Modifier.padding(horizontal = Spacing.gutter).semantics {
                 contentDescription = "Spent so far ${money(f.spent)}, bills still due ${money(f.billsTotal)}, at your usual pace ${money(f.usualLeft)}"
             },
-        ) { StackedBar(card.parts.mapIndexed { i, w -> BarSegment(w.toFloat(), colors[i]) }) }
-        Column { card.legend.forEachIndexed { i, (title, sub) -> LegendRow(colors[i], title, sub) } }
+        ) {
+            StackedBar(card.parts.mapIndexed { i, w -> BarSegment(w.toFloat(), colors[i]) })
+        }
+        // A part that adds nothing (no bills left, say) is left out of the legend; spent so far always shows
+        Column { card.legend.forEachIndexed { i, (title, sub) -> if (i == 0 || card.parts[i] > 0) LegendRow(colors[i], title, sub) } }
         HorizontalDivider(Modifier.padding(horizontal = Spacing.gutter), color = c.line)
         Row(Modifier.padding(horizontal = Spacing.gutter), verticalAlignment = Alignment.CenterVertically) {
             Text(card.nextName, style = SwType.body, color = c.textMuted, modifier = Modifier.weight(1f))
@@ -332,9 +339,11 @@ private fun BudgetSection(rep: BudgetReport?, money: (Double) -> String, onBudge
         val cats = rep.catRows(money)
         if (cats.isNotEmpty()) {
             SectionHeader("Category limits", icon = SwIcons.Gauge)
-            cats.forEachIndexed { i, r ->
+            val (used, idle) = cats.zip(rep.cats).partition { (r, cat) -> r.over || cat.avg > 0 }
+            used.forEachIndexed { i, (r, _) ->
                 ListRow(r.category, meta = r.sub, amount = r.value, amountColor = if (r.over) c.negative else Color.Unspecified, icon = SwIcons.forCategory(r.category), divider = i > 0)
             }
+            if (idle.isNotEmpty()) Note("${idle.size} more with nothing spent: ${idle.joinToString(", ") { it.first.category }}")
         }
         Note("Measured against the budget you have now.")
     }
@@ -383,7 +392,8 @@ private fun UnusualSection(items: List<Unusual>, money: (Double) -> String, onEd
 /** Charges that come back each month but aren't marked as repeating, so they're missing from due bills. */
 @Composable
 private fun SubscriptionSection(subs: List<Subscription>, money: (Double) -> String, onEdit: (String) -> Unit) = Column {
-    SectionHeader("Looks like subscriptions", icon = SwIcons.Receipt, value = "${money(subs.sumOf { it.monthly })} a month")
+    SectionHeader("Looks like subscriptions", icon = SwIcons.Receipt)
+    Note("${money(subs.sumOf { it.monthly })} a month in all")
     subs.forEachIndexed { i, sub ->
         ListRow(
             sub.name, meta = "Seen in ${sub.months} of the last 6 months", amount = money(sub.monthly), sub = "a month",
@@ -429,7 +439,8 @@ private fun PaymentSection(rows: List<Pair<PaymentShare, String>>) {
             Column {
                 ListRow(p.name, amount = text, icon = paymentIcon(p.name), divider = i > 0)
                 Box(Modifier.padding(start = Spacing.gutter + 48.dp, end = Spacing.gutter, bottom = 12.dp)) {
-                    StackedBar(listOf(BarSegment(maxOf(p.share, 2.0).toFloat(), c.textMuted), BarSegment((100 - maxOf(p.share, 2.0)).toFloat(), Color.Transparent)))
+                    // Same thin bar with a track as the category rows on Home
+                    BudgetBar(maxOf(p.share, 2.0).toFloat() / 100f)
                 }
             }
         }

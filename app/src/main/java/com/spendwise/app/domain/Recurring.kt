@@ -224,3 +224,44 @@ fun forecast(expenses: List<Expense>, today: String, skipped: SkippedBill = NOTH
         next = NextMonth(next, nextFixed, nextBills, usualNext, nextFixed + usualNext),
     )
 }
+
+// ── Adding repeating bills automatically (Android only, opt-in per account on each device) ──
+
+/** A bill to add: [template] entered again on [due], as the doc [id]. */
+data class AutoBill(val id: String, val template: Expense, val due: String)
+
+/** The most months a run catches up, so a phone off for a long time doesn't add a year of bills at once. */
+const val AUTO_BILL_MONTHS = 12
+
+/**
+ * One series' entry for one month always gets the same doc id, so two phones, or a run retried, write the same
+ * doc instead of adding it twice. The uid is in it because ids are shared by every user of the collection.
+ */
+fun autoBillId(uid: String, key: String, month: String): String {
+    val sha = java.security.MessageDigest.getInstance("SHA-1").digest("$uid|$key".toByteArray())
+    return "auto-$month-" + sha.joinToString("") { "%02x".format(it) }.take(20)
+}
+
+/**
+ * The bills to add now, oldest first. [ranThrough] is the last month ("YYYY-MM") this account's run finished on
+ * this device, or null on the first run, which only adds this month's, the same as Due this month shows. Later
+ * runs also catch up the months since, up to [AUTO_BILL_MONTHS], each dated on its own due day. [expenses] are
+ * in the web's order (newest first), as [dueRecurring] needs.
+ */
+fun autoBills(uid: String, expenses: List<Expense>, today: String, ranThrough: String?, skipped: SkippedBill = NOTHING_SKIPPED): List<AutoBill> {
+    val current = today.take(7)
+    var month = ranThrough?.takeIf { it < current }?.let { maxOf(it, addMonths(current, 1 - AUTO_BILL_MONTHS)) } ?: current
+    var list = expenses
+    val bills = mutableListOf<AutoBill>()
+    while (month <= current) {
+        val asOf = if (month == current) today else "$month-${daysIn(month)}"
+        for (b in dueRecurring(list, asOf, skipped)) {
+            val id = autoBillId(uid, b.key, month)
+            bills += AutoBill(id, b.template, b.due)
+            // Counted from here on, so the series moves on a month and an EMI stops at its last payment
+            list = listOf(b.template.copy(id = id, date = b.due, notes = "", repeat = "monthly", pending = false)) + list
+        }
+        month = addMonths(month, 1)
+    }
+    return bills
+}

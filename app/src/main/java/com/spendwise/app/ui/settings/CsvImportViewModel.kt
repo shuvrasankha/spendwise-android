@@ -7,7 +7,12 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spendwise.app.data.CsvImporter
+import com.spendwise.app.data.StatementPasswordException
+import com.spendwise.app.data.StatementReader
 import com.spendwise.app.data.SyncStatus
+import com.spendwise.app.domain.PDF_MAX_LINES
+import com.spendwise.app.domain.StatementKind
+import com.spendwise.app.domain.fromHeaderRow
 import com.spendwise.app.data.export.ExportFiles
 import com.spendwise.app.data.prefs.DevicePrefs
 import com.spendwise.app.data.ai.AiCall
@@ -49,7 +54,8 @@ import javax.inject.Inject
 
 /** csv-upload.js's phases: upload → processing → preview → saving → done, or error. */
 sealed interface CsvPhase {
-    data class Upload(val fileName: String? = null, val note: String? = null) : CsvPhase
+    /** [needsPassword]: the picked PDF is locked, so a password field shows. */
+    data class Upload(val fileName: String? = null, val note: String? = null, val needsPassword: Boolean = false) : CsvPhase
     data class Processing(val step: String) : CsvPhase
     data class Preview(val rows: List<CsvTx>, val ids: List<String>, val selected: Set<Int>, val note: String? = null) : CsvPhase
     data object Saving : CsvPhase
@@ -60,6 +66,7 @@ sealed interface CsvPhase {
 @HiltViewModel
 class CsvImportViewModel @Inject constructor(
     private val files: ExportFiles,
+    private val reader: StatementReader,
     private val ai: AiGateway,
     private val importer: CsvImporter,
     private val prefs: DevicePrefs,
@@ -73,16 +80,20 @@ class CsvImportViewModel @Inject constructor(
     val currency: StateFlow<Currency> = prefs.currency.stateIn(viewModelScope, SharingStarted.Eagerly, currencyOf(null))
     private val online = sync.online.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     private var file: Uri? = null
+    /** A locked PDF's password, for this file only; never saved. */
+    private var password: String? = null
 
     fun pick(uri: Uri?) {
         uri ?: return
         file = uri
-        viewModelScope.launch { _phase.value = CsvPhase.Upload(files.name(uri) ?: "CSV file") }
+        password = null
+        viewModelScope.launch { _phase.value = CsvPhase.Upload(files.name(uri) ?: "Statement") }
     }
 
     /** handleFileUpload: asks once per device before the file goes to the AI. */
-    fun parse() {
-        if (file == null) return _phase.update { CsvPhase.Upload(note = "Please select a CSV file.") }
+    fun parse(password: String? = null) {
+        if (file == null) return _phase.update { CsvPhase.Upload(note = "Please select a file.") }
+        if (password != null) this.password = password
         viewModelScope.launch { if (prefs.csvConsent.first()) process() else _consentAsked.value = true }
     }
 
@@ -95,11 +106,13 @@ class CsvImportViewModel @Inject constructor(
         val uri = file ?: return
         val byok = ai.byok()
         if (!byok && !allowance.left(AiFeature.CSV)) return _phase.update { CsvPhase.Failed(aiLimitText(AiFeature.CSV)) }
-        _phase.value = CsvPhase.Processing("Reading your CSV file…")
+        _phase.value = CsvPhase.Processing("Reading your statement…")
         _phase.value = try {
-            val text = files.read(uri)
+            val (kind, raw) = reader.read(uri, password)
+            // A PDF's text isn't CSV: a stray quote would join its lines into one record
+            val text = fromHeaderRow(if (kind == StatementKind.PDF) raw.replace('"', '\'') else raw)
             if (text.toByteArray().size > CSV_MAX_BYTES) throw CsvImportError(CSV_TOO_BIG)
-            checkCsvLines(text)
+            if (kind == StatementKind.PDF) checkCsvLines(text, PDF_MAX_LINES, "PDF_TOO_LONG") else checkCsvLines(text)
             _phase.value = CsvPhase.Processing("AI is analyzing your data…")
             // In parallel, in file order; one failed piece fails the whole file, as one call would.
             // Two at a time on the user's own key, whose free tier may refuse a burst (BYOK plan §7.3).
@@ -110,6 +123,8 @@ class CsvImportViewModel @Inject constructor(
             CsvPhase.Preview(rows, rows.map { importer.newId() }, rows.indices.toSet())
         } catch (e: CancellationException) {
             throw e
+        } catch (e: StatementPasswordException) {
+            CsvPhase.Upload(files.name(uri) ?: "Statement", if (e.wrong) "That password didn't open it. Try again." else null, needsPassword = true)
         } catch (e: AiFailedException) {
             CsvPhase.Failed(byokErrorText(e.error))
         } catch (e: CsvImportError) {
@@ -139,6 +154,11 @@ class CsvImportViewModel @Inject constructor(
         if (p is CsvPhase.Preview) p.copy(selected = if (i in p.selected) p.selected - i else p.selected + i, note = null) else p
     }
 
+    /** The AI got the direction wrong: money in becomes an expense, or the reverse. */
+    fun flipType(i: Int) = _phase.update { p ->
+        if (p is CsvPhase.Preview) p.copy(rows = p.rows.mapIndexed { n, tx -> if (n == i) tx.copy(type = if (tx.type == "income") "expense" else "income") else tx }) else p
+    }
+
     fun toggleAll(on: Boolean) = _phase.update { p ->
         if (p is CsvPhase.Preview) p.copy(selected = if (on) p.rows.indices.toSet() else emptySet(), note = null) else p
     }
@@ -163,5 +183,5 @@ class CsvImportViewModel @Inject constructor(
     }
 
     /** Retry and Back both start over at the upload step, keeping the picked file. */
-    fun restart() = viewModelScope.launch { _phase.value = CsvPhase.Upload(file?.let { files.name(it) ?: "CSV file" }) }
+    fun restart() = viewModelScope.launch { _phase.value = CsvPhase.Upload(file?.let { files.name(it) ?: "Statement" }, needsPassword = password != null) }
 }

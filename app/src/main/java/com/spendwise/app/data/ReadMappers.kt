@@ -3,6 +3,9 @@ package com.spendwise.app.data
 import com.google.firebase.Timestamp
 import com.spendwise.app.domain.Budget
 import com.spendwise.app.domain.Debt
+import com.spendwise.app.domain.DebtPlan
+import com.spendwise.app.domain.PLAN_MONTH
+import com.spendwise.app.domain.PLAN_WEEK
 import com.spendwise.app.domain.Goal
 import com.spendwise.app.domain.Holding
 import com.spendwise.app.domain.I_OWE
@@ -51,6 +54,16 @@ private fun paymentsFrom(raw: Any?): List<Payment> = (raw as? List<*>).orEmpty()
     Payment(jsNumberOrZero(m?.get("amount")), m?.get("date") as? String ?: "")
 }
 
+/** `debts.plan` (Android only): dropped unless it has a positive amount, a known period and a start date. */
+fun planFrom(p: Any?): DebtPlan? {
+    val m = p as? Map<*, *> ?: return null
+    val amount = jsNumberOrZero(m["amount"])
+    val every = m["every"] as? String
+    val start = m["start"] as? String ?: return null
+    if (!(amount > 0) || (every != PLAN_WEEK && every != PLAN_MONTH) || !Regex("""\d{4}-\d{2}-\d{2}""").matches(start)) return null
+    return DebtPlan(amount, every, start)
+}
+
 /** dashboard.js › loadDebts: your own debt. `settled` may be true, "true" or 1 on old docs. */
 fun ownDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false): Debt {
     val settled = data["settled"]
@@ -68,6 +81,7 @@ fun ownDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false): 
         claimAmount = jsNumberOrZero(data["claimAmount"]).takeIf { it > 0 },
         email = data.text("withEmail"),
         pending = pending,
+        plan = planFrom(data["plan"]),
     )
 }
 
@@ -87,6 +101,7 @@ fun sharedDebtFrom(id: String, data: Map<String, Any?>, pending: Boolean = false
     email = data.text("fromEmail"),
     shared = true,
     pending = pending,
+    plan = planFrom(data["plan"]),
     createdAt = (data["createdAt"] as? Timestamp)?.toDate()?.time ?: 0,
 )
 

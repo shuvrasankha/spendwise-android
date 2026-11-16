@@ -1,5 +1,6 @@
 package com.spendwise.app.ui.income
 
+import com.spendwise.app.domain.ReviewItem
 import com.spendwise.app.domain.SMS_READ
 import com.spendwise.app.domain.SmsEntry
 import com.spendwise.app.ui.navigation.ShareInbox
@@ -57,11 +58,14 @@ sealed interface IncomePage {
 @HiltViewModel
 class IncomeViewModel @Inject constructor(
     private val repo: IncomeRepository,
-    prefs: DevicePrefs,
+    private val prefs: DevicePrefs,
     inbox: ShareInbox,
 ) : ViewModel(), IncomeFormActions {
 
     private val reload = MutableStateFlow(0)
+
+    /** Edit on a To review credit: saving takes it off the list and remembers its source. */
+    private var fromReview: ReviewItem? = null
 
     val page: StateFlow<IncomePage> = reload.flatMapLatest {
         repo.income()
@@ -89,7 +93,9 @@ class IncomeViewModel @Inject constructor(
 
     init {
         inbox.shared.onEach {
-            val e = inbox.take { it.entry is SmsEntry.Earned }?.entry as? SmsEntry.Earned ?: return@onEach
+            val shared = inbox.take { it.entry is SmsEntry.Earned } ?: return@onEach
+            val e = shared.entry as? SmsEntry.Earned ?: return@onEach
+            fromReview = shared.review
             _form.value = IncomeForm(amount = e.amount.toBigDecimal().stripTrailingZeros().toPlainString(), date = e.date, paymentType = e.paymentType).withSource(e.source).withBank(e.bank)
             _message.value = FormMessage(SMS_READ, success = true)
         }.launchIn(viewModelScope)
@@ -123,6 +129,8 @@ class IncomeViewModel @Inject constructor(
             is IncomeCheck.Ok -> {
                 // Lands in the local cache at once, offline too; only a later refusal from the server is reported
                 val write = repo.add(check.input)
+                fromReview?.let { r -> viewModelScope.launch { prefs.finishReview(r, "", check.input.source) } }
+                fromReview = null
                 _form.value = IncomeForm()
                 _message.value = FormMessage("Income added successfully!", success = true)
                 viewModelScope.launch {

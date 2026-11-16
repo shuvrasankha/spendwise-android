@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +34,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import com.spendwise.app.R
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -53,18 +56,19 @@ fun IconAction(icon: ImageVector, description: String, onClick: () -> Unit, modi
     ) { Icon(icon, null, Modifier.size(22.dp), tint = SpendWiseTheme.colors.text) }
 }
 
-/** Home: greeting over the name, actions on the right. Insets are the caller's: [statusBarInset] adds the status bar. */
+/** Home: logo, name and tagline, actions on the right. Insets are the caller's: [statusBarInset] adds the status bar. */
 @Composable
-fun HomeTopBar(title: String, subtitle: String, modifier: Modifier = Modifier, statusBarInset: Boolean = false, actions: @Composable () -> Unit = {}) {
+fun HomeTopBar(title: String, modifier: Modifier = Modifier, statusBarInset: Boolean = false, actions: @Composable () -> Unit = {}) {
     val c = SpendWiseTheme.colors
     Row(
         modifier.then(if (statusBarInset) Modifier.statusBarsPadding() else Modifier).fillMaxWidth()
             .padding(start = Spacing.gutter, end = 8.dp, top = 12.dp, bottom = 12.dp).heightIn(min = 64.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Image(painterResource(R.drawable.logo_icon), contentDescription = null, modifier = Modifier.size(36.dp))
+        Column(Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = SwType.stat, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, style = SwType.label, color = c.textMuted)
+            Text("Know where your money goes", style = SwType.label, color = c.textFaint, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         actions()
     }
@@ -146,7 +150,7 @@ fun SpendWiseBottomBar(selected: BottomTab?, onSelect: (BottomTab) -> Unit, onAd
 @Composable
 private fun BarsPreview() = PreviewSurface {
     Column {
-        HomeTopBar("SpendWise", "Good evening, Shuvra") { IconAction(SwIcons.Bell, "Notifications", {}) }
+        HomeTopBar("SpendWise") { IconAction(SwIcons.Bell, "Notifications", {}) }
         TabTopBar("History") { IconAction(SwIcons.Download, "Export", {}) }
         SubPageTopBar("Income", {})
         SpendWiseBottomBar(BottomTab.Home, {}, {})

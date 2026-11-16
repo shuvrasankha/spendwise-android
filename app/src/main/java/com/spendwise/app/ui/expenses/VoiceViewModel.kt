@@ -73,7 +73,11 @@ data class VoiceState(
     val reading: Boolean = false,
     /** Sharing a debt needs a verified email (firestore.rules › validShare). */
     val canShare: Boolean = false,
+    /** Receipt photos read into this review; each adds its entries, up to [RECEIPTS_MAX]. */
+    val photos: Int = 0,
 )
+
+const val RECEIPTS_MAX = 5
 
 /** Speak or type entries (spec §7.4): read on the device (a bank SMS) or by the AI, reviewed, then saved together. */
 @HiltViewModel
@@ -100,7 +104,7 @@ class VoiceViewModel @Inject constructor(
     fun submit() {
         val text = _state.value.text.trim()
         if (text.isEmpty()) return _state.update { it.copy(message = FormMessage(VOICE_EMPTY)) }
-        parseSms(text, LocalDate.now())?.let { sms -> return show(listOf(voiceEntryFrom(sms)), VOICE_FROM_SMS) }
+        parseSms(text, LocalDate.now())?.let { sms -> return show(listOf(voiceEntryFrom(sms)), status = VOICE_FROM_SMS) }
         if (!online.value) return _state.update { it.copy(message = FormMessage(VOICE_OFFLINE)) }
         val today = LocalDate.now()
         val messages = listOf("system" to voicePrompt(today, _state.value.language), "user" to text)
@@ -110,34 +114,60 @@ class VoiceViewModel @Inject constructor(
     /** Where the camera saves the next receipt photo. */
     fun newPhotoUri(): Uri = photos.newUri()
 
-    /** scanReceipt: the total, date, shop and category off a photo; a photo the camera took is deleted once read. */
-    fun scanReceipt(uri: Uri?) {
-        if (uri == null) return photos.clear()
+    /**
+     * scanReceipt, for up to [RECEIPTS_MAX] photos per review: each is read on its own and its entries are added to the
+     * ones already shown. A photo the camera took is deleted once read.
+     */
+    fun scanReceipts(uris: List<Uri>) {
+        val left = RECEIPTS_MAX - _state.value.photos
+        val take = uris.take(left)
+        if (take.isEmpty()) return photos.clear()
         if (!online.value) {
             photos.clear()
-            return _state.update { it.copy(entries = emptyList(), ids = emptyList(), message = FormMessage(VOICE_OFFLINE)) }
+            return _state.update { it.copy(message = FormMessage(VOICE_OFFLINE)) }
         }
-        _state.update { it.copy(entries = emptyList(), ids = emptyList(), reading = true, message = FormMessage(RECEIPT_BUSY, success = true)) }
+        _state.update { it.copy(reading = true, message = FormMessage(RECEIPT_BUSY, success = true)) }
         viewModelScope.launch {
-            val image = try {
-                photos.dataUrl(uri)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                null
-            } finally {
-                photos.clear()
+            var read = 0
+            for (uri in take) {
+                val image = try {
+                    photos.dataUrl(uri)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                } finally {
+                    photos.clear()
+                }
+                if (image == null) {
+                    _state.update { it.copy(reading = false, message = FormMessage(RECEIPT_BAD_PHOTO)) }
+                    continue
+                }
+                val today = todayStr()
+                if (read(AiTask.RECEIPT, receiptMessages(today, image), RECEIPT_BUSY, RECEIPT_NONE, append = true) { receiptEntries(it, today) }) read++
             }
-            if (image == null) return@launch _state.update { it.copy(reading = false, message = FormMessage(RECEIPT_BAD_PHOTO)) }
-            val today = todayStr()
-            read(AiTask.RECEIPT, receiptMessages(today, image), RECEIPT_BUSY, RECEIPT_NONE) { receiptEntries(it, today) }
+            // One photo keeps its own message; for several, say which part didn't come through
+            val missed = take.size - read
+            val extra = uris.size - take.size
+            val note = listOfNotNull(
+                if (take.size > 1 && missed > 0) "Couldn't read $missed of the ${take.size} photos." else null,
+                if (extra > 0) "Only $RECEIPTS_MAX photos at a time, so $extra ${if (extra == 1) "was" else "were"} left out." else null,
+            )
+            if (note.isNotEmpty()) _state.update { it.copy(message = FormMessage(note.joinToString(" "), success = it.entries.isNotEmpty() && missed == 0)) }
         }
     }
 
     /** parseWithAI: sends the messages and opens the review cards with what comes back; nothing is saved yet. */
-    private suspend fun read(task: AiTask, messages: List<Pair<String, JsonElement>>, busy: String, none: String, fix: (List<VoiceEntry>) -> List<VoiceEntry>) {
+    /** Returns whether entries were found and shown; [append] adds them to the ones already shown (another receipt photo). */
+    private suspend fun read(
+        task: AiTask, messages: List<Pair<String, JsonElement>>, busy: String, none: String, append: Boolean = false,
+        fix: (List<VoiceEntry>) -> List<VoiceEntry>,
+    ): Boolean {
         val byok = ai.byok()
-        if (!byok && !allowance.left(AiFeature.VOICE)) return _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
+        if (!byok && !allowance.left(AiFeature.VOICE)) {
+            _state.update { it.copy(reading = false, message = FormMessage(aiLimitText(AiFeature.VOICE))) }
+            return false
+        }
         _state.update { it.copy(reading = true, message = FormMessage(busy, success = true)) }
         val failure = try {
             val res = ai.complete(AiCall(task, messages, maxTokens = 1500, temperature = 0.1, topP = 0.95))
@@ -151,7 +181,7 @@ class VoiceViewModel @Inject constructor(
                     val content = (res as? AiResult.Ok)?.content ?: throw IOException("AI $status")
                     if (!byok) allowance.used(AiFeature.VOICE)
                     val entries = fix(readEntries(content).mapNotNull { cleanEntry(it, todayStr()) })
-                    if (entries.isEmpty()) none else return show(entries, foundText(entries.size))
+                    if (entries.isEmpty()) none else return true.also { show(entries, append) }
                 }
             }
         } catch (e: CancellationException) {
@@ -160,12 +190,20 @@ class VoiceViewModel @Inject constructor(
             VOICE_FAILED
         }
         _state.update { it.copy(reading = false, message = FormMessage(failure)) }
+        return false
     }
 
-    private fun show(entries: List<VoiceEntry>, status: String) {
+    private fun show(entries: List<VoiceEntry>, append: Boolean = false, status: String? = null) {
         // Without a verified email the share would be refused, so the review never offers one
         val shown = if (_state.value.canShare) entries else entries.map { it.copy(email = "") }
-        _state.update { it.copy(entries = shown, ids = entries.map { batch.newId() }, reading = false, message = FormMessage(status, success = true)) }
+        _state.update {
+            val all = if (append) it.entries + shown else shown
+            it.copy(
+                entries = all, ids = (if (append) it.ids else emptyList()) + entries.map { batch.newId() },
+                photos = if (append) it.photos + 1 else 0,
+                reading = false, message = FormMessage(status ?: foundText(all.size), success = true),
+            )
+        }
     }
 
     /** onPreviewInput: one field of entry [i] changed. */

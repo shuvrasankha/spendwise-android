@@ -26,8 +26,8 @@ android {
         applicationId = "com.spendwise.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 21
-        versionName = "1.8.2"
+        versionCode = 22
+        versionName = "1.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Crash reports come from release builds only, so testing doesn't fill the Crashlytics console
@@ -71,6 +71,7 @@ android {
             optimization {
                 enable = true
             }
+            proguardFiles("proguard-rules.pro")
         }
     }
     compileOptions {
@@ -106,6 +107,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.biometric)
+    implementation(libs.pdfbox.android)
     implementation(libs.play.app.update.ktx)
 
     implementation(platform(libs.firebase.bom))

@@ -225,4 +225,21 @@ class PlansTest {
         assertEquals(20000.0, (checkBudget("₹20,000", emptyMap()) as Checked.Ok).value.total!!, 0.0)
         assertEquals("Enter the monthly limit as a number, or leave it empty.", (checkBudget("x", emptyMap()) as Checked.Invalid).message)
     }
+
+    @Test fun catLimits_comparesWithTheMonthlyLimit() {
+        val money = { n: Double -> "₹${n.toLong()}" }
+        assertEquals(null, catLimits("40000", mapOf(FOOD to "", "Travel" to "abc"), money))
+        assertEquals(CatLimits("Category limits add up to ₹5000.", false), catLimits("", mapOf(FOOD to "5000"), money))
+        assertEquals(CatLimits("₹8000 (20%) split across categories, ₹32000 left for the rest.", false), catLimits("40000", mapOf(FOOD to "5000", "Travel" to "3000"), money))
+        assertEquals(CatLimits("Category limits use all of the monthly limit.", false), catLimits("8000", mapOf(FOOD to "5000", "Travel" to "3000"), money))
+        assertEquals(CatLimits("Category limits add up to ₹8000, ₹1000 more than the monthly limit.", true), catLimits("7000", mapOf(FOOD to "5000", "Travel" to "3000"), money))
+    }
+
+    @Test fun limitShare_isAWholePercentOfTheMonthlyLimit() {
+        assertEquals("8% of the monthly limit", limitShare("3200", "42500"))
+        assertEquals("Under 1% of the monthly limit", limitShare("100", "42500"))
+        assertEquals("150% of the monthly limit", limitShare("3000", "2000"))
+        assertEquals(null, limitShare("", "42500"))
+        assertEquals(null, limitShare("3200", ""))
+    }
 }

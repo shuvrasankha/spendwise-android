@@ -6,7 +6,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
+import com.spendwise.app.ui.theme.SpendWiseTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
@@ -14,6 +17,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.SnackbarHostState
@@ -24,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.spendwise.app.ui.cards.CardsScreen
 import com.spendwise.app.ui.components.Avatar
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -51,7 +57,6 @@ import com.spendwise.app.ui.invest.InvestScreen
 import com.spendwise.app.ui.dashboard.DashboardScreen
 import com.spendwise.app.ui.expenses.VoiceScreen
 import com.spendwise.app.ui.expenses.EditExpenseScreen
-import com.spendwise.app.domain.greeting
 import com.spendwise.app.ui.components.BottomTab
 import com.spendwise.app.ui.components.EntryType
 import com.spendwise.app.ui.components.HomeTopBar
@@ -66,7 +71,6 @@ import com.spendwise.app.ui.invest.InvestViewModel
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
-import java.time.LocalTime
 import com.spendwise.app.ui.history.HistoryScreen
 import com.spendwise.app.ui.more.MoreScreen
 import com.spendwise.app.ui.income.EditIncomeScreen
@@ -101,11 +105,13 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
     val destination = nav.currentBackStackEntryAsState().value?.destination
     val inMore = moreRoutes.any { destination?.hasRoute(it::class) == true }
     val onDashboard = destination?.hasRoute(Dashboard::class) == true
-    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(Income::class) == true || destination?.hasRoute(Debts::class) == true || destination?.hasRoute(Investments::class) == true || destination?.hasRoute(Settings::class) == true || destination?.hasRoute(EditIncome::class) == true || destination?.hasRoute(EditExpense::class) == true || destination?.hasRoute(Voice::class) == true || destination?.hasRoute(CsvImport::class) == true || destination?.hasRoute(AiProvider::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true || destination?.hasRoute(Assistant::class) == true
+    val ownsTopBar = onDashboard || destination?.hasRoute(More::class) == true || destination?.hasRoute(Income::class) == true || destination?.hasRoute(Debts::class) == true || destination?.hasRoute(Cards::class) == true || destination?.hasRoute(Investments::class) == true || destination?.hasRoute(Settings::class) == true || destination?.hasRoute(EditIncome::class) == true || destination?.hasRoute(EditExpense::class) == true || destination?.hasRoute(Voice::class) == true || destination?.hasRoute(CsvImport::class) == true || destination?.hasRoute(AiProvider::class) == true || destination?.hasRoute(History::class) == true || destination?.hasRoute(Insights::class) == true || destination?.hasRoute(Assistant::class) == true
     val snackbar = remember { SnackbarHostState() }
     val editor by expenseVm.state.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
     LaunchedEffect(editor.undo) {
         val added = editor.undo ?: return@LaunchedEffect
+        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         expenseVm.undoShown()
         entry = null
         if (snackbar.showSnackbar(added.label, actionLabel = "Undo", duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) expenseVm.undo(added)
@@ -167,7 +173,6 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                     topBar = {
                         HomeTopBar(
                             title = header.status ?: "SpendWise",
-                            subtitle = greeting(LocalTime.now().hour, header.name),
                         ) { HeaderActions(header, onSettings = { nav.switchTo(Settings) }, onLogOut = shell::logOut, onOpenDebts = { nav.switchTo(Debts) }) }
                     },
                     onAddExpense = { entry = EntryType.Expense },
@@ -209,6 +214,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
                 MoreScreen(
                     onIncome = { nav.navigate(Income) },
                     onDebts = { nav.navigate(Debts) },
+                    onCards = { nav.navigate(Cards) },
                     onInvestments = { nav.navigate(Investments) },
                     onGoals = { showGoals = true; nav.switchTo(Dashboard) },
                     onImport = { nav.navigate(CsvImport) },
@@ -226,6 +232,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             }
             composable<Investments> { InvestScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Invest }, onAllHistory = { nav.navigate(History()) }, vm = investVm) }
             composable<Debts> { DebtsScreen(onBack = { nav.popBackStack() }, onAdd = { entry = EntryType.Debt }, onOpenAssistant = { nav.navigate(Assistant(it)) }, vm = debtsVm) }
+            composable<Cards> { CardsScreen(onBack = { nav.popBackStack() }, onExpenses = { nav.navigate(History(q = it)) }) }
             composable<Settings> { SettingsScreen(onBack = { nav.popBackStack() }, onAiProvider = { nav.navigate(AiProvider) }) }
             composable<AiProvider> { AiProviderScreen(onBack = { nav.popBackStack() }) }
             composable<CsvImport> { CsvImportScreen(onDone = { nav.popBackStack() }) }
@@ -237,7 +244,7 @@ fun AppShell(link: Any? = null, onLinkOpened: () -> Unit = {}, shell: ShellViewM
             type = type,
             onTypeChange = { entry = it },
             onDismiss = { entry = null },
-            onSaved = { text -> entry = null; scope.launch { snackbar.show(Toast(text)) } },
+            onSaved = { text -> haptic.performHapticFeedback(HapticFeedbackType.Confirm); entry = null; scope.launch { snackbar.show(Toast(text)) } },
             onVoice = { entry = null; nav.navigate(Voice) },
             onNewHolding = { entry = null; nav.switchTo(Investments) },
             expense = expenseVm, income = incomeVm, debts = debtsVm, invest = investVm,
@@ -269,7 +276,9 @@ private fun HeaderActions(header: HeaderState, onSettings: () -> Unit, onLogOut:
     Bell(onOpenDebts)
     Box {
         IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = "Account menu" }) {
-            Avatar(header.name.ifEmpty { header.email }, size = 32.dp, photoUrl = header.photoUrl)
+            Box(Modifier.border(2.dp, SpendWiseTheme.colors.accent, CircleShape).padding(3.dp)) {
+                Avatar(header.name.ifEmpty { header.email }, size = 32.dp, photoUrl = header.photoUrl)
+            }
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {

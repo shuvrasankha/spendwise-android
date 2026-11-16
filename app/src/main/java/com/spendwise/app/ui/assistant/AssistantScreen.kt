@@ -1,5 +1,7 @@
 package com.spendwise.app.ui.assistant
 
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -102,7 +104,7 @@ fun AssistantScreen(onBack: () -> Unit, onOpenHistory: (AskHistory) -> Unit, vm:
     if (consentAsked) ConsentDialog(vm::answerConsent)
     val chats by vm.chats.collectAsStateWithLifecycle()
     var showChats by rememberSaveable { mutableStateOf(false) }
-    if (showChats) PastChats(chats, onOpen = { vm.openChat(it); showChats = false }, onDelete = vm::deleteChat, onDismiss = { showChats = false })
+    if (showChats) PastChats(chats, onOpen = { vm.openChat(it); showChats = false }, onRename = vm::renameChat, onDelete = vm::deleteChat, onDismiss = { showChats = false })
     val c = SpendWiseTheme.colors
     val list = rememberLazyListState()
     // The list's last item is the newest message, or the typing and error line under it
@@ -179,10 +181,13 @@ fun AssistantScreen(onBack: () -> Unit, onOpenHistory: (AskHistory) -> Unit, vm:
             onDismiss = { pickPhoto = false },
         )
         if (noMic) Text("Speech input isn't available on this phone. Type your question instead.", style = SwType.label, color = c.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = 4.dp))
-        Row(Modifier.padding(start = Spacing.gutter - 8.dp, end = Spacing.gutter, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        HorizontalDivider(color = c.line)
+        Row(Modifier.padding(start = Spacing.gutter - 8.dp, end = Spacing.gutter, top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconAction(SwIcons.Camera, "Ask about a bill or statement photo", { if (!state.busy) pickPhoto = true })
             SwField(
-                text, { text = it.take(ASK_MAX) }, "Ask about your money", Modifier.weight(1f),
+                // Wraps instead of scrolling sideways; ASK_MAX (200) keeps it to a few lines
+                // A keyboard whose Enter adds a new line in a wrapping field still sends, as it did before
+                text, { v -> text = v.replace('\n', ' ').take(ASK_MAX); if ('\n' in v) send() }, "Ask about your money", Modifier.weight(1f), singleLine = false,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { send() }),
                 trailing = {
@@ -205,7 +210,7 @@ fun AssistantScreen(onBack: () -> Unit, onOpenHistory: (AskHistory) -> Unit, vm:
 private fun Starters(onAsk: (String) -> Unit) {
     val c = SpendWiseTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Your figures are added up on this phone from your own entries. Advice is written by AI and only sees totals.", style = SwType.body, color = c.textMuted)
+        Text("Your figures are added up on this phone from your own entries. Advice is written by AI and only sees totals.", style = SwType.label, color = c.textMuted)
         Group("Your numbers", ASSISTANT_NUMBER_PROMPTS, onAsk)
         Group("Advice", ASSISTANT_ADVICE_PROMPTS, onAsk)
     }
@@ -314,7 +319,8 @@ private fun PhotoSheet(onCamera: () -> Unit, onGallery: () -> Unit, onDismiss: (
 @Composable
 private fun UserMessage(text: String, photo: Boolean, modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
     val c = SpendWiseTheme.colors
-    Column(Modifier.padding(start = 48.dp).background(c.surface, Radius.control).padding(horizontal = 12.dp, vertical = 8.dp)) {
+    // The tucked corner points at the sender's side, as in any chat
+    Column(Modifier.padding(start = 48.dp).background(c.surface, RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
         if (photo) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Icon(SwIcons.Image, null, Modifier.size(14.dp), tint = c.textMuted)
             Text("Photo sent", style = SwType.caption, color = c.textMuted)
@@ -374,8 +380,10 @@ private fun ConsentDialog(onAnswer: (Boolean) -> Unit) = AlertDialog(
 
 /** Chats kept on this device. Opening one carries it on; its figures are worked out again from today's entries. */
 @Composable
-private fun PastChats(chats: List<SavedChat>, onOpen: (Long) -> Unit, onDelete: (Long) -> Unit, onDismiss: () -> Unit) {
+private fun PastChats(chats: List<SavedChat>, onOpen: (Long) -> Unit, onRename: (Long, String) -> Unit, onDelete: (Long) -> Unit, onDismiss: () -> Unit) {
     val c = SpendWiseTheme.colors
+    var renaming by rememberSaveable { mutableStateOf<Long?>(null) }
+    chats.firstOrNull { it.id == renaming }?.let { chat -> RenameDialog(chat.title, { onRename(chat.id, it); renaming = null }, { renaming = null }) }
     val when_ = remember { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT) }
     SwSheet("Past chats", onDismiss) {
         if (chats.isEmpty()) Text("No saved chats.", style = SwType.body, color = c.textMuted, modifier = Modifier.padding(horizontal = Spacing.gutter))
@@ -389,6 +397,7 @@ private fun PastChats(chats: List<SavedChat>, onOpen: (Long) -> Unit, onDelete: 
                         Text(chat.title.ifEmpty { "Chat" }, style = SwType.body, color = c.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(Instant.ofEpochMilli(chat.savedAt).atZone(ZoneId.systemDefault()).format(when_), style = SwType.caption, color = c.textMuted)
                     }
+                    IconAction(SwIcons.Pencil, "Rename chat", { renaming = chat.id })
                     IconAction(SwIcons.Trash, "Delete chat", { onDelete(chat.id) })
                 }
             }
@@ -397,3 +406,22 @@ private fun PastChats(chats: List<SavedChat>, onOpen: (Long) -> Unit, onDelete: 
     }
 }
 
+
+/** Names a past chat; leaving it empty goes back to the chat's first question. */
+@Composable
+private fun RenameDialog(current: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf(current.take(CHAT_NAME_MAX)) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename chat") },
+        text = {
+            SwField(
+                name, { name = it.take(CHAT_NAME_MAX) }, "Chat name",
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave(name) }),
+            )
+        },
+        confirmButton = { TextButton(onClick = { onSave(name) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}

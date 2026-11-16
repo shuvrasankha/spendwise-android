@@ -25,6 +25,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.OutlinedButton
@@ -60,7 +62,7 @@ fun hapticClick(onClick: () -> Unit): () -> Unit {
 }
 
 @Composable
-fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, leading: ImageVector? = null) {
+fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, leading: ImageVector? = null, dot: Color = Color.Unspecified) {
     val c = SpendWiseTheme.colors
     val content by animateColorAsState(if (selected) c.bg else c.text, label = "chip")
     val fill by animateColorAsState(if (selected) c.text else Color.Transparent, label = "chip")
@@ -73,6 +75,8 @@ fun SwChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modi
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (leading != null) Icon(leading, null, Modifier.size(16.dp), tint = content)
+        // A card's colour; the label names the card, so the dot never carries meaning alone
+        if (dot.isSpecified) Box(Modifier.size(10.dp).clip(CircleShape).background(dot))
         Text(label, style = SwType.labelStrong, color = content)
     }
 }

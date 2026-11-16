@@ -48,6 +48,9 @@ class ReminderScheduler @Inject constructor(
         if (on) WeeklyNoteWorker.schedule(context) else WeeklyNoteWorker.cancel(context)
     }
 
+    /** Repeating bills added automatically: run the daily job now rather than wait for its next turn. */
+    fun runDailyNow() = DailyWorker.runNow(context)
+
     suspend fun cancel() {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
         push.unsubscribe()

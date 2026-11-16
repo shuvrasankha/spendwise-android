@@ -48,6 +48,16 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <!-- Auto-log: reads the default SMS app's bank SMS into a review list, once the user grants notification access -->
+        <service
+            android:name=".reminder.BankSmsListener"
+            android:exported="false"
+            android:label="@string/sms_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <!-- Launcher entries, one per app icon (Settings › App icon, AppIcon.kt); exactly one is enabled.
              The default keeps the old ".MainActivity" name, so home-screen icons survive the update. -->
         <!-- Orange on dark (default) -->

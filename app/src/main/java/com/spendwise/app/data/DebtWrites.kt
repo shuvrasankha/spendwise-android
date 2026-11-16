@@ -1,6 +1,7 @@
 package com.spendwise.app.data
 
 import com.spendwise.app.domain.DebtInput
+import com.spendwise.app.domain.DebtPlan
 import com.spendwise.app.domain.Payment
 import com.spendwise.app.domain.sanitize
 
@@ -69,3 +70,7 @@ fun reopenFields(paid: List<Payment>?): Map<String, Any> =
         put("settledDate", "")
         if (paid != null) put("paid", paidField(paid))
     }
+
+/** Android's repayment plan, set or (null) removed. The owner only; shared fields stay untouched. */
+fun planFields(plan: DebtPlan?, delete: Any): Map<String, Any> =
+    mapOf("plan" to (plan?.let { linkedMapOf("amount" to toFirestoreNumber(it.amount), "every" to it.every, "start" to it.start) } ?: delete))

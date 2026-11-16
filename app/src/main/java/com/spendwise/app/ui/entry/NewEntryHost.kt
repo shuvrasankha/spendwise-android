@@ -35,9 +35,7 @@ import com.spendwise.app.domain.INCOME_PAYMENT_TYPES
 import com.spendwise.app.domain.INVEST_PAYMENTS
 import com.spendwise.app.domain.MAX_SPLIT_PEOPLE
 import com.spendwise.app.domain.ONLINE
-import com.spendwise.app.domain.PAYMENT_METHODS
 import com.spendwise.app.domain.THEY_OWE
-import com.spendwise.app.domain.isCard
 import com.spendwise.app.domain.splitSummary
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.EntryType
@@ -55,6 +53,7 @@ import com.spendwise.app.ui.debts.DebtsPage
 import com.spendwise.app.ui.debts.DebtsViewModel
 import com.spendwise.app.ui.debts.readContact
 import com.spendwise.app.ui.expenses.CategoryHint
+import com.spendwise.app.ui.expenses.PaymentChips
 import com.spendwise.app.ui.expenses.ExpenseEditorViewModel
 import com.spendwise.app.ui.format.formatAmount
 import com.spendwise.app.ui.icons.SwIcons
@@ -188,8 +187,7 @@ private fun ExpenseFields(state: com.spendwise.app.ui.expenses.EditorState, vm: 
         )
         CategoryHint(state, vm::setCategory)
         Label("Paid with")
-        ChipFlow { PAYMENT_METHODS.forEach { SwChip(it, form.payment == it, { vm.setPayment(it) }) } }
-        if (isCard(form.payment)) SwField(form.cardName, vm::setCardName, "Card name (optional)")
+        PaymentChips(form.payment, form.cardName, state.cards, state.cardColours, vm::setPayment, vm::pickCard, vm::setCardName)
 
         SettingsGroup(null, inset = 0.dp) {
             SettingsRow("Repeats every month", trailing = Trailing.Switch(form.repeat, vm::setRepeat))

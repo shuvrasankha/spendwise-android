@@ -1,6 +1,8 @@
 package com.spendwise.app.data
 
 import com.spendwise.app.domain.DebtInput
+import com.spendwise.app.domain.DebtPlan
+import com.spendwise.app.domain.PLAN_MONTH
 import com.spendwise.app.domain.Payment
 import com.spendwise.app.domain.THEY_OWE
 import org.junit.Assert.assertEquals
@@ -63,5 +65,14 @@ class DebtWritesTest {
     @Test fun reopen() {
         assertEquals(mapOf("settled" to false, "settledDate" to ""), reopenFields(null))
         assertTrue("paid" in reopenFields(listOf(Payment(1.0, "2026-10-01"))))
+    }
+
+    @Test fun plan_setAsNumbersAndRemovedWithDelete() {
+        assertEquals(mapOf("plan" to mapOf("amount" to 2000L, "every" to "month", "start" to "2026-12-01")), planFields(DebtPlan(2000.0, PLAN_MONTH, "2026-12-01"), del))
+        assertEquals(mapOf("plan" to del), planFields(null, del))
+        assertEquals(DebtPlan(2000.0, PLAN_MONTH, "2026-12-01"), planFrom(mapOf("amount" to 2000L, "every" to "month", "start" to "2026-12-01")))
+        assertEquals(null, planFrom(mapOf("amount" to 0, "every" to "month", "start" to "2026-12-01")))
+        assertEquals(null, planFrom(mapOf("amount" to 5, "every" to "year", "start" to "2026-12-01")))
+        assertEquals(null, planFrom("junk"))
     }
 }

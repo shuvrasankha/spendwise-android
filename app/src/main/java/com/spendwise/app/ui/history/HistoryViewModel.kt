@@ -146,8 +146,8 @@ private data class Data(val expenses: List<Expense>, val income: List<Income>)
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    expenseRepo: ExpenseRepository,
-    incomeRepo: IncomeRepository,
+    private val expenseRepo: ExpenseRepository,
+    private val incomeRepo: IncomeRepository,
     prefs: DevicePrefs,
     private val files: ExportFiles,
 ) : ViewModel() {
@@ -286,6 +286,22 @@ class HistoryViewModel @Inject constructor(
 
     fun shareShown() = _share.update { null }
     fun messageShown() = _message.update { null }
+
+    /** As the edit screens delete: lands in the local cache at once, and only a refusal from the server is reported, later. */
+    fun delete(e: Entry) = viewModelScope.launch {
+        val write = when (e) {
+            is Entry.Spent -> expenseRepo.delete(e.id)
+            is Entry.Earned -> incomeRepo.delete(e.id)
+        }
+        _message.value = Toast(if (e is Entry.Earned) "Income deleted." else "Expense deleted.")
+        try {
+            write.confirmed()
+        } catch (x: CancellationException) {
+            throw x
+        } catch (x: Exception) {
+            _message.value = Toast("Couldn't delete it. Check your connection and try again.", error = true)
+        }
+    }
 
     private fun tabRows(d: Data, tab: HistoryTab): List<Entry> =
         if (tab == HistoryTab.INCOME) d.income.map { Entry.Earned(it) } else d.expenses.map { Entry.Spent(it) }

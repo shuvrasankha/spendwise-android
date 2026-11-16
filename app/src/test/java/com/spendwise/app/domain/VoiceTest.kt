@@ -132,7 +132,7 @@ class VoiceTest {
         val (system, user) = receiptMessages(today, "data:image/jpeg;base64,AA")
         assertEquals("system", system.first)
         assertEquals(
-            """[{"type":"text","text":"Read this receipt."},{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,AA"}}]""",
+            """[{"type":"text","text":"Read every receipt or bill in this photo."},{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,AA"}}]""",
             user.second.toString(),
         )
     }

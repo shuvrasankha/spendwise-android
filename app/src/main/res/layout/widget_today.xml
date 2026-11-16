@@ -9,85 +9,96 @@
     android:background="@drawable/widget_background"
     android:padding="16dp">
 
+    <!-- Top: what this is and which day, with + for Add expense -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/widget_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.06"
-            android:text="@string/widget_today"
-            android:textAllCaps="true"
-            android:textColor="@color/widget_text_muted"
-            android:textSize="11sp" />
+        android:orientation="horizontal">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:baselineAligned="true"
-            android:orientation="horizontal">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/widget_symbol"
+                android:id="@+id/widget_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="2dp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.06"
+                android:text="@string/widget_today"
+                android:textAllCaps="true"
                 android:textColor="@color/widget_text_muted"
-                android:textSize="18sp" />
+                android:textSize="11sp" />
 
             <TextView
-                android:id="@+id/widget_amount"
-                android:layout_width="0dp"
+                android:id="@+id/widget_date"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:autoSizeMaxTextSize="30sp"
-                android:autoSizeMinTextSize="16sp"
-                android:autoSizeTextType="uniform"
-                android:fontFamily="sans-serif-medium"
-                android:fontFeatureSettings="tnum"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
                 android:maxLines="1"
-                android:text="—"
-                android:textColor="@color/widget_text" />
+                android:textColor="@color/widget_text_muted"
+                android:textSize="12sp" />
         </LinearLayout>
+
+        <ImageView
+            android:id="@+id/widget_add"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_add_background"
+            android:contentDescription="@string/widget_add"
+            android:padding="11dp"
+            android:src="@drawable/ic_tab_add"
+            android:tint="@color/widget_on_accent" />
+    </LinearLayout>
+
+    <!-- Bottom: the amount, then the entries and how today compares -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical">
+
+        <!-- Fixed height: auto-size only works when the height is set -->
+        <TextView
+            android:id="@+id/widget_amount"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:autoSizeMaxTextSize="34sp"
+            android:autoSizeMinTextSize="16sp"
+            android:autoSizeTextType="uniform"
+            android:fontFamily="sans-serif-medium"
+            android:fontFeatureSettings="tnum"
+            android:gravity="bottom|start"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text="0"
+            android:textColor="@color/widget_text" />
 
         <TextView
             android:id="@+id/widget_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:maxLines="2"
             android:text="@string/widget_description"
             android:textColor="@color/widget_text_muted"
             android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/widget_vs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:fontFeatureSettings="tnum"
+            android:maxLines="1"
+            android:textColor="@color/widget_positive"
+            android:textSize="12sp" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/widget_vs"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
-        android:layout_marginEnd="52dp"
-        android:ellipsize="end"
-        android:fontFeatureSettings="tnum"
-        android:maxLines="1"
-        android:textColor="@color/widget_positive"
-        android:textSize="12sp" />
-
-    <ImageView
-        android:id="@+id/widget_add"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_gravity="bottom|end"
-        android:background="@drawable/widget_add_background"
-        android:contentDescription="@string/widget_add"
-        android:padding="12dp"
-        android:src="@drawable/ic_tab_add"
-        android:tint="@color/widget_on_accent" />
 </FrameLayout>

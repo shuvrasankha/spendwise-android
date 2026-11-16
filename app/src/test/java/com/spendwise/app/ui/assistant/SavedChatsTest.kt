@@ -19,4 +19,13 @@ class SavedChatsTest {
         assertEquals(100L, list.first().id)
         assertEquals(2L, list.last().id)
     }
+
+    @Test fun renamingKeepsTheChatsPlaceAndBlankGoesBackToTheQuestion() {
+        val named = renameChat(listOf(chat(2), chat(1)), 1, "  Rent check  ")
+        assertEquals(listOf(2L, 1L), named.map { it.id })
+        assertEquals("Rent check", named[1].title)
+        assertEquals("q2", named[0].title)
+        assertEquals("q1", renameChat(named, 1, " ")[1].title)
+        assertEquals(CHAT_NAME_MAX, renameChat(named, 1, "x".repeat(100))[1].title.length)
+    }
 }

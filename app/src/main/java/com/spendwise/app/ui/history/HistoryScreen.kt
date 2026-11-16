@@ -17,6 +17,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -46,6 +56,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import com.spendwise.app.domain.Currency
@@ -98,6 +109,7 @@ fun HistoryScreen(
     val snackbar = remember { SnackbarHostState() }
     val c = SpendWiseTheme.colors
     var sheet by rememberSaveable { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf<Entry?>(null) }
     ShareWhenReady(history)
     SaveWhenReady(history)
     val message by history.message.collectAsStateWithLifecycle()
@@ -165,11 +177,15 @@ fun HistoryScreen(
                         when (item) {
                             is HistoryItem.Day -> stickyHeader(key = "day-" + item.date) { DayHeader(item.label, formatAmount(item.total, currency)) }
                             is HistoryItem.Row -> item(key = (if (item.entry is Entry.Earned) "inc-" else "exp-") + item.entry.id) { Box(Modifier.animateItem()) {
-                                HistoryRow(item, currency, divider = i > 0 && v.items[i - 1] is HistoryItem.Row) {
-                                    when (val e = item.entry) {
+                                val e = item.entry
+                                val edit = {
+                                    when (e) {
                                         is Entry.Spent -> onEditExpense(e.id)
                                         is Entry.Earned -> onEditIncome(e.id)
                                     }
+                                }
+                                SwipeRow(enabled = !e.pending, onEdit = edit, onDelete = { deleting = e }) {
+                                    HistoryRow(item, currency, divider = i > 0 && v.items[i - 1] is HistoryItem.Row, onEdit = edit)
                                 }
                             }}
                         }
@@ -184,6 +200,15 @@ fun HistoryScreen(
         }
     }
     if (sheet) (state as? HistoryState.Ready)?.let { FiltersSheet(it.view, history) { sheet = false } }
+    deleting?.let { e ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text(if (e is Entry.Earned) "Delete this income entry?" else "Delete this expense?") },
+            text = { Text("It will be removed from SpendWise on all your devices.") },
+            confirmButton = { TextButton(onClick = { history.delete(e); deleting = null }) { Text("Delete", color = c.negative) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+        )
+    }
     ExportSheet(history, currency)
 }
 
@@ -363,5 +388,39 @@ private fun ShareWhenReady(vm: HistoryViewModel) {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(send, f.name))
+    }
+}
+
+/** Swipe right to edit, left to delete; the row springs back either way, and delete asks first. */
+@Composable
+private fun SwipeRow(enabled: Boolean, onEdit: () -> Unit, onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val c = SpendWiseTheme.colors
+    val state = rememberSwipeToDismissBoxState()
+    val scope = rememberCoroutineScope()
+    SwipeToDismissBox(
+        state,
+        backgroundContent = {
+            val direction = state.dismissDirection
+            if (direction == SwipeToDismissBoxValue.Settled) return@SwipeToDismissBox
+            val toEdit = direction == SwipeToDismissBoxValue.StartToEnd
+            Row(
+                Modifier.fillMaxSize().background(c.surface).padding(horizontal = Spacing.gutter),
+                horizontalArrangement = if (toEdit) Arrangement.Start else Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val color = if (toEdit) c.text else c.negative
+                Icon(if (toEdit) SwIcons.Pencil else SwIcons.Trash, null, tint = color, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (toEdit) "Edit" else "Delete", style = SwType.bodyStrong, color = color)
+            }
+        },
+        enableDismissFromStartToEnd = enabled,
+        enableDismissFromEndToStart = enabled,
+        onDismiss = { value ->
+            if (value == SwipeToDismissBoxValue.StartToEnd) onEdit() else onDelete()
+            scope.launch { state.reset() }
+        },
+    ) {
+        Box(Modifier.background(c.bg)) { content() }
     }
 }

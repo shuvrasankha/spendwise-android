@@ -1,5 +1,12 @@
 package com.spendwise.app.ui.expenses
 
+import com.spendwise.app.domain.ReviewItem
+import com.spendwise.app.domain.Card
+import com.spendwise.app.domain.ExpenseInput
+import com.spendwise.app.domain.matchCard
+import com.spendwise.app.domain.savedCards
+import com.spendwise.app.domain.cardColours
+import kotlinx.coroutines.flow.combine
 import com.spendwise.app.domain.SMS_READ
 import com.spendwise.app.domain.SMS_UNREAD
 import com.spendwise.app.domain.SmsEntry
@@ -114,6 +121,9 @@ data class EditorState(
     /** A category the description points to, offered under it; [hintByAi] when the AI read it. */
     val categoryHint: String? = null,
     val hintByAi: Boolean = false,
+    /** Saved cards, offered under Paid with. */
+    val cards: List<Card> = emptyList(),
+    val cardColours: Map<String, String> = emptyMap(),
 ) {
     val suggestedTags: List<String> get() = tagSuggestions(usedTags, form.tags, form.tagDraft)
 }
@@ -142,6 +152,8 @@ class ExpenseEditorViewModel @Inject constructor(
     private var wasRepeat: String? = null
     private var lastAdded: Pair<String, Long>? = null
     private var confirmedDuplicate: String? = null
+    /** Edit on a To review payment: saving takes it off the list and remembers its payee's category. */
+    private var fromReview: ReviewItem? = null
 
     init {
         viewModelScope.launch {
@@ -167,6 +179,15 @@ class ExpenseEditorViewModel @Inject constructor(
     }
 
     init {
+        // A load error just leaves the cards empty; a typed name still saves
+        combine(repo.expenses().catch { emit(emptyList()) }, prefs.addedCards, prefs.hiddenCards, prefs.cardColours) { all, added, hidden, chosen ->
+            savedCards(all, added, hidden).let { it to cardColours(it, chosen) }
+        }
+            .onEach { (cards, colours) -> _state.update { it.copy(cards = cards, cardColours = colours) } }
+            .launchIn(viewModelScope)
+    }
+
+    init {
         // A load error just leaves the suggestions empty
         repo.expenses().map { usedTags(it) }.catch { emit(emptyList()) }
             .onEach { used -> _state.update { it.copy(usedTags = used) } }
@@ -181,6 +202,7 @@ class ExpenseEditorViewModel @Inject constructor(
     }
 
     private fun prefill(s: SharedText) {
+        fromReview = s.review
         val e = s.entry as? SmsEntry.Spent
         _state.update {
             it.copy(
@@ -235,6 +257,8 @@ class ExpenseEditorViewModel @Inject constructor(
     fun setCategory(v: String) = updateForm { it.copy(category = v) }
     fun setPayment(v: String) = updateForm { it.copy(payment = v) }
     fun setCardName(v: String) = updateForm { it.copy(cardName = v) }
+    /** A saved card: its type and name in one tap. */
+    fun pickCard(card: Card) = updateForm { it.copy(payment = card.type, cardName = card.name) }
     fun setDescription(v: String) {
         updateForm { it.copy(description = v) }
         suggestCategory(v)
@@ -306,6 +330,13 @@ class ExpenseEditorViewModel @Inject constructor(
         _state.update { it.copy(form = ExpenseForm(payment = payment), message = null) }
     }
 
+    /** A card not on the list (new, or typed again after being taken off it) goes on it. */
+    private fun listCard(input: ExpenseInput) {
+        if (input.cardName.isEmpty()) return
+        val card = Card(input.cardName, input.payment)
+        if (_state.value.cards.none { it.key == card.key }) viewModelScope.launch { prefs.addCard(card) }
+    }
+
     fun save() {
         val form = _state.value.form
         val tags = addTags(form.tags, form.tagDraft) // the web adds a half-typed tag on blur
@@ -317,8 +348,10 @@ class ExpenseEditorViewModel @Inject constructor(
         )
         if (check is ExpenseCheck.Invalid) return _state.update { it.copy(message = FormMessage(check.message)) }
         var input = (check as ExpenseCheck.Ok).input
+        if (input.cardName.isNotEmpty()) input = input.copy(cardName = matchCard(input.cardName, input.payment, _state.value.cards))
 
         if (editingId != null) {
+            listCard(input)
             watch(repo.edit(editingId, input.copy(repeat = editedRepeat(form.repeat, wasRepeat))), failure = "Couldn't save your changes. Check your connection and try again.")
             _state.update { it.copy(done = true) }
             return
@@ -348,6 +381,9 @@ class ExpenseEditorViewModel @Inject constructor(
         val (write, debtIds) = if (debts.isEmpty()) repo.add(input) to emptyList() else repo.addSplit(input, debts)
         watch(write, failure = "Couldn't save the expense. Check your connection and try again.")
         lastAdded = key to now
+        listCard(input)
+        fromReview?.let { r -> viewModelScope.launch { prefs.finishReview(r, input.category, input.description) } }
+        fromReview = null
         val done = if (debts.isEmpty()) "Expense added successfully!" else splitSaved(debts.size, formatMoney(debts[0].amount, currency.value))
         _state.update {
             it.copy(

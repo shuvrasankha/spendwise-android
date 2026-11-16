@@ -34,6 +34,7 @@ import com.spendwise.app.ui.auth.AuthLoading
 import com.spendwise.app.ui.auth.SignInScreen
 import com.spendwise.app.ui.lock.AppLock
 import com.spendwise.app.ui.lock.LockScreen
+import com.spendwise.app.ui.lock.SetPinPad
 import com.spendwise.app.ui.navigation.AppShell
 import com.spendwise.app.ui.tour.TourScreen
 import com.spendwise.app.ui.navigation.ShareInbox
@@ -78,6 +79,7 @@ class SpendWiseActivity : FragmentActivity() {
             }
             val authState by auth.authState.collectAsStateWithLifecycle(AuthState.Loading)
             val locked by lock.locked.collectAsStateWithLifecycle(null)
+            val needsPin by lock.needsPin.collectAsStateWithLifecycle(false)
             val tourSeen by prefs.tourSeen.collectAsStateWithLifecycle(null)
             val scope = rememberCoroutineScope()
             // Every tick goes through LocalHapticFeedback, so the preference is applied here once
@@ -93,7 +95,9 @@ class SpendWiseActivity : FragmentActivity() {
                     when {
                         authState == AuthState.Loading || locked == null -> AuthLoading()
                         authState == AuthState.SignedOut -> SignInScreen()
-                        locked == true -> LockScreen(lock::markUnlocked, onSignOut = { scope.launch { lock.signOutInstead() } })
+                        locked == true -> LockScreen(lock, onSignOut = { scope.launch { lock.signOutInstead() } })
+                        // A lock from before PINs: ask for one once, after the screen lock opened it
+                        needsPin -> SetPinPad("App lock now uses a PIN. Choose one", { scope.launch { lock.setPin(it) } }, "Not now", lock::setPinLater)
                         tourSeen == null -> AuthLoading()
                         tourSeen == false -> TourScreen(onDone = { scope.launch { prefs.setTourSeen(true) } })
                         else -> AppShell(link, onLinkOpened = { link = null })

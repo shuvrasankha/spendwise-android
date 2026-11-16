@@ -30,8 +30,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.spendwise.app.domain.PAYMENT_METHODS
-import com.spendwise.app.domain.isCard
 import com.spendwise.app.ui.components.ButtonStyle
 import com.spendwise.app.ui.components.DateChips
 import com.spendwise.app.ui.components.FieldLabel
@@ -89,10 +87,7 @@ fun EditExpenseScreen(onDone: () -> Unit, editor: ExpenseEditorViewModel = hiltV
                     }
                     CategoryHint(state, editor::setCategory, gutter)
                     FieldLabel("Paid with")
-                    FlowRow(gutter, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PAYMENT_METHODS.forEach { SwChip(it, f.payment == it, { editor.setPayment(it) }) }
-                    }
-                    if (isCard(f.payment)) Box(gutter) { SwField(f.cardName, editor::setCardName, "Card name (optional)") }
+                    PaymentChips(f.payment, f.cardName, state.cards, state.cardColours, editor::setPayment, editor::pickCard, editor::setCardName, gutter, gutter)
                     Box(gutter) {
                         SwField(
                             f.notes, editor::setNotes, "Notes (optional)", singleLine = false,

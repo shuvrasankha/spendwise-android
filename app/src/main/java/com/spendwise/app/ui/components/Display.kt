@@ -146,6 +146,7 @@ fun ListRow(
     icon: ImageVector? = null,
     amountColor: Color = Color.Unspecified,
     metaColor: Color = Color.Unspecified,
+    iconTint: Color = Color.Unspecified,
     metaLines: Int = 1,
     divider: Boolean = false,
     onClick: (() -> Unit)? = null,
@@ -162,7 +163,7 @@ fun ListRow(
         ) {
             if (icon != null) {
                 Box(Modifier.size(36.dp).clip(Radius.tile).background(c.surface), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, Modifier.size(18.dp), tint = c.textMuted)
+                    Icon(icon, null, Modifier.size(18.dp), tint = iconTint.takeOrElse { c.textMuted })
                 }
             }
             Column(Modifier.weight(1f)) {
@@ -254,6 +255,7 @@ fun SettingsRow(
     icon: ImageVector? = null,
     trailing: Trailing = Trailing.Chevron,
     divider: Boolean = false,
+    sub: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val c = SpendWiseTheme.colors
@@ -267,7 +269,10 @@ fun SettingsRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (icon != null) Crossfade(icon, label = "rowIcon") { Icon(it, null, Modifier.size(20.dp), tint = c.textMuted) }
-            Text(title, style = SwType.body, color = c.text, modifier = Modifier.weight(1f))
+            Column(Modifier.weight(1f).padding(vertical = if (sub != null) 10.dp else 0.dp)) {
+                Text(title, style = SwType.body, color = c.text)
+                if (sub != null) Text(sub, style = SwType.label, color = c.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             when (trailing) {
                 Trailing.Chevron -> Icon(SwIcons.ChevronRight, null, Modifier.size(18.dp), tint = c.textFaint)
                 Trailing.None -> Unit
@@ -310,7 +315,8 @@ fun budgetTierColor(ratio: Float): Color {
 fun countUp(value: Double): Double {
     val count = remember { Animatable(0f) }
     LaunchedEffect(value) { count.animateTo(value.toFloat(), tween(800, easing = FastOutSlowInEasing)) }
-    return if (count.value == value.toFloat()) value else count.value.toDouble()
+    // Whole numbers while counting: a fractional step would make formatNumber flash paise and jump in width
+    return if (count.value == value.toFloat()) value else Math.round(count.value).toDouble()
 }
 
 /** A fraction that grows from 0 when first shown and eases to each new [target], so bars fill instead of snapping. */

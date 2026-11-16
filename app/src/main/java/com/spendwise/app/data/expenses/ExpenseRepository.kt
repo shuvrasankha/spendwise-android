@@ -2,7 +2,9 @@ package com.spendwise.app.data.expenses
 
 import com.spendwise.app.data.worker.WorkerPush
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.FirebaseFirestore
 import com.spendwise.app.data.auth.AuthRepository
 import com.spendwise.app.data.forUser
@@ -11,6 +13,7 @@ import com.spendwise.app.data.SharedLive
 import com.spendwise.app.data.traceFirst
 import com.spendwise.app.di.AppScope
 import kotlinx.coroutines.CoroutineScope
+import com.spendwise.app.domain.AutoBill
 import com.spendwise.app.domain.Expense
 import com.spendwise.app.domain.ExpenseInput
 import com.spendwise.app.data.editedEntryFields
@@ -63,6 +66,13 @@ class ExpenseRepository @Inject constructor(
         }
     }
 
+    /** All of this account's expenses from the server, in the web's order; throws when it can't be reached. */
+    suspend fun fromServer(): List<Expense> {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        return collection.whereEqualTo("uid", uid).get(Source.SERVER).await().documents
+            .map { expenseFrom(it.id, it.data.orEmpty()) }.sortedByDescending { it.date }
+    }
+
     suspend fun expense(id: String): Expense? {
         val doc = collection.document(id).get().await()
         return if (doc.exists()) expenseFrom(doc.id, doc.data.orEmpty(), doc.metadata.hasPendingWrites()) else null
@@ -109,10 +119,25 @@ class ExpenseRepository @Inject constructor(
         return PendingWrite(ref.id, ref.set(dueExpenseFields(uid, template, due, FieldValue.serverTimestamp())).addOnSuccessListener { push.logged() })
     }
 
+    /** An automatic bill, under its fixed id (domain › autoBillId), so writing it twice leaves one doc. */
+    fun addAutoBill(bill: AutoBill): PendingWrite {
+        val uid = checkNotNull(auth.currentUid) { "Not signed in" }
+        val ref = collection.document(bill.id)
+        return PendingWrite(ref.id, ref.set(dueExpenseFields(uid, bill.template, bill.due, FieldValue.serverTimestamp())))
+    }
+
     fun edit(id: String, input: ExpenseInput): PendingWrite =
         PendingWrite(id, collection.document(id).update(editedExpenseFields(input)))
 
     fun delete(id: String): PendingWrite = PendingWrite(id, collection.document(id).delete())
+
+    /**
+     * A card renamed or merged: the new name on each of its expenses, 500 to a batch (Firestore's limit). It shows at
+     * once, offline too; the task completes when the server has it.
+     */
+    fun renameCard(ids: List<String>, name: String): Task<Void> = Tasks.whenAll(
+        ids.chunked(500).map { chunk -> db.batch().apply { chunk.forEach { update(collection.document(it), "cardName", name) } }.commit() },
+    )
 
     /** Investments › Put money in (invest.js › addEntry). */
     fun addInvestment(input: InvestEntryInput): PendingWrite {

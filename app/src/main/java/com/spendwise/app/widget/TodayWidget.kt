@@ -6,13 +6,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.net.Uri
 import android.text.SpannableString
-import android.text.style.ForegroundColorSpan
-import android.text.style.TypefaceSpan
+import android.text.style.RelativeSizeSpan
+import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.View
@@ -141,19 +138,19 @@ private object TodayWidgetView {
         for (id in ids(context, TodayWidget::class.java)) {
             val rv = RemoteViews(context.packageName, R.layout.widget_today)
             val k = scale(manager, id, 110f, 110f)
-            rv.size(R.id.widget_label, 11f, k); rv.size(R.id.widget_symbol, 18f, k); rv.size(R.id.widget_detail, 12f, k); rv.size(R.id.widget_vs, 12f, k)
+            rv.size(R.id.widget_label, 11f, k); rv.size(R.id.widget_date, 12f, k); rv.size(R.id.widget_detail, 12f, k); rv.size(R.id.widget_vs, 12f, k)
             fillToday(context, rv, view)
             manager.updateAppWidget(id, rv)
         }
         for (id in ids(context, MonthWidget::class.java)) {
             val rv = RemoteViews(context.packageName, R.layout.widget_month)
-            fillMonth(context, rv, view, barWidthDp(manager, id))
+            fillMonth(context, rv, view)
             fillMonthFoot(rv, view)
             manager.updateAppWidget(id, rv)
         }
         for (id in ids(context, LargeWidget::class.java)) {
             val rv = RemoteViews(context.packageName, R.layout.widget_large)
-            fillMonth(context, rv, view, barWidthDp(manager, id))
+            fillMonth(context, rv, view)
             fillLarge(context, rv, view)
             manager.updateAppWidget(id, rv)
         }
@@ -169,49 +166,34 @@ private object TodayWidgetView {
 
     private fun RemoteViews.size(id: Int, sp: Float, k: Float) = setTextViewTextSize(id, TypedValue.COMPLEX_UNIT_SP, sp * k)
 
-    private fun RemoteViews.color(context: Context, id: Int, res: Int) = setTextColor(id, context.getColor(res))
+    /** On Android 12+ the launcher resolves the colour, so it follows a theme switch without a redraw. */
+    private fun RemoteViews.color(context: Context, id: Int, res: Int) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setColor(id, "setTextColor", res) else setTextColor(id, context.getColor(res))
 
-    /** The widget's width less its 16 dp padding each side, which the bar fills. */
-    private fun barWidthDp(manager: AppWidgetManager, id: Int): Int =
-        (manager.getAppWidgetOptions(id).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0).takeIf { it > 0 } ?: 250) - 32
-
-    /**
-     * The budget bar: a track, the spend in the accent, and a tick for how far through the month it is. Drawn here
-     * because a RemoteViews can't place a tick; the words beside it carry the meaning.
-     */
-    private fun budgetBar(context: Context, widthDp: Int, ratio: Double, over: Boolean, day: LocalDate): Bitmap {
-        val d = context.resources.displayMetrics.density
-        val w = (widthDp * d).toInt().coerceAtLeast(1)
-        val bitmap = Bitmap.createBitmap(w, (12 * d).toInt(), Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        val top = 3 * d; val bottom = 9 * d; val r = 3 * d
-        paint.color = context.getColor(R.color.widget_track)
-        canvas.drawRoundRect(0f, top, w.toFloat(), bottom, r, r, paint)
-        paint.color = context.getColor(if (over) R.color.widget_negative else R.color.widget_accent)
-        canvas.drawRoundRect(0f, top, (w * ratio.coerceIn(0.0, 1.0)).toFloat().coerceAtLeast(2 * r), bottom, r, r, paint)
-        paint.color = context.getColor(R.color.widget_text)
-        val tick = (w * day.dayOfMonth.toDouble() / day.lengthOfMonth()).toFloat()
-        canvas.drawRoundRect(tick - d, 0f, tick + d, bitmap.height.toFloat(), d, d, paint)
-        return bitmap
+    /** "₹5,320" as one line, the symbol smaller so the number leads. No colour span: it would miss a theme switch. */
+    private fun money(context: Context, view: TodayView, n: Double): CharSequence {
+        val symbol = view.currency.symbol
+        return SpannableString(symbol + formatNumber(n, view.currency)).apply {
+            setSpan(RelativeSizeSpan(0.62f), 0, symbol.length, 0)
+        }
     }
 
     private fun fillToday(context: Context, rv: RemoteViews, view: TodayView) {
         val spend = view.spend
         if (spend == null) {
             rv.setTextViewText(R.id.widget_label, "SpendWise")
-            rv.setViewVisibility(R.id.widget_symbol, View.GONE)
+            rv.setViewVisibility(R.id.widget_date, View.GONE)
             rv.setViewVisibility(R.id.widget_amount, View.GONE)
             rv.setTextViewText(R.id.widget_detail, "Sign in to see today's spending")
             rv.setViewVisibility(R.id.widget_vs, View.GONE)
             rv.setViewVisibility(R.id.widget_add, View.GONE)
         } else {
             rv.setTextViewText(R.id.widget_label, "Today")
-            rv.setViewVisibility(R.id.widget_symbol, View.VISIBLE)
-            rv.setTextViewText(R.id.widget_symbol, view.currency.symbol)
+            rv.setViewVisibility(R.id.widget_date, View.VISIBLE)
+            rv.setTextViewText(R.id.widget_date, view.day.format(dayLabel))
             rv.setViewVisibility(R.id.widget_amount, View.VISIBLE)
-            rv.setTextViewText(R.id.widget_amount, formatNumber(spend.total, view.currency))
-            rv.setTextViewText(R.id.widget_detail, "${daySpendDetail(spend.entries)} · ${view.day.format(dayLabel)}")
+            rv.setTextViewText(R.id.widget_amount, money(context, view, spend.total))
+            rv.setTextViewText(R.id.widget_detail, daySpendDetail(spend.entries))
             val gap = view.vsAverage
             rv.setViewVisibility(R.id.widget_vs, if (gap == null) View.GONE else View.VISIBLE)
             if (gap != null) {
@@ -226,26 +208,27 @@ private object TodayWidgetView {
     }
 
     /** The head shared by the 4x2 and 4x4 widgets. */
-    private fun fillMonth(context: Context, rv: RemoteViews, view: TodayView, barWidthDp: Int) {
+    private fun fillMonth(context: Context, rv: RemoteViews, view: TodayView) {
         val spend = view.spend
         if (spend == null) {
             rv.setTextViewText(R.id.month_label, "SpendWise")
-            rv.setViewVisibility(R.id.month_symbol, View.GONE)
             rv.setViewVisibility(R.id.month_amount, View.GONE)
             rv.setTextViewText(R.id.month_detail, "Sign in to see this month's spending")
             rv.setViewVisibility(R.id.month_add, View.GONE)
+            rv.setViewVisibility(R.id.month_left, View.GONE)
             rv.setViewVisibility(R.id.month_bar, View.GONE)
+            rv.setViewVisibility(R.id.month_bar_over, View.GONE)
             rv.setViewVisibility(R.id.month_status, View.GONE)
         } else {
             val state = budgetState(view.monthSpent, view.budget)
             rv.setTextViewText(R.id.month_label, view.day.format(monthLabel))
-            rv.setViewVisibility(R.id.month_symbol, View.VISIBLE)
-            rv.setTextViewText(R.id.month_symbol, view.currency.symbol)
             rv.setViewVisibility(R.id.month_amount, View.VISIBLE)
-            rv.setTextViewText(R.id.month_amount, formatNumber(view.monthSpent, view.currency))
-            rv.setTextViewText(R.id.month_detail, budgetLine(context, view, state))
-            rv.setViewVisibility(R.id.month_bar, if (state == null) View.GONE else View.VISIBLE)
-            if (state != null) rv.setImageViewBitmap(R.id.month_bar, budgetBar(context, barWidthDp, state.ratio, state.level == BudgetLevel.OVER, view.day))
+            rv.setTextViewText(R.id.month_amount, money(context, view, view.monthSpent))
+            fillBudgetLine(rv, view, state)
+            val over = state?.level == BudgetLevel.OVER
+            rv.setViewVisibility(R.id.month_bar, if (state == null || over) View.GONE else View.VISIBLE)
+            rv.setViewVisibility(R.id.month_bar_over, if (over) View.VISIBLE else View.GONE)
+            if (state != null) rv.setProgressBar(if (over) R.id.month_bar_over else R.id.month_bar, 1000, (state.ratio.coerceIn(0.0, 1.0) * 1000).toInt(), false)
             rv.setViewVisibility(R.id.month_status, if (state == null) View.GONE else View.VISIBLE)
             if (state != null) {
                 rv.setTextViewText(R.id.month_status, when (state.level) { BudgetLevel.OK -> "On track"; BudgetLevel.NEAR -> "Near limit"; BudgetLevel.OVER -> "Over budget" })
@@ -258,16 +241,14 @@ private object TodayWidgetView {
         rv.setOnClickPendingIntent(android.R.id.background, open(context, "dashboard"))
     }
 
-    /** "₹33,163 left of ₹68,900", the amount left in the text colour. */
-    private fun budgetLine(context: Context, view: TodayView, state: BudgetState?): CharSequence {
+    /** "₹33,163 left of ₹68,900": the amount left in its own view, in the text colour, so both follow the theme. */
+    private fun fillBudgetLine(rv: RemoteViews, view: TodayView, state: BudgetState?) {
         val money = { n: Double -> formatAmount(n, view.currency) }
         val line = monthSpendDetail(view.monthSpent, view.budget, money)
-        if (state == null) return line
-        val amount = money(if (state.level == BudgetLevel.OVER) -state.left else state.left)
-        return SpannableString(line).apply {
-            setSpan(ForegroundColorSpan(context.getColor(R.color.widget_text)), 0, amount.length, 0)
-            setSpan(TypefaceSpan("sans-serif-medium"), 0, amount.length, 0)
-        }
+        val amount = state?.let { money(if (it.level == BudgetLevel.OVER) -it.left else it.left) }?.takeIf { line.startsWith(it) }
+        rv.setViewVisibility(R.id.month_left, if (amount == null) View.GONE else View.VISIBLE)
+        rv.setTextViewText(R.id.month_left, amount.orEmpty())
+        rv.setTextViewText(R.id.month_detail, if (amount == null) line else line.drop(amount.length).trimStart())
     }
 
     private fun fillMonthFoot(rv: RemoteViews, view: TodayView) {
